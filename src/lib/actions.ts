@@ -164,8 +164,11 @@ export type KontaktRechercheErgebnis = {
   telefon: string | null;
   email: string | null;
   adresse: string | null;
+  ort: string | null;
+  ansprechpartner: string | null;
   quelleUrl: string | null;
   quelleTitel: string | null;
+  impressumUrl: string | null;
   ausschnitt: string | null;
 };
 
@@ -190,13 +193,146 @@ function extrahiereTelefonAusText(text: string | null | undefined): string | nul
   return treffer?.[1]?.trim() ?? null;
 }
 
-// Sucht per SerpApi (Google-Suche) nach Kontaktdaten für einen Veranstalter.
-// Füllt bewusst nur hochsichere Felder (Website/Telefon/E-Mail) und liefert
-// den Rest (Adresse, Quelle, Textausschnitt) zur manuellen Prüfung, statt
-// unsichere Daten (Ansprechpartner) automatisch zu raten.
+function mitProtokoll(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+// Verhindert, dass die Impressum-Suche (Server-seitiges Fetchen von URLs, die
+// letztlich aus einem Nutzer-/Venue-Feld stammen) interne Adressen anfragt.
+function istUnsicheresZiel(url: URL): boolean {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return true;
+  const host = url.hostname.toLowerCase();
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+    /^169\.254\./.test(host)
+  );
+}
+
+async function fetchMitTimeout(url: string, ms = 6000): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VeranstalterAkquiseBot/1.0)" },
+    });
+    return res.ok ? res : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Sucht auf der Startseite einer Website nach einem Impressum-/Kontakt-Link.
+// Findet sie keinen, werden noch die üblichen Standardpfade direkt probiert.
+async function findeImpressumUrl(website: string): Promise<string | null> {
+  let basisUrl: URL;
+  try {
+    basisUrl = new URL(mitProtokoll(website));
+  } catch {
+    return null;
+  }
+  if (istUnsicheresZiel(basisUrl)) return null;
+
+  const startseite = await fetchMitTimeout(basisUrl.toString());
+  if (startseite) {
+    const html = await startseite.text();
+    const linkRegex = /<a\b[^>]*href=["']([^"'#][^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let kontaktLink: string | null = null;
+    let treffer: RegExpExecArray | null;
+    while ((treffer = linkRegex.exec(html))) {
+      const href = treffer[1];
+      const text = treffer[2].replace(/<[^>]+>/g, " ");
+      let ziel: URL;
+      try {
+        ziel = new URL(href, basisUrl);
+      } catch {
+        continue;
+      }
+      if (istUnsicheresZiel(ziel)) continue;
+
+      if (/impressum/i.test(href) || /impressum/i.test(text)) {
+        return ziel.toString();
+      }
+      if (!kontaktLink && (/kontakt/i.test(href) || /kontakt/i.test(text))) {
+        kontaktLink = ziel.toString();
+      }
+    }
+    if (kontaktLink) return kontaktLink;
+  }
+
+  for (const pfad of ["/impressum", "/impressum.html", "/kontakt"]) {
+    const kandidat = new URL(pfad, basisUrl);
+    if (await fetchMitTimeout(kandidat.toString(), 4000)) {
+      return kandidat.toString();
+    }
+  }
+
+  return null;
+}
+
+const NAME_MUSTER = "[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]+(?:\\s+[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]+){1,3}";
+const ANSPRECHPARTNER_MUSTER = [
+  new RegExp(`Vertreten durch:?\\s*(${NAME_MUSTER})`),
+  new RegExp(`Geschäftsführer(?:in)?:?\\s*(${NAME_MUSTER})`),
+  new RegExp(`Inhaber(?:in)?:?\\s*(${NAME_MUSTER})`),
+  new RegExp(`Ansprechpartner(?:in)?:?\\s*(${NAME_MUSTER})`),
+];
+
+type ImpressumDaten = {
+  email: string | null;
+  telefon: string | null;
+  ansprechpartner: string | null;
+  strasse: string | null;
+  ort: string | null;
+};
+
+// Wertet den HTML-Text einer Impressum-/Kontaktseite aus. Impressen sind in
+// Deutschland gesetzlich vorgeschrieben und enthalten daher meist zuverlässig
+// Name, Adresse, Telefon und E-Mail - ergiebiger als eine Google-Trefferliste.
+function extrahiereAusImpressum(html: string): ImpressumDaten {
+  const mailtoTreffer = html.match(/href=["']mailto:([^"'?]+)/i);
+  const telTreffer = html.match(/href=["']tel:([^"']+)/i);
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+  const email = mailtoTreffer?.[1]?.trim() || extrahiereEmailAusText(text);
+  const telefonRoh = telTreffer?.[1]?.replace(/[^+\d]/g, "").trim();
+  const telefon = telefonRoh || extrahiereTelefonAusText(text);
+
+  let ansprechpartner: string | null = null;
+  for (const muster of ANSPRECHPARTNER_MUSTER) {
+    const treffer = text.match(muster);
+    if (treffer?.[1]) {
+      ansprechpartner = treffer[1].trim();
+      break;
+    }
+  }
+
+  const strasse = extrahiereStrasse(text);
+  const ortTreffer = text.match(
+    /\b\d{5}\s+([A-ZÀ-Þ][A-Za-zÀ-ÿ-]+(?:\s[A-ZÀ-Þ][A-Za-zÀ-ÿ-]+)*)\b/
+  );
+  const ort = ortTreffer?.[1]?.trim() ?? null;
+
+  return { email, telefon, ansprechpartner, strasse, ort };
+}
+
+// Sucht per SerpApi (Google-Suche) nach Kontaktdaten für einen Veranstalter
+// und ergänzt anschließend, sofern eine Website bekannt ist, alles, was aus
+// deren Impressum/Kontaktseite zusätzlich herauszuholen ist (inkl.
+// Ansprechpartner, den die Google-Suche allein nicht liefert). Füllt am Ende
+// nur, was noch leer ist - die Google-Treffer haben Vorrang.
 export async function rechercheKontakt(
   name: string,
-  ort: string | null
+  ort: string | null,
+  bekannteWebsite?: string | null
 ): Promise<KontaktRechercheResult> {
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
@@ -244,16 +380,42 @@ export async function rechercheKontakt(
     adresse:
       extrahiereStrasse(place?.address ?? kg?.address ?? null) ??
       extrahiereStrasse(ausschnitt),
+    ort: null,
+    ansprechpartner: null,
     quelleUrl: erster?.link ?? place?.links?.website ?? null,
     quelleTitel: erster?.title ?? place?.title ?? null,
+    impressumUrl: null,
     ausschnitt,
   };
+
+  const websiteFuerImpressum = daten.website ?? bekannteWebsite ?? null;
+  if (websiteFuerImpressum) {
+    try {
+      const impressumLink = await findeImpressumUrl(websiteFuerImpressum);
+      if (impressumLink) {
+        const seite = await fetchMitTimeout(impressumLink);
+        if (seite) {
+          const impressum = extrahiereAusImpressum(await seite.text());
+          daten.impressumUrl = impressumLink;
+          daten.ansprechpartner = impressum.ansprechpartner;
+          if (!daten.email) daten.email = impressum.email;
+          if (!daten.telefon) daten.telefon = impressum.telefon;
+          if (!daten.adresse) daten.adresse = impressum.strasse;
+          daten.ort = impressum.ort;
+        }
+      }
+    } catch {
+      // Impressum-Anreicherung ist optional - Fehler dort dürfen die
+      // eigentliche (Google-basierte) Recherche nicht scheitern lassen.
+    }
+  }
 
   const nichtsGefunden =
     !daten.website &&
     !daten.telefon &&
     !daten.email &&
     !daten.adresse &&
+    !daten.ansprechpartner &&
     !daten.ausschnitt;
   if (nichtsGefunden) {
     return { ok: false, fehler: "Keine verwertbaren Ergebnisse gefunden." };

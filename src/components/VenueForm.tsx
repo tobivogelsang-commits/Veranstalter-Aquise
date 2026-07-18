@@ -168,18 +168,30 @@ export function VenueForm({
     laeuft: boolean;
     fehler: string | null;
     quelleUrl: string | null;
+    impressumUrl: string | null;
     hinweis: string | null;
-  }>({ laeuft: false, fehler: null, quelleUrl: null, hinweis: null });
+  }>({ laeuft: false, fehler: null, quelleUrl: null, impressumUrl: null, hinweis: null });
 
   async function handleRecherche() {
-    setRecherche({ laeuft: true, fehler: null, quelleUrl: null, hinweis: null });
-    const ergebnis = await rechercheKontakt(felder.name, felder.ort || null);
+    setRecherche({
+      laeuft: true,
+      fehler: null,
+      quelleUrl: null,
+      impressumUrl: null,
+      hinweis: null,
+    });
+    const ergebnis = await rechercheKontakt(
+      felder.name,
+      felder.ort || null,
+      felder.website || null
+    );
 
     if (!ergebnis.ok) {
       setRecherche({
         laeuft: false,
         fehler: ergebnis.fehler,
         quelleUrl: null,
+        impressumUrl: null,
         hinweis: null,
       });
       return;
@@ -201,9 +213,17 @@ export function VenueForm({
       next.email = daten.email;
       gefuellt.push("E-Mail");
     }
+    if (!felder.ansprechpartner && daten.ansprechpartner) {
+      next.ansprechpartner = daten.ansprechpartner;
+      gefuellt.push("Ansprechpartner");
+    }
     if (!felder.strasse && daten.adresse) {
       next.strasse = daten.adresse;
       gefuellt.push("Adresse");
+    }
+    if (!felder.ort && daten.ort) {
+      next.ort = daten.ort;
+      gefuellt.push("Ort");
     }
 
     // Bewusst kein Schreiben in die Notizen mehr: Quelle/Adresse/Ausschnitt
@@ -216,6 +236,7 @@ export function VenueForm({
       laeuft: false,
       fehler: null,
       quelleUrl: daten.quelleUrl,
+      impressumUrl: daten.impressumUrl,
       hinweis:
         gefuellt.length > 0
           ? `Automatisch ausgefüllt: ${gefuellt.join(", ")}. Bitte prüfen.`
@@ -239,7 +260,9 @@ export function VenueForm({
               {recherche.laeuft ? "Suche läuft…" : "Kontakt vervollständigen"}
             </button>
             <span className="text-xs text-slate-500">
-              Sucht Website/Telefon über SerpApi anhand von Name + Ort. Füllt nur leere Felder.
+              Sucht über SerpApi anhand von Name + Ort und ergänzt fehlende
+              Felder zusätzlich aus dem Impressum der Website. Füllt nur leere
+              Felder.
             </span>
           </div>
           {recherche.fehler && (
@@ -248,16 +271,28 @@ export function VenueForm({
           {recherche.hinweis && (
             <p className="mt-2 text-sm text-green-700">{recherche.hinweis}</p>
           )}
-          {recherche.quelleUrl && (
-            <a
-              href={recherche.quelleUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-block text-xs font-medium text-slate-600 underline hover:text-slate-900"
-            >
-              Quelle ansehen ↗
-            </a>
-          )}
+          <div className="mt-1 flex flex-wrap gap-3">
+            {recherche.quelleUrl && (
+              <a
+                href={recherche.quelleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs font-medium text-slate-600 underline hover:text-slate-900"
+              >
+                Quelle ansehen ↗
+              </a>
+            )}
+            {recherche.impressumUrl && (
+              <a
+                href={recherche.impressumUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs font-medium text-slate-600 underline hover:text-slate-900"
+              >
+                Impressum ansehen ↗
+              </a>
+            )}
+          </div>
         </div>
       )}
 
