@@ -1,0 +1,287 @@
+// Handgeschrieben passend zu supabase/migrations/0001_init.sql.
+// Sobald das Supabase-Projekt läuft, kann diese Datei mit
+// `npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts`
+// automatisch aktualisiert werden.
+
+export type Status =
+  | "neu"
+  | "recherchiert"
+  | "kontaktiert"
+  | "nachgefasst"
+  | "interessiert"
+  | "abgesagt"
+  | "gebucht";
+
+export type VenueTyp =
+  | "Festival"
+  | "Stadtfest"
+  | "Club"
+  | "Firmenevent"
+  | "Hochzeit"
+  | "Sonstiges";
+
+export type GigAnfrageStatus = "offen" | "bestaetigt" | "abgesagt";
+export type GigAntwort = "kann" | "kann_nicht";
+
+export interface Database {
+  public: {
+    Tables: {
+      bands: {
+        Row: {
+          id: string;
+          name: string;
+          genre: string | null;
+          gagenrahmen_min: number | null;
+          gagenrahmen_max: number | null;
+          kontakt_email: string | null;
+          epk_link: string | null;
+          created_at: string;
+          user_id: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["bands"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["bands"]["Row"]>;
+        Relationships: [];
+      };
+      venues: {
+        Row: {
+          id: string;
+          name: string;
+          typ: VenueTyp | null;
+          ort: string | null;
+          region: string | null;
+          strasse: string | null;
+          website: string | null;
+          ansprechpartner: string | null;
+          email: string | null;
+          telefon: string | null;
+          quelle: string | null;
+          notizen: string | null;
+          veranstaltungsdatum: string | null;
+          created_at: string;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["venues"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["venues"]["Row"]>;
+        Relationships: [];
+      };
+      venue_band_status: {
+        Row: {
+          id: string;
+          venue_id: string;
+          band_id: string;
+          status: Status;
+          letzter_kontakt_am: string | null;
+          naechster_follow_up_am: string | null;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["venue_band_status"]["Row"]
+        > & {
+          venue_id: string;
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["venue_band_status"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "venue_band_status_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_band_status_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      band_materialien: {
+        Row: {
+          id: string;
+          band_id: string;
+          titel: string;
+          url: string;
+          typ: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["band_materialien"]["Row"]> & {
+          band_id: string;
+          titel: string;
+          url: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["band_materialien"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_materialien_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      band_email_konten: {
+        Row: {
+          id: string;
+          band_id: string;
+          absender_name: string | null;
+          email_adresse: string | null;
+          passwort: string | null;
+          smtp_host: string | null;
+          smtp_port: number | null;
+          smtp_ssl: boolean;
+          imap_host: string | null;
+          imap_port: number | null;
+          imap_ssl: boolean;
+          aktualisiert_am: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["band_email_konten"]["Row"]
+        > & {
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["band_email_konten"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_email_konten_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: true;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      band_emails: {
+        Row: {
+          id: string;
+          band_id: string;
+          venue_id: string | null;
+          richtung: "gesendet" | "empfangen";
+          von: string | null;
+          an: string | null;
+          betreff: string | null;
+          text_inhalt: string | null;
+          imap_uid: string | null;
+          zeitpunkt: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["band_emails"]["Row"]> & {
+          band_id: string;
+          richtung: "gesendet" | "empfangen";
+        };
+        Update: Partial<Database["public"]["Tables"]["band_emails"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_emails_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "band_emails_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      band_mitglieder: {
+        Row: {
+          id: string;
+          band_id: string;
+          name: string;
+          push_endpoint: string | null;
+          push_p256dh: string | null;
+          push_auth: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["band_mitglieder"]["Row"]> & {
+          band_id: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["band_mitglieder"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_mitglieder_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      gig_anfragen: {
+        Row: {
+          id: string;
+          venue_id: string;
+          band_id: string;
+          status: GigAnfrageStatus;
+          erstellt_am: string;
+          abgeschlossen_am: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["gig_anfragen"]["Row"]> & {
+          venue_id: string;
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["gig_anfragen"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "gig_anfragen_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gig_anfragen_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      gig_antworten: {
+        Row: {
+          id: string;
+          anfrage_id: string;
+          mitglied_id: string;
+          antwort: GigAntwort;
+          beantwortet_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["gig_antworten"]["Row"]> & {
+          anfrage_id: string;
+          mitglied_id: string;
+          antwort: GigAntwort;
+        };
+        Update: Partial<Database["public"]["Tables"]["gig_antworten"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "gig_antworten_anfrage_id_fkey";
+            columns: ["anfrage_id"];
+            isOneToOne: false;
+            referencedRelation: "gig_anfragen";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gig_antworten_mitglied_id_fkey";
+            columns: ["mitglied_id"];
+            isOneToOne: false;
+            referencedRelation: "band_mitglieder";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+  };
+}
