@@ -389,14 +389,6 @@ export function VenueForm({
             onChange={(e) => setFeld("email", e.target.value)}
             className={inputClass}
           />
-          {felder.email && (
-            <a
-              href={`mailto:${felder.email}`}
-              className="mt-1 self-start text-xs font-medium text-slate-600 underline hover:text-slate-900"
-            >
-              E-Mail senden ↗
-            </a>
-          )}
         </Field>
         <Field label="Telefon">
           <input
