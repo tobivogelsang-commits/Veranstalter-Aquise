@@ -1,6 +1,7 @@
 import { StatCard } from "@/components/StatCard";
 import { FollowUpList } from "@/components/FollowUpList";
 import { TeamAnfragenList } from "@/components/TeamAnfragenList";
+import { BereitZuBuchenBanner } from "@/components/BereitZuBuchenBanner";
 import { ALLE_BANDS_PARAM, STATUS_LABELS } from "@/lib/constants";
 import {
   getAnstehendeFollowUps,
@@ -9,6 +10,7 @@ import {
   getDashboardStats,
   getGigAnfragenFuerVenues,
   getVenuesWithRelations,
+  toPipelineEntries,
 } from "@/lib/queries";
 
 // Live-Daten pro Request, keine statische Zwischenspeicherung beim Build.
@@ -29,6 +31,9 @@ export default async function DashboardPage({
 
   const stats = getDashboardStats(venues, bands, bandFilter);
   const followUps = getAnstehendeFollowUps(venues, bandFilter);
+  const bereitZuBuchen = toPipelineEntries(venues, bandFilter).filter(
+    (entry) => entry.relation.status === "bereit_zu_buchen"
+  );
 
   const [alleAnfragen, mitgliederProBand] = await Promise.all([
     getGigAnfragenFuerVenues(venues.map((v) => v.id)),
@@ -46,6 +51,8 @@ export default async function DashboardPage({
           Überblick über eure Veranstalter-Akquise.
         </p>
       </div>
+
+      <BereitZuBuchenBanner entries={bereitZuBuchen} />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Veranstalter gesamt" value={stats.gesamtVeranstalter} />

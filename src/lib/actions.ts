@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { STATUS_ORDER } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
+import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { Status, VenueTyp } from "@/lib/database.types";
 
 function str(formData: FormData, key: string): string | null {
@@ -641,30 +641,14 @@ export async function rueckeStatusAutomatischVor(
   zielStatus: Status,
   naechsterFollowUpAm?: string | null
 ) {
-  const { data: bestehende } = await supabase
-    .from("venue_band_status")
-    .select("status")
-    .eq("venue_id", venueId)
-    .eq("band_id", bandId)
-    .maybeSingle();
+  const geaendert = await setzeStatusVorwaerts(
+    venueId,
+    bandId,
+    zielStatus,
+    naechsterFollowUpAm
+  );
+  if (!geaendert) return;
 
-  if (!bestehende) return;
-  if (STATUS_ORDER.indexOf(zielStatus) <= STATUS_ORDER.indexOf(bestehende.status)) {
-    return;
-  }
-
-  const { error } = await supabase
-    .from("venue_band_status")
-    .update({
-      status: zielStatus,
-      letzter_kontakt_am: new Date().toISOString(),
-      ...(naechsterFollowUpAm !== undefined
-        ? { naechster_follow_up_am: naechsterFollowUpAm }
-        : {}),
-    })
-    .eq("venue_id", venueId)
-    .eq("band_id", bandId);
-  if (error) throw new Error(error.message);
   if (zielStatus === "interessiert") {
     await loeseGigAnfrageAus(venueId, bandId);
   } else {

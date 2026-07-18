@@ -6,6 +6,7 @@ export const STATUS_ORDER: Status[] = [
   "kontaktiert",
   "nachgefasst",
   "interessiert",
+  "bereit_zu_buchen",
   "abgesagt",
   "gebucht",
 ];
@@ -16,17 +17,23 @@ export const STATUS_LABELS: Record<Status, string> = {
   kontaktiert: "Kontaktiert",
   nachgefasst: "Nachgefasst",
   interessiert: "Interessiert",
+  bereit_zu_buchen: "Bereit zu buchen",
   abgesagt: "Abgesagt",
   gebucht: "Gebucht",
 };
 
-// Grün = gebucht, Rot = abgesagt, Gelb-Töne = in Bearbeitung, Grau/Blau = frühe Phase.
+// Grün = gebucht, Rot = abgesagt, Gelb-Töne = in Bearbeitung, Grau/Blau = frühe
+// Phase. "Bereit zu buchen" bekommt bewusst eine kräftige, satte Farbe statt
+// der sonst blassen Pastelltöne - das ist die einzige Aufgabe im Ablauf, die
+// noch manuell erledigt werden muss (Buchung bestätigen), und soll deshalb
+// überall sofort ins Auge fallen.
 export const STATUS_COLORS: Record<Status, string> = {
   neu: "bg-slate-100 text-slate-700 border-slate-300",
   recherchiert: "bg-sky-100 text-sky-700 border-sky-300",
   kontaktiert: "bg-amber-100 text-amber-800 border-amber-300",
   nachgefasst: "bg-orange-100 text-orange-800 border-orange-300",
   interessiert: "bg-purple-100 text-purple-800 border-purple-300",
+  bereit_zu_buchen: "bg-emerald-600 text-white border-emerald-700",
   abgesagt: "bg-red-100 text-red-700 border-red-300",
   gebucht: "bg-green-100 text-green-800 border-green-300",
 };

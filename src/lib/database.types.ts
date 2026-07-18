@@ -9,6 +9,7 @@ export type Status =
   | "kontaktiert"
   | "nachgefasst"
   | "interessiert"
+  | "bereit_zu_buchen"
   | "abgesagt"
   | "gebucht";
 

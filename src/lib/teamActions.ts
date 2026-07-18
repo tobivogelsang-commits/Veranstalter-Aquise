@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
+import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
 import type { BandMitgliedOhnePush, OffeneAnfrageFuerMitglied } from "@/lib/types";
 
@@ -184,7 +185,7 @@ export async function schliesseOffeneGigAnfrage(venueId: string, bandId: string)
 async function aktualisiereAnfrageStatus(anfrageId: string) {
   const { data: anfrage } = await supabaseAdmin
     .from("gig_anfragen")
-    .select("band_id")
+    .select("band_id, venue_id")
     .eq("id", anfrageId)
     .maybeSingle();
   if (!anfrage) return;
@@ -211,6 +212,14 @@ async function aktualisiereAnfrageStatus(anfrageId: string) {
       abgeschlossen_am: neuerStatus === "offen" ? null : new Date().toISOString(),
     })
     .eq("id", anfrageId);
+
+  // Sobald wirklich alle "Ich kann" bestätigt haben, ist Buchen die einzige
+  // noch offene, nicht automatisierbare Aufgabe - der Kontakt rückt deshalb
+  // automatisch auf "Bereit zu buchen" vor, damit das im Dashboard/der
+  // Pipeline sofort auffällt.
+  if (neuerStatus === "bestaetigt") {
+    await setzeStatusVorwaerts(anfrage.venue_id, anfrage.band_id, "bereit_zu_buchen");
+  }
 }
 
 // Speichert die Antwort eines Mitglieds ("kann"/"kann_nicht") und berechnet
