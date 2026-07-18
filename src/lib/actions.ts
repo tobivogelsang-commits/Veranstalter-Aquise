@@ -848,20 +848,17 @@ export type VenueAusRechercheResult =
   | { ok: true; venueId: string; bereitsVorhanden: boolean }
   | { ok: false; fehler: string };
 
-// Verknüpft einen Veranstalter mit Status "neu" mit dem/den Band(s), die beim
-// Anlegen aus der Suche gerade im Band-Umschalter ausgewählt waren - damit er
+// Verknüpft einen Veranstalter mit Status "neu" mit der Band, die beim
+// Anlegen aus der Suche gerade im Band-Umschalter ausgewählt war - damit er
 // sofort in der Pipeline auftaucht, statt erst nach manueller Zuordnung auf
-// der Detailseite. Bei "Beide" wird mit allen Bands verknüpft. Bestehende
-// Zuordnungen werden nicht überschrieben (z. B. bei einem schon vorhandenen
-// Treffer).
+// der Detailseite. Bei "Beide" ausgewählt wird bewusst nicht automatisch mit
+// beiden Bands verknüpft (das wäre eine Vorfestlegung, die der Nutzer selbst
+// auf der Detailseite treffen soll) - die Zuordnung bleibt dann komplett
+// manuell. Bestehende Zuordnungen werden nicht überschrieben (z. B. bei einem
+// schon vorhandenen Treffer).
 async function verknuepfeMitAktuellemBand(venueId: string, bandFilter: string) {
-  let bandIds: string[];
-  if (bandFilter === ALLE_BANDS_PARAM) {
-    const { data: bands } = await supabase.from("bands").select("id");
-    bandIds = (bands ?? []).map((b) => b.id);
-  } else {
-    bandIds = [bandFilter];
-  }
+  if (bandFilter === ALLE_BANDS_PARAM) return;
+  const bandIds = [bandFilter];
 
   for (const bandId of bandIds) {
     const { data: bestehende } = await supabase
