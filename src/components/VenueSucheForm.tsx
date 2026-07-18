@@ -76,7 +76,7 @@ function typVorschlag(treffer: RechercheTreffer, suchbegriffe: string): VenueTyp
   return treffer.quelleEngine === "events" ? "Festival" : "Sonstiges";
 }
 
-export function VenueSucheForm() {
+export function VenueSucheForm({ bandFilter }: { bandFilter: string }) {
   const [typ, setTyp] = useState<VenueTyp | "">(
     () => ladeGespeicherteSuche()?.typ ?? ""
   );
@@ -191,6 +191,7 @@ export function VenueSucheForm() {
       notizen,
       quelle: QUELLE_LABEL[treffer.quelleEngine],
       strasse,
+      bandFilter,
       // treffer.datum ist bei der Websuche-Quelle immer leer (kein
       // strukturiertes Feld) - als Fallback wird der Beschreibungstext
       // durchsucht, der das Datum oft als Freitext enthält (z. B. "Langenfeld

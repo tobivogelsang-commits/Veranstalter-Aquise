@@ -1,6 +1,14 @@
 import { VenueSucheForm } from "@/components/VenueSucheForm";
+import { ALLE_BANDS_PARAM } from "@/lib/constants";
 
-export default function VenueSuchePage() {
+export default async function VenueSuchePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ band?: string }>;
+}) {
+  const { band } = await searchParams;
+  const bandFilter = band ?? ALLE_BANDS_PARAM;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -12,7 +20,7 @@ export default function VenueSuchePage() {
           ohne Auswahl wird nach der Suche pro Treffer eine Kategorie vorgeschlagen.
         </p>
       </div>
-      <VenueSucheForm />
+      <VenueSucheForm bandFilter={bandFilter} />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
@@ -542,15 +543,48 @@ export type VenueAusRechercheInput = {
   quelle: string;
   veranstaltungsdatum: string | null;
   strasse: string | null;
+  bandFilter: string;
 };
 
 export type VenueAusRechercheResult =
   | { ok: true; venueId: string; bereitsVorhanden: boolean }
   | { ok: false; fehler: string };
 
-// Legt einen Recherche-Treffer als neuen Veranstalter an (ohne Band-Zuordnung,
-// die erfolgt anschließend auf der Detailseite). Verhindert Duplikate anhand
-// des Namens.
+// Verknüpft einen Veranstalter mit Status "neu" mit dem/den Band(s), die beim
+// Anlegen aus der Suche gerade im Band-Umschalter ausgewählt waren - damit er
+// sofort in der Pipeline auftaucht, statt erst nach manueller Zuordnung auf
+// der Detailseite. Bei "Beide" wird mit allen Bands verknüpft. Bestehende
+// Zuordnungen werden nicht überschrieben (z. B. bei einem schon vorhandenen
+// Treffer).
+async function verknuepfeMitAktuellemBand(venueId: string, bandFilter: string) {
+  let bandIds: string[];
+  if (bandFilter === ALLE_BANDS_PARAM) {
+    const { data: bands } = await supabase.from("bands").select("id");
+    bandIds = (bands ?? []).map((b) => b.id);
+  } else {
+    bandIds = [bandFilter];
+  }
+
+  for (const bandId of bandIds) {
+    const { data: bestehende } = await supabase
+      .from("venue_band_status")
+      .select("id")
+      .eq("venue_id", venueId)
+      .eq("band_id", bandId)
+      .maybeSingle();
+    if (bestehende) continue;
+
+    await supabase.from("venue_band_status").insert({
+      venue_id: venueId,
+      band_id: bandId,
+      status: "neu",
+    });
+  }
+}
+
+// Legt einen Recherche-Treffer als neuen Veranstalter an und verknüpft ihn
+// direkt mit dem/den aktuell ausgewählten Band(s), damit er sofort in der
+// Pipeline sichtbar ist. Verhindert Duplikate anhand des Namens.
 export async function legeVenueAusRechercheAn(
   input: VenueAusRechercheInput
 ): Promise<VenueAusRechercheResult> {
@@ -560,33 +594,41 @@ export async function legeVenueAusRechercheAn(
     .ilike("name", input.name)
     .maybeSingle();
 
+  let venueId: string;
+  let bereitsVorhanden: boolean;
+
   if (vorhanden) {
-    return { ok: true, venueId: vorhanden.id, bereitsVorhanden: true };
+    venueId = vorhanden.id;
+    bereitsVorhanden = true;
+  } else {
+    const { data: venue, error } = await supabase
+      .from("venues")
+      .insert({
+        name: input.name,
+        typ: input.typ,
+        ort: input.ort || null,
+        website: input.website,
+        telefon: input.telefon,
+        quelle: input.quelle,
+        notizen: input.notizen,
+        veranstaltungsdatum: input.veranstaltungsdatum,
+        strasse: input.strasse,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { ok: false, fehler: error.message };
+    venueId = venue.id;
+    bereitsVorhanden = false;
   }
 
-  const { data: venue, error } = await supabase
-    .from("venues")
-    .insert({
-      name: input.name,
-      typ: input.typ,
-      ort: input.ort || null,
-      website: input.website,
-      telefon: input.telefon,
-      quelle: input.quelle,
-      notizen: input.notizen,
-      veranstaltungsdatum: input.veranstaltungsdatum,
-      strasse: input.strasse,
-    })
-    .select("id")
-    .single();
-
-  if (error) return { ok: false, fehler: error.message };
+  await verknuepfeMitAktuellemBand(venueId, input.bandFilter);
 
   revalidatePath("/");
   revalidatePath("/venues");
   revalidatePath("/pipeline");
 
-  return { ok: true, venueId: venue.id, bereitsVorhanden: false };
+  return { ok: true, venueId, bereitsVorhanden };
 }
 
 // Wird vom Kanban-Board beim Drag & Drop aufgerufen, um nur den Status einer
