@@ -23,6 +23,9 @@ function venueFieldsFromForm(formData: FormData) {
     region: str(formData, "region"),
     strasse: str(formData, "strasse"),
     website: str(formData, "website"),
+    instagram: str(formData, "instagram"),
+    tiktok: str(formData, "tiktok"),
+    facebook: str(formData, "facebook"),
     ansprechpartner: str(formData, "ansprechpartner"),
     email: str(formData, "email"),
     telefon: str(formData, "telefon"),
@@ -161,6 +164,9 @@ export async function deleteVenue(venueId: string) {
 
 export type KontaktRechercheErgebnis = {
   website: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  facebook: string | null;
   telefon: string | null;
   email: string | null;
   adresse: string | null;
@@ -196,6 +202,25 @@ function extrahiereTelefonAusText(text: string | null | undefined): string | nul
 
 function mitProtokoll(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+// Sortiert einen Link-Kandidaten aus den Google-Treffern in Instagram/TikTok/
+// Facebook oder "website" (alles andere) ein. Damit landen Social-Media-Profile
+// nicht mehr im Website-Feld, wo die Impressum-Suche sonst am falschen Konto
+// (Meta/TikTok statt Veranstalter) suchen würde.
+function klassifiziereLink(url: string): "instagram" | "tiktok" | "facebook" | "website" | null {
+  let host: string;
+  try {
+    host = new URL(mitProtokoll(url)).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+  if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
+  if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
+  if (host === "facebook.com" || host.endsWith(".facebook.com") || host === "fb.com") {
+    return "facebook";
+  }
+  return "website";
 }
 
 // Verhindert, dass die Impressum-Suche (Server-seitiges Fetchen von URLs, die
@@ -436,9 +461,36 @@ export async function rechercheKontakt(
 
   const ausschnitt = erster?.snippet ?? null;
 
+  // Scannt alle Link-Kandidaten aus demselben Suchaufruf (kein zusätzlicher
+  // API-Call): der erste "echte" Domain-Treffer wird Website, Instagram/
+  // TikTok/Facebook-Links werden separat erkannt statt die Website zu
+  // überschreiben.
+  const linkKandidaten: string[] = [
+    place?.links?.website,
+    place?.website,
+    kg?.website,
+    ...(Array.isArray(json.organic_results)
+      ? json.organic_results.map((r: { link?: string }) => r.link)
+      : []),
+  ].filter((wert): wert is string => Boolean(wert));
+
+  let website: string | null = null;
+  let instagram: string | null = null;
+  let tiktok: string | null = null;
+  let facebook: string | null = null;
+  for (const kandidat of linkKandidaten) {
+    const kategorie = klassifiziereLink(kandidat);
+    if (kategorie === "instagram" && !instagram) instagram = kandidat;
+    else if (kategorie === "tiktok" && !tiktok) tiktok = kandidat;
+    else if (kategorie === "facebook" && !facebook) facebook = kandidat;
+    else if (kategorie === "website" && !website) website = kandidat;
+  }
+
   const daten: KontaktRechercheErgebnis = {
-    website:
-      place?.links?.website ?? place?.website ?? kg?.website ?? erster?.link ?? null,
+    website,
+    instagram,
+    tiktok,
+    facebook,
     telefon: place?.phone ?? kg?.phone ?? extrahiereTelefonAusText(ausschnitt),
     email: extrahiereEmailAusText(ausschnitt),
     adresse:

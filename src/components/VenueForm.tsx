@@ -56,6 +56,9 @@ type FelderState = {
   region: string;
   strasse: string;
   website: string;
+  instagram: string;
+  tiktok: string;
+  facebook: string;
   ansprechpartner: string;
   email: string;
   telefon: string;
@@ -88,6 +91,9 @@ export function VenueForm({
     region: venue?.region ?? "",
     strasse: venue?.strasse ?? "",
     website: venue?.website ?? "",
+    instagram: venue?.instagram ?? "",
+    tiktok: venue?.tiktok ?? "",
+    facebook: venue?.facebook ?? "",
     ansprechpartner: venue?.ansprechpartner ?? "",
     email: venue?.email ?? "",
     telefon: venue?.telefon ?? "",
@@ -216,6 +222,18 @@ export function VenueForm({
     if (!felder.website && daten.website) {
       next.website = daten.website;
       gefuellt.push("Website");
+    }
+    if (!felder.instagram && daten.instagram) {
+      next.instagram = daten.instagram;
+      gefuellt.push("Instagram");
+    }
+    if (!felder.tiktok && daten.tiktok) {
+      next.tiktok = daten.tiktok;
+      gefuellt.push("TikTok");
+    }
+    if (!felder.facebook && daten.facebook) {
+      next.facebook = daten.facebook;
+      gefuellt.push("Facebook");
     }
     if (!felder.telefon && daten.telefon) {
       next.telefon = daten.telefon;
@@ -388,6 +406,60 @@ export function VenueForm({
               className="mt-1 self-start text-xs font-medium text-slate-600 underline hover:text-slate-900"
             >
               Webseite ansehen ↗
+            </a>
+          )}
+        </Field>
+        <Field label="Instagram">
+          <input
+            name="instagram"
+            value={felder.instagram}
+            onChange={(e) => setFeld("instagram", e.target.value)}
+            className={inputClass}
+          />
+          {felder.instagram && (
+            <a
+              href={normalizeUrl(felder.instagram)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 self-start text-xs font-medium text-slate-600 underline hover:text-slate-900"
+            >
+              Profil ansehen ↗
+            </a>
+          )}
+        </Field>
+        <Field label="TikTok">
+          <input
+            name="tiktok"
+            value={felder.tiktok}
+            onChange={(e) => setFeld("tiktok", e.target.value)}
+            className={inputClass}
+          />
+          {felder.tiktok && (
+            <a
+              href={normalizeUrl(felder.tiktok)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 self-start text-xs font-medium text-slate-600 underline hover:text-slate-900"
+            >
+              Profil ansehen ↗
+            </a>
+          )}
+        </Field>
+        <Field label="Facebook">
+          <input
+            name="facebook"
+            value={felder.facebook}
+            onChange={(e) => setFeld("facebook", e.target.value)}
+            className={inputClass}
+          />
+          {felder.facebook && (
+            <a
+              href={normalizeUrl(felder.facebook)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 self-start text-xs font-medium text-slate-600 underline hover:text-slate-900"
+            >
+              Profil ansehen ↗
             </a>
           )}
         </Field>

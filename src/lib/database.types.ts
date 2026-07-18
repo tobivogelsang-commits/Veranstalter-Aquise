@@ -54,6 +54,9 @@ export interface Database {
           region: string | null;
           strasse: string | null;
           website: string | null;
+          instagram: string | null;
+          tiktok: string | null;
+          facebook: string | null;
           ansprechpartner: string | null;
           email: string | null;
           telefon: string | null;
