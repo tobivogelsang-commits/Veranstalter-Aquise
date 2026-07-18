@@ -79,7 +79,18 @@ async function versuchePushSubscription(): Promise<{
 
   try {
     const registration = await navigator.serviceWorker.register("/team-sw.js");
-    const permission = await Notification.requestPermission();
+
+    // Bereits erteilte/verweigerte Erlaubnis nicht erneut per
+    // requestPermission() abfragen: iOS Safari beantwortet diesen Aufruf
+    // außerhalb einer direkten Nutzer-Geste (z. B. beim automatischen Laden
+    // der Seite) nicht zuverlässig mit dem tatsächlichen Status, selbst wenn
+    // in den iPhone-Einstellungen längst "Erlaubt" steht. Notification.permission
+    // ist dagegen ein synchroner, zuverlässiger Blick auf den echten Zustand -
+    // nur bei "default" (noch nie entschieden) wird wirklich nachgefragt.
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") {
       return {
         subscription: null,
