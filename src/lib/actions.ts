@@ -170,6 +170,7 @@ export type KontaktRechercheErgebnis = {
   quelleTitel: string | null;
   impressumUrl: string | null;
   ausschnitt: string | null;
+  kiWarnung: string | null;
 };
 
 export type KontaktRechercheResult =
@@ -292,6 +293,7 @@ type ImpressumDaten = {
   ansprechpartner: string | null;
   strasse: string | null;
   ort: string | null;
+  textAusschnitt: string;
 };
 
 // Wertet den HTML-Text einer Impressum-/Kontaktseite aus. Impressen sind in
@@ -321,7 +323,60 @@ function extrahiereAusImpressum(html: string): ImpressumDaten {
   );
   const ort = ortTreffer?.[1]?.trim() ?? null;
 
-  return { email, telefon, ansprechpartner, strasse, ort };
+  return { email, telefon, ansprechpartner, strasse, ort, textAusschnitt: text.slice(0, 1500) };
+}
+
+// Lässt Claude (Haiku, günstig/schnell) einmal draufschauen, ob die
+// gefundene Seite überhaupt zum gesuchten Veranstalter gehört - erkennt z. B.
+// Aggregator-/Ticket-/Stadt-App-Seiten, die zwar den Termin listen, aber
+// nicht vom Veranstalter selbst betrieben werden (deren Impressum würde dann
+// falsche Kontaktdaten liefern). Rein additiv: liefert nur eine Warnung dazu,
+// verändert die gefundenen Felder nicht. Bei fehlendem API-Key oder Fehlern
+// wird die Prüfung übersprungen, statt die eigentliche Recherche zu stören.
+async function pruefePlausibilitaet(
+  name: string,
+  ort: string | null,
+  daten: KontaktRechercheErgebnis,
+  impressumText: string | null
+): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || !daten.website) return null;
+
+  try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey });
+
+    const kontext = [
+      `Gesuchter Veranstalter: "${name}"${ort ? ` (Ort: ${ort})` : ""}`,
+      `Gefundene Website: ${daten.website}`,
+      daten.quelleTitel ? `Titel des Google-Treffers: "${daten.quelleTitel}"` : null,
+      daten.ausschnitt ? `Google-Textausschnitt: "${daten.ausschnitt}"` : null,
+      impressumText ? `Text von der Impressum-/Kontaktseite: "${impressumText}"` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const antwort = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 200,
+      system:
+        "Du prüfst, ob eine gefundene Website vom gesuchten Veranstalter selbst " +
+        "betrieben wird, oder ob es eine fremde Seite ist, die den Termin nur " +
+        "auflistet (z. B. Ticketportal, Stadt-/Tourismus-App, Presseartikel, " +
+        "Veranstaltungskalender). Antworte NUR mit kompaktem JSON, ohne " +
+        "weiteren Text: {\"plausibel\": true oder false, \"grund\": " +
+        "\"ein kurzer deutscher Satz\"}.",
+      messages: [{ role: "user", content: kontext }],
+    });
+
+    const block = antwort.content[0];
+    if (block.type !== "text") return null;
+    const json = JSON.parse(block.text) as { plausibel: boolean; grund: string };
+    if (json.plausibel) return null;
+    return json.grund || "Die gefundene Seite scheint nicht vom Veranstalter selbst zu sein.";
+  } catch {
+    return null;
+  }
 }
 
 // Sucht per SerpApi (Google-Suche) nach Kontaktdaten für einen Veranstalter
@@ -386,8 +441,10 @@ export async function rechercheKontakt(
     quelleTitel: erster?.title ?? place?.title ?? null,
     impressumUrl: null,
     ausschnitt,
+    kiWarnung: null,
   };
 
+  let impressumText: string | null = null;
   const websiteFuerImpressum = daten.website ?? bekannteWebsite ?? null;
   if (websiteFuerImpressum) {
     try {
@@ -402,6 +459,7 @@ export async function rechercheKontakt(
           if (!daten.telefon) daten.telefon = impressum.telefon;
           if (!daten.adresse) daten.adresse = impressum.strasse;
           daten.ort = impressum.ort;
+          impressumText = impressum.textAusschnitt;
         }
       }
     } catch {
@@ -409,6 +467,8 @@ export async function rechercheKontakt(
       // eigentliche (Google-basierte) Recherche nicht scheitern lassen.
     }
   }
+
+  daten.kiWarnung = await pruefePlausibilitaet(name, ort, daten, impressumText);
 
   const nichtsGefunden =
     !daten.website &&

@@ -172,7 +172,15 @@ export function VenueForm({
     quelleUrl: string | null;
     impressumUrl: string | null;
     hinweis: string | null;
-  }>({ laeuft: false, fehler: null, quelleUrl: null, impressumUrl: null, hinweis: null });
+    kiWarnung: string | null;
+  }>({
+    laeuft: false,
+    fehler: null,
+    quelleUrl: null,
+    impressumUrl: null,
+    hinweis: null,
+    kiWarnung: null,
+  });
 
   async function handleRecherche() {
     setRecherche({
@@ -181,6 +189,7 @@ export function VenueForm({
       quelleUrl: null,
       impressumUrl: null,
       hinweis: null,
+      kiWarnung: null,
     });
     const ergebnis = await rechercheKontakt(
       felder.name,
@@ -195,6 +204,7 @@ export function VenueForm({
         quelleUrl: null,
         impressumUrl: null,
         hinweis: null,
+        kiWarnung: null,
       });
       return;
     }
@@ -243,6 +253,7 @@ export function VenueForm({
         gefuellt.length > 0
           ? `Automatisch ausgefüllt: ${gefuellt.join(", ")}. Bitte prüfen.`
           : "Keine leeren Felder zum Ausfüllen gefunden.",
+      kiWarnung: daten.kiWarnung,
     });
   }
 
@@ -272,6 +283,11 @@ export function VenueForm({
           )}
           {recherche.hinweis && (
             <p className="mt-2 text-sm text-green-700">{recherche.hinweis}</p>
+          )}
+          {recherche.kiWarnung && (
+            <p className="mt-2 text-sm text-amber-700">
+              ⚠️ KI-Hinweis: {recherche.kiWarnung}
+            </p>
           )}
           <div className="mt-1 flex flex-wrap gap-3">
             {recherche.quelleUrl && (
