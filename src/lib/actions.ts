@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { STATUS_ORDER } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
-import { loeseGigAnfrageAus } from "@/lib/teamActions";
+import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
 import type { Status, VenueTyp } from "@/lib/database.types";
 
 function str(formData: FormData, key: string): string | null {
@@ -67,7 +67,11 @@ async function syncBandZuordnungen(
         naechster_follow_up_am: naechsterFollowUp,
       });
       if (error) throw new Error(error.message);
-      if (status === "interessiert") await loeseGigAnfrageAus(venueId, bandId);
+      if (status === "interessiert") {
+        await loeseGigAnfrageAus(venueId, bandId);
+      } else {
+        await schliesseOffeneGigAnfrage(venueId, bandId);
+      }
     } else {
       const statusGeaendert = bestehendeRelation.status !== status;
       const { error } = await supabase
@@ -82,8 +86,12 @@ async function syncBandZuordnungen(
         .eq("venue_id", venueId)
         .eq("band_id", bandId);
       if (error) throw new Error(error.message);
-      if (statusGeaendert && status === "interessiert") {
-        await loeseGigAnfrageAus(venueId, bandId);
+      if (statusGeaendert) {
+        if (status === "interessiert") {
+          await loeseGigAnfrageAus(venueId, bandId);
+        } else {
+          await schliesseOffeneGigAnfrage(venueId, bandId);
+        }
       }
     }
   }
@@ -608,8 +616,12 @@ export async function updateStatus(
     .eq("venue_id", venueId)
     .eq("band_id", bandId);
   if (error) throw new Error(error.message);
-  if (statusGeaendert && status === "interessiert") {
-    await loeseGigAnfrageAus(venueId, bandId);
+  if (statusGeaendert) {
+    if (status === "interessiert") {
+      await loeseGigAnfrageAus(venueId, bandId);
+    } else {
+      await schliesseOffeneGigAnfrage(venueId, bandId);
+    }
   }
 
   revalidatePath("/");
@@ -653,7 +665,11 @@ export async function rueckeStatusAutomatischVor(
     .eq("venue_id", venueId)
     .eq("band_id", bandId);
   if (error) throw new Error(error.message);
-  if (zielStatus === "interessiert") await loeseGigAnfrageAus(venueId, bandId);
+  if (zielStatus === "interessiert") {
+    await loeseGigAnfrageAus(venueId, bandId);
+  } else {
+    await schliesseOffeneGigAnfrage(venueId, bandId);
+  }
 
   revalidatePath("/");
   revalidatePath("/venues");

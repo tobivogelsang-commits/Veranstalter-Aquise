@@ -161,6 +161,26 @@ export async function loeseGigAnfrageAus(venueId: string, bandId: string) {
   revalidatePath("/kalender");
 }
 
+// Schließt eine noch offene (unbeantwortete) Anfrage, wenn der Status eines
+// Kontakts von "interessiert" wegwechselt (z. B. zurück auf "nachgefasst"
+// oder weiter auf "gebucht"/"abgesagt"). Ohne das würde eine spätere
+// Rückkehr zu "interessiert" fälschlich als Duplikat erkannt und keine neue
+// Anfrage/Push ausgelöst, weil die alte, nie beantwortete Anfrage noch als
+// "offen" gilt. Kein Fehler, falls gar keine offene Anfrage existiert.
+export async function schliesseOffeneGigAnfrage(venueId: string, bandId: string) {
+  await supabaseAdmin
+    .from("gig_anfragen")
+    .delete()
+    .eq("venue_id", venueId)
+    .eq("band_id", bandId)
+    .eq("status", "offen");
+
+  revalidatePath("/");
+  revalidatePath("/venues");
+  revalidatePath(`/venues/${venueId}`);
+  revalidatePath("/kalender");
+}
+
 async function aktualisiereAnfrageStatus(anfrageId: string) {
   const { data: anfrage } = await supabaseAdmin
     .from("gig_anfragen")

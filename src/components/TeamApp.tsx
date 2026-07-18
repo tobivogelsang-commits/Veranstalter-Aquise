@@ -139,13 +139,28 @@ export function TeamApp({
 
   useEffect(() => {
     if (!identitaet) return;
-    holeOffeneAnfragen(identitaet.mitgliedId, bandId).then(setOffeneAnfragen);
+    const mitgliedId = identitaet.mitgliedId;
+
+    holeOffeneAnfragen(mitgliedId, bandId).then(setOffeneAnfragen);
     versuchePushSubscription().then(({ subscription, hinweis }) => {
       if (hinweis) setPushHinweis(hinweis);
       if (subscription) {
-        aktualisierePushSubscription(identitaet.mitgliedId, subscription);
+        aktualisierePushSubscription(mitgliedId, subscription);
       }
     });
+
+    // War die App im Hintergrund (z. B. nur einmal am Morgen geöffnet und
+    // seitdem nicht neu gestartet), lädt ein einmaliges Fetch beim Mount
+    // neue Anfragen nicht automatisch nach. Beim erneuten Sichtbarwerden
+    // (Wechsel zurück in die App) wird deshalb zusätzlich neu geladen.
+    function handleSichtbarkeitswechsel() {
+      if (document.visibilityState === "visible") {
+        holeOffeneAnfragen(mitgliedId, bandId).then(setOffeneAnfragen);
+      }
+    }
+    document.addEventListener("visibilitychange", handleSichtbarkeitswechsel);
+    return () =>
+      document.removeEventListener("visibilitychange", handleSichtbarkeitswechsel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identitaet?.mitgliedId]);
 
