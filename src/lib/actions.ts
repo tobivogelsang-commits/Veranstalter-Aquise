@@ -433,6 +433,12 @@ export type RechercheTreffer = {
   rating: number | null;
   reviews: number | null;
   datum: string | null;
+  // Separat von "datum" (Anzeige-Text wie "Heute, 12:00–23:59 Uhr" oder "Sa,
+  // 12:00–22:00 Uhr" - bei nahen Terminen oft ohne Tag/Monat, damit für die
+  // automatische Datums-Erkennung unbrauchbar). Google Events liefert
+  // zusätzlich date.start_date (z. B. "Jul 25"), das zuverlässig ein
+  // erkennbares Datum enthält.
+  datumStart: string | null;
   beschreibung: string | null;
   quelleEngine: "events" | "maps" | "web";
 };
@@ -490,7 +496,8 @@ async function sucheGoogleEvents(
       website: r.link ?? null,
       rating: typeof r.venue?.rating === "number" ? r.venue.rating : null,
       reviews: null,
-      datum: r.date?.when ?? r.date?.start_date ?? null,
+      datum: r.date?.when ?? null,
+      datumStart: r.date?.start_date ?? null,
       beschreibung: r.description ?? null,
       quelleEngine: "events" as const,
     })
@@ -548,6 +555,7 @@ async function sucheGoogleMaps(
       rating: typeof r.rating === "number" ? r.rating : null,
       reviews: typeof r.reviews === "number" ? r.reviews : null,
       datum: null,
+      datumStart: null,
       beschreibung: r.description ?? null,
       quelleEngine: "maps" as const,
     })
@@ -600,6 +608,7 @@ async function sucheGoogleWeb(
       rating: null,
       reviews: null,
       datum: null,
+      datumStart: null,
       beschreibung: r.snippet ?? null,
       quelleEngine: "web" as const,
     })

@@ -192,17 +192,25 @@ export function VenueSucheForm({ bandFilter }: { bandFilter: string }) {
       quelle: QUELLE_LABEL[treffer.quelleEngine],
       strasse,
       bandFilter,
-      // treffer.datum ist bei der Websuche-Quelle immer leer (kein
-      // strukturiertes Feld) - als Fallback wird der Beschreibungstext
+      // treffer.datumStart (Google Events "date.start_date", z. B. "Jul 25")
+      // hat Vorrang: enthält fast immer ein erkennbares Datum. treffer.datum
+      // ("date.when") ist nur die Anzeige-Zeichenkette und bei nahen Terminen
+      // oft bloß Wochentag+Uhrzeit ohne Tag/Monat (z. B. "Heute, 12:00 Uhr"),
+      // dient daher nur als zweiter Versuch. Bei der Websuche-Quelle sind
+      // beide immer leer - als letzter Fallback wird der Beschreibungstext
       // durchsucht, der das Datum oft als Freitext enthält (z. B. "Langenfeld
       // live - Vom 8. Juli bis zum 2. September ..."). Das "nächstes Jahr,
-      // falls vergangen"-Vorrücken gilt nur für treffer.datum (verlässliche
-      // Google-Events-Quelle, zeigt nur kommende Termine) - der Freitext kann
-      // auch eine bereits laufende Saison beschreiben.
+      // falls vergangen"-Vorrücken gilt nur für die beiden Google-Events-Felder
+      // (zeigt nur kommende Termine) - der Freitext kann auch eine bereits
+      // laufende Saison beschreiben.
       veranstaltungsdatum:
+        extrahiereVeranstaltungsdatum(treffer.datumStart, {
+          naechstesJahrWennVergangen: true,
+        }) ??
         extrahiereVeranstaltungsdatum(treffer.datum, {
           naechstesJahrWennVergangen: true,
-        }) ?? extrahiereVeranstaltungsdatum(treffer.beschreibung),
+        }) ??
+        extrahiereVeranstaltungsdatum(treffer.beschreibung),
     });
 
     if (!ergebnis.ok) {
