@@ -53,9 +53,9 @@ export function KanbanBoard({
 
   return (
     <DndContext id="pipeline-kanban" sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="flex flex-col gap-3">
+      <div className="flex gap-4 overflow-x-auto pb-4">
         {STATUS_ORDER.map((status) => (
-          <KanbanRow
+          <KanbanColumn
             key={status}
             status={status}
             entries={items.filter((e) => e.relation.status === status)}
@@ -67,7 +67,7 @@ export function KanbanBoard({
   );
 }
 
-function KanbanRow({
+function KanbanColumn({
   status,
   entries,
   zeigeBand,
@@ -82,7 +82,7 @@ function KanbanRow({
     <div
       ref={setNodeRef}
       className={clsx(
-        "flex flex-col gap-2 rounded-lg border p-3 transition-colors",
+        "flex w-64 flex-shrink-0 flex-col gap-2 rounded-lg border p-3 transition-colors",
         isOver ? "border-slate-400 bg-slate-100" : "border-slate-200 bg-slate-50"
       )}
     >
@@ -92,10 +92,7 @@ function KanbanRow({
         </h3>
         <span className="text-xs text-slate-400">{entries.length}</span>
       </div>
-      <div className="flex min-h-[64px] flex-wrap gap-2">
-        {entries.length === 0 && (
-          <p className="py-4 text-xs text-slate-400">Keine Einträge</p>
-        )}
+      <div className="flex min-h-[40px] flex-col gap-2">
         {entries.map((entry) => (
           <KanbanCard key={entry.relation.id} entry={entry} zeigeBand={zeigeBand} />
         ))}
@@ -125,7 +122,7 @@ function KanbanCard({
       {...listeners}
       {...attributes}
       className={clsx(
-        "w-56 shrink-0 cursor-grab touch-none rounded-md border border-slate-200 bg-white p-3 shadow-sm active:cursor-grabbing",
+        "cursor-grab touch-none rounded-md border border-slate-200 bg-white p-3 shadow-sm active:cursor-grabbing",
         isDragging && "z-10 opacity-50"
       )}
     >

@@ -6,8 +6,8 @@ export const STATUS_ORDER: Status[] = [
   "kontaktiert",
   "nachgefasst",
   "interessiert",
-  "bereit_zu_buchen",
   "abgesagt",
+  "bereit_zu_buchen",
   "gebucht",
 ];
 
