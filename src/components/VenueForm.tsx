@@ -114,6 +114,8 @@ export function VenueForm({
     return venue?.venue_band_status.find((r) => r.band_id === bandId);
   }
 
+  const linkedBands = bands.filter((band) => linked[band.id]);
+
   // Aktuellste Team-Anfrage für diese Band an diesem Veranstalter - eine
   // offene hat Vorrang, sonst die zuletzt erstellte (z. B. bereits
   // bestätigt/abgesagt).
@@ -389,6 +391,19 @@ export function VenueForm({
             onChange={(e) => setFeld("email", e.target.value)}
             className={inputClass}
           />
+          {venue && linkedBands.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-3">
+              {linkedBands.map((band) => (
+                <Link
+                  key={band.id}
+                  href={`/bands/${band.id}?venue=${venue.id}`}
+                  className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
+                >
+                  E-Mail senden{linkedBands.length > 1 ? ` (${band.name})` : ""}
+                </Link>
+              ))}
+            </div>
+          )}
         </Field>
         <Field label="Telefon">
           <input
