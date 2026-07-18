@@ -336,11 +336,12 @@ function extrahiereAusImpressum(html: string): ImpressumDaten {
 async function pruefePlausibilitaet(
   name: string,
   ort: string | null,
+  website: string | null,
   daten: KontaktRechercheErgebnis,
   impressumText: string | null
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || !daten.website) return null;
+  if (!apiKey || !website) return null;
 
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
@@ -348,7 +349,7 @@ async function pruefePlausibilitaet(
 
     const kontext = [
       `Gesuchter Veranstalter: "${name}"${ort ? ` (Ort: ${ort})` : ""}`,
-      `Gefundene Website: ${daten.website}`,
+      `Gefundene Website: ${website}`,
       daten.quelleTitel ? `Titel des Google-Treffers: "${daten.quelleTitel}"` : null,
       daten.ausschnitt ? `Google-Textausschnitt: "${daten.ausschnitt}"` : null,
       impressumText ? `Text von der Impressum-/Kontaktseite: "${impressumText}"` : null,
@@ -363,15 +364,23 @@ async function pruefePlausibilitaet(
         "Du prüfst, ob eine gefundene Website vom gesuchten Veranstalter selbst " +
         "betrieben wird, oder ob es eine fremde Seite ist, die den Termin nur " +
         "auflistet (z. B. Ticketportal, Stadt-/Tourismus-App, Presseartikel, " +
-        "Veranstaltungskalender). Antworte NUR mit kompaktem JSON, ohne " +
-        "weiteren Text: {\"plausibel\": true oder false, \"grund\": " +
+        "Veranstaltungskalender). Antworte AUSSCHLIESSLICH mit dem reinen " +
+        "JSON-Objekt, ohne Markdown-Codeblock (keine ```), ohne Erklärung " +
+        "davor oder danach: {\"plausibel\": true oder false, \"grund\": " +
         "\"ein kurzer deutscher Satz\"}.",
       messages: [{ role: "user", content: kontext }],
     });
 
     const block = antwort.content[0];
     if (block.type !== "text") return null;
-    const json = JSON.parse(block.text) as { plausibel: boolean; grund: string };
+    // Trotz Anweisung verpackt das Modell die Antwort gelegentlich in einen
+    // Markdown-Codeblock (```json ... ```) - vor dem Parsen entfernen.
+    const rohtext = block.text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const json = JSON.parse(rohtext) as { plausibel: boolean; grund: string };
     if (json.plausibel) return null;
     return json.grund || "Die gefundene Seite scheint nicht vom Veranstalter selbst zu sein.";
   } catch {
@@ -468,7 +477,13 @@ export async function rechercheKontakt(
     }
   }
 
-  daten.kiWarnung = await pruefePlausibilitaet(name, ort, daten, impressumText);
+  daten.kiWarnung = await pruefePlausibilitaet(
+    name,
+    ort,
+    websiteFuerImpressum,
+    daten,
+    impressumText
+  );
 
   const nichtsGefunden =
     !daten.website &&
