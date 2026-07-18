@@ -304,13 +304,46 @@ async function findeImpressumUrl(website: string): Promise<string | null> {
   return null;
 }
 
-const NAME_MUSTER = "[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]+(?:\\s+[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]+){1,3}";
+// Einzelnes Namens-Wort, das an einer Leerzeichen-/Textende-Grenze endet -
+// nicht direkt gefolgt von einem Doppelpunkt wie bei "Contact:" im
+// unmittelbar folgenden Fließtext. Sonst reißt die Erkennung das nächste
+// großgeschriebene Wort mit ins Ergebnis (z. B. "Tom Thomas Contact"). Ein
+// einfaches (?!:) direkt hinterm Wort reicht nicht, da der Regex bei
+// fehlgeschlagenem Lookahead nur ein Zeichen zurück-backtrackt statt das
+// ganze Wort zu verwerfen (Ergebnis wäre "Contac" statt gar nichts).
+const NAME_WORT = "[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]*(?=\\s|$)";
+const NAME_MUSTER = `${NAME_WORT}(?:\\s+${NAME_WORT}){1,3}`;
 const ANSPRECHPARTNER_MUSTER = [
+  // Deutsch
   new RegExp(`Vertreten durch:?\\s*(${NAME_MUSTER})`),
   new RegExp(`Geschäftsführer(?:in)?:?\\s*(${NAME_MUSTER})`),
   new RegExp(`Inhaber(?:in)?:?\\s*(${NAME_MUSTER})`),
   new RegExp(`Ansprechpartner(?:in)?:?\\s*(${NAME_MUSTER})`),
+  // Englisch - manche Clubs/Festivals mit internationalem Publikum haben ihr
+  // Impressum nur auf Englisch.
+  new RegExp(`Represented by:?\\s*(${NAME_MUSTER})`, "i"),
+  new RegExp(`Managing Directors?:?\\s*(${NAME_MUSTER})`, "i"),
+  new RegExp(`Owner:?\\s*(${NAME_MUSTER})`, "i"),
+  new RegExp(`Contact person:?\\s*(${NAME_MUSTER})`, "i"),
 ];
+
+// Cloudflares "E-Mail-Verschleierung" (Spam-Schutz) ersetzt mailto-Links durch
+// einen XOR-verschlüsselten Hex-String (data-cfemail="..."), der erst per
+// JavaScript im Browser entschlüsselt wird - im rohen HTML ist die Adresse
+// sonst unsichtbar. Der Algorithmus ist öffentlich dokumentiert und simpel:
+// erstes Byte ist der Schlüssel, alle weiteren Bytes XOR-verknüpft damit.
+function entschluessleCfEmail(hex: string): string | null {
+  if (hex.length < 4 || hex.length % 2 !== 0) return null;
+  const schluessel = parseInt(hex.slice(0, 2), 16);
+  if (Number.isNaN(schluessel)) return null;
+  let ergebnis = "";
+  for (let i = 2; i < hex.length; i += 2) {
+    const byte = parseInt(hex.slice(i, i + 2), 16);
+    if (Number.isNaN(byte)) return null;
+    ergebnis += String.fromCharCode(byte ^ schluessel);
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ergebnis) ? ergebnis : null;
+}
 
 type ImpressumDaten = {
   email: string | null;
@@ -327,9 +360,11 @@ type ImpressumDaten = {
 function extrahiereAusImpressum(html: string): ImpressumDaten {
   const mailtoTreffer = html.match(/href=["']mailto:([^"'?]+)/i);
   const telTreffer = html.match(/href=["']tel:([^"']+)/i);
+  const cfEmailTreffer = html.match(/data-cfemail=["']([0-9a-f]+)["']/i);
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
-  const email = mailtoTreffer?.[1]?.trim() || extrahiereEmailAusText(text);
+  const cfEmail = cfEmailTreffer ? entschluessleCfEmail(cfEmailTreffer[1]) : null;
+  const email = mailtoTreffer?.[1]?.trim() || cfEmail || extrahiereEmailAusText(text);
   const telefonRoh = telTreffer?.[1]?.replace(/[^+\d]/g, "").trim();
   const telefon = telefonRoh || extrahiereTelefonAusText(text);
 
