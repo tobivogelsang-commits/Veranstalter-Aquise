@@ -47,6 +47,13 @@ export const VENUE_TYPEN: VenueTyp[] = [
   "Sonstiges",
 ];
 
+// Festival/Stadtfest sind wiederkehrende, datierte Veranstaltungen (haben ein
+// Veranstaltungsdatum). Club/Firmenevent/Hochzeit/Sonstiges sind feste
+// Locations ohne inhärentes Datum - für sie darf nie automatisch ein Datum
+// vorausgefüllt werden (auch nicht per Freitext-Heuristik aus einer
+// Beschreibung), das muss dort immer manuell gesetzt werden.
+export const EVENT_TYPEN = new Set<string>(["Festival", "Stadtfest"]);
+
 export const ALLE_BANDS_PARAM = "alle";
 
 // Vorschläge für die Materialliste einer Band - Freitext in der DB, damit

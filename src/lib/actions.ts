@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ALLE_BANDS_PARAM } from "@/lib/constants";
+import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
@@ -612,8 +612,6 @@ export type VeranstalterSucheResult =
 // Festival/Stadtfest sind wiederkehrende, datierte Veranstaltungen -> Google
 // Events (mit Termin). Club/Firmenevent/Hochzeit/Sonstiges sind feste
 // Locations -> Google Maps (mit Adresse/Kategorie, aber ohne Termin).
-const EVENT_TYPEN = new Set(["Festival", "Stadtfest"]);
-
 async function sucheGoogleEvents(
   query: string,
   apiKey: string

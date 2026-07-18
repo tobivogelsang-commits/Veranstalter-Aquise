@@ -7,7 +7,7 @@ import {
   sucheVeranstalter,
   type RechercheTreffer,
 } from "@/lib/actions";
-import { VENUE_TYPEN } from "@/lib/constants";
+import { EVENT_TYPEN, VENUE_TYPEN } from "@/lib/constants";
 import { extrahiereVeranstaltungsdatum } from "@/lib/datum";
 import { extrahiereStrasse } from "@/lib/adresse";
 import type { VenueTyp } from "@/lib/database.types";
@@ -182,9 +182,11 @@ export function VenueSucheForm({ bandFilter }: { bandFilter: string }) {
         .filter(Boolean)
         .join("\n") || null;
 
+    const endgueltigerTyp = typ || trefferTyp[index] || "Sonstiges";
+
     const ergebnis = await legeVenueAusRechercheAn({
       name: treffer.title,
-      typ: typ || trefferTyp[index] || "Sonstiges",
+      typ: endgueltigerTyp,
       ort,
       website: treffer.website,
       telefon: treffer.telefon,
@@ -192,6 +194,11 @@ export function VenueSucheForm({ bandFilter }: { bandFilter: string }) {
       quelle: QUELLE_LABEL[treffer.quelleEngine],
       strasse,
       bandFilter,
+      // Nur Festival/Stadtfest sind datierte Veranstaltungen - bei
+      // Club/Firmenevent/Hochzeit/Sonstiges (feste Locations ohne
+      // inhärentes Datum) darf nie automatisch etwas vorausgefüllt werden,
+      // auch nicht per Freitext-Heuristik aus der Beschreibung (die dort
+      // leicht einen falschen Treffer liefert, z. B. aus einer Bewertung).
       // treffer.datumStart (Google Events "date.start_date", z. B. "Jul 25")
       // hat Vorrang: enthält fast immer ein erkennbares Datum. treffer.datum
       // ("date.when") ist nur die Anzeige-Zeichenkette und bei nahen Terminen
@@ -203,14 +210,15 @@ export function VenueSucheForm({ bandFilter }: { bandFilter: string }) {
       // falls vergangen"-Vorrücken gilt nur für die beiden Google-Events-Felder
       // (zeigt nur kommende Termine) - der Freitext kann auch eine bereits
       // laufende Saison beschreiben.
-      veranstaltungsdatum:
-        extrahiereVeranstaltungsdatum(treffer.datumStart, {
-          naechstesJahrWennVergangen: true,
-        }) ??
-        extrahiereVeranstaltungsdatum(treffer.datum, {
-          naechstesJahrWennVergangen: true,
-        }) ??
-        extrahiereVeranstaltungsdatum(treffer.beschreibung),
+      veranstaltungsdatum: EVENT_TYPEN.has(endgueltigerTyp)
+        ? extrahiereVeranstaltungsdatum(treffer.datumStart, {
+            naechstesJahrWennVergangen: true,
+          }) ??
+          extrahiereVeranstaltungsdatum(treffer.datum, {
+            naechstesJahrWennVergangen: true,
+          }) ??
+          extrahiereVeranstaltungsdatum(treffer.beschreibung)
+        : null,
     });
 
     if (!ergebnis.ok) {
