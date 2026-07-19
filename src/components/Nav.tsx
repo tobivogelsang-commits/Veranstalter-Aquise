@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/pipeline", label: "Pipeline" },
   { href: "/kalender", label: "Kalender" },
   { href: "/emails", label: "E-Mails" },
+  { href: "/setliste", label: "Setliste" },
   { href: "/einstellungen", label: "Einstellungen" },
 ];
 
@@ -20,8 +21,12 @@ export function Nav() {
 
   // Die Team-App (/team/...) ist bewusst von der Admin-Navigation getrennt -
   // Teilnehmer sollen keinen Zugriff/Sichtkontakt zu Veranstaltern, E-Mails,
-  // Suche etc. bekommen, nur zur reduzierten Kalender-Ansicht dort.
-  if (pathname?.startsWith("/team")) return null;
+  // Suche etc. bekommen, nur zur reduzierten Kalender-Ansicht dort. Die
+  // Druckansicht (/druckansicht/...) ist bewusst komplett chromfrei, damit
+  // beim Drucken/Als-PDF-Speichern keine Navigation mit aufs Papier kommt.
+  if (pathname?.startsWith("/team") || pathname?.startsWith("/druckansicht")) {
+    return null;
+  }
 
   // Nur den Band-Filter über Navigationen hinweg mitnehmen, keine anderen
   // Query-Parameter (z. B. ?venue= für den E-Mail-Deep-Link von der

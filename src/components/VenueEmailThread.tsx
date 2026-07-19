@@ -3,16 +3,18 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import clsx from "clsx";
 import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
-import { HtmlEditor, type HtmlEditorHandle } from "@/components/HtmlEditor";
+import { escapeText, HtmlEditor, type HtmlEditorHandle } from "@/components/HtmlEditor";
 import type {
   BandDokumentTyp,
   BandMaterial,
   EmailVorlage,
   VenueEmailMitBand,
 } from "@/lib/types";
+import type { SetlisteMitSongs } from "@/lib/queries";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
@@ -67,10 +69,12 @@ export function VenueEmailThread({
   venueOrt,
   venueAnsprechpartner,
   venueEmail,
+  venueDatum,
   vorlagen,
   emails,
   dokumentTypen,
   materialien,
+  setlisten,
 }: {
   bandId: string;
   bandName: string;
@@ -79,13 +83,16 @@ export function VenueEmailThread({
   venueOrt: string | null;
   venueAnsprechpartner: string | null;
   venueEmail: string | null;
+  venueDatum: string | null;
   vorlagen: EmailVorlage[];
   emails: VenueEmailMitBand[];
   dokumentTypen: BandDokumentTyp[];
   materialien: BandMaterial[];
+  setlisten: SetlisteMitSongs[];
 }) {
   const router = useRouter();
 
+  const [gewaehlteSetlisteId, setGewaehlteSetlisteId] = useState(setlisten[0]?.id ?? "");
   const [an, setAn] = useState(venueEmail ?? "");
   const [vorlageId, setVorlageId] = useState("");
   const [betreff, setBetreff] = useState("");
@@ -172,6 +179,33 @@ export function VenueEmailThread({
     const icon = material.typ ? MATERIAL_ICONS[material.typ] : undefined;
     const label = icon ? `${icon} ${material.titel}` : material.titel;
     editorHandleRef.current?.insertLink(material.url, label);
+  }
+
+  // Fügt Band/Veranstalter/Datum sowie Titel und Interpret der gewählten
+  // Setliste als formatierten Text ein - für die GEMA-Musikfolge reicht das,
+  // ein separates PDF-Erzeugen/Anhängen ist dafür nicht nötig.
+  function handleGemaEinfuegen() {
+    const setliste = setlisten.find((s) => s.id === gewaehlteSetlisteId);
+    if (!setliste) return;
+
+    const datumText = venueDatum
+      ? format(new Date(venueDatum), "dd.MM.yyyy", { locale: de })
+      : null;
+
+    const zeilen = setliste.songs
+      .map((song) => {
+        const interpretZusatz = song.interpret ? ` – ${escapeText(song.interpret)}` : "";
+        return `<li>${escapeText(song.titel)}${interpretZusatz}</li>`;
+      })
+      .join("");
+
+    const html =
+      `<p><strong>Musikfolge (GEMA)</strong></p>` +
+      `<p>Band: ${escapeText(bandName)}<br>Veranstalter: ${escapeText(venueName)}` +
+      (datumText ? `<br>Datum: ${datumText}` : "") +
+      `</p><ol>${zeilen}</ol>`;
+
+    editorHandleRef.current?.insertHtml(html);
   }
 
   async function handleSenden() {
@@ -270,6 +304,28 @@ export function VenueEmailThread({
                 {(m.typ && MATERIAL_ICONS[m.typ]) ?? "🔗"} {m.typ ?? m.titel}
               </button>
             ))}
+          </div>
+        )}
+        {setlisten.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select
+              value={gewaehlteSetlisteId}
+              onChange={(e) => setGewaehlteSetlisteId(e.target.value)}
+              className="w-auto rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+            >
+              {setlisten.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleGemaEinfuegen}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              🎵 GEMA-Info einfügen
+            </button>
           </div>
         )}
         <div className="flex flex-col gap-2">

@@ -8,9 +8,11 @@ import {
   getEmailsForVenue,
   getEmailVorlagen,
   getGigAnfragenFuerVenues,
+  getSetlistenMitSongs,
   getVenueBandDokumente,
   getVenueBandProtokoll,
   getVenueWithRelations,
+  type SetlisteMitSongs,
 } from "@/lib/queries";
 import type { BandDokumentTyp, BandMaterial, EmailVorlage } from "@/lib/types";
 
@@ -36,6 +38,7 @@ export default async function VenueDetailPage({
     vorlagenProBandListe,
     dokumentTypenListe,
     materialienProBandListe,
+    setlistenProBandListe,
     dokumente,
     protokoll,
   ] = await Promise.all([
@@ -44,6 +47,7 @@ export default async function VenueDetailPage({
     Promise.all(bands.map((band) => getEmailVorlagen(band.id))),
     Promise.all(bands.map((band) => getBandDokumentTypen(band.id))),
     Promise.all(bands.map((band) => getBandMaterialien(band.id))),
+    Promise.all(bands.map((band) => getSetlistenMitSongs(band.id))),
     getVenueBandDokumente(id),
     getVenueBandProtokoll(id),
   ]);
@@ -51,10 +55,12 @@ export default async function VenueDetailPage({
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
   const dokumentTypenProBand: Record<string, BandDokumentTyp[]> = {};
   const materialienProBand: Record<string, BandMaterial[]> = {};
+  const setlistenProBand: Record<string, SetlisteMitSongs[]> = {};
   bands.forEach((band, i) => {
     vorlagenProBand[band.id] = vorlagenProBandListe[i];
     dokumentTypenProBand[band.id] = dokumentTypenListe[i];
     materialienProBand[band.id] = materialienProBandListe[i];
+    setlistenProBand[band.id] = setlistenProBandListe[i];
   });
 
   return (
@@ -71,6 +77,7 @@ export default async function VenueDetailPage({
         vorlagenProBand={vorlagenProBand}
         dokumentTypenProBand={dokumentTypenProBand}
         materialienProBand={materialienProBand}
+        setlistenProBand={setlistenProBand}
         dokumente={dokumente}
         protokoll={protokoll}
       />

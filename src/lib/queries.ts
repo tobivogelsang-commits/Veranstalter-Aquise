@@ -7,12 +7,14 @@ import type {
   BandDokumentTyp,
   BandEmailMitVenue,
   BandMaterial,
+  BandSong,
   BandVenueOption,
   BandWithMaterialien,
   EmailVorlage,
   GigAnfrageMitAntworten,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
+  Setliste,
   Venue,
   VenueBandDokument,
   VenueBandProtokoll,
@@ -204,6 +206,71 @@ export async function getNeuesteProtokollEintraege(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as ProtokollUebersicht[];
+}
+
+export async function getBandSongs(bandId: string): Promise<BandSong[]> {
+  const { data, error } = await supabase
+    .from("band_songs")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("titel");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getSetlisten(bandId: string): Promise<Setliste[]> {
+  const { data, error } = await supabase
+    .from("setlisten")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("erstellt_am");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Songs einer Setliste in der gespeicherten Reihenfolge.
+export async function getSetlistSongs(setlistId: string): Promise<BandSong[]> {
+  const { data, error } = await supabase
+    .from("setlist_eintraege")
+    .select("position, song:band_songs(*)")
+    .eq("setlist_id", setlistId)
+    .order("position");
+
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as { position: number; song: BandSong }[]).map(
+    (r) => r.song
+  );
+}
+
+// Für die Druckansicht: eine einzelne Setliste inkl. Bandname, ohne die
+// übrigen Setlisten der Band mitzuladen.
+export async function getSetlisteMitBand(
+  setlistId: string
+): Promise<(Setliste & { band: Pick<Band, "id" | "name"> }) | null> {
+  const { data, error } = await supabase
+    .from("setlisten")
+    .select("*, band:bands(id, name)")
+    .eq("id", setlistId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data as unknown as (Setliste & { band: Pick<Band, "id" | "name"> }) | null;
+}
+
+export type SetlisteMitSongs = Setliste & { songs: BandSong[] };
+
+// Alle Setlisten einer Band inklusive ihrer Songs in Reihenfolge - für den
+// Setliste-Builder und das GEMA-Einfügen im Mail-Compose-Bereich, die beide
+// alle Setlisten gleichzeitig zur Hand haben müssen (Auswahl/Umschalten ohne
+// weiteren Serverzugriff).
+export async function getSetlistenMitSongs(bandId: string): Promise<SetlisteMitSongs[]> {
+  const setlisten = await getSetlisten(bandId);
+  const songsProSetliste = await Promise.all(
+    setlisten.map((s) => getSetlistSongs(s.id))
+  );
+  return setlisten.map((s, i) => ({ ...s, songs: songsProSetliste[i] }));
 }
 
 export async function getVenuesWithRelations(): Promise<

@@ -421,6 +421,84 @@ export interface Database {
           },
         ];
       };
+      band_songs: {
+        Row: {
+          id: string;
+          band_id: string;
+          titel: string;
+          interpret: string | null;
+          dauer_sekunden: number | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["band_songs"]["Row"]> & {
+          band_id: string;
+          titel: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["band_songs"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_songs_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      setlisten: {
+        Row: {
+          id: string;
+          band_id: string;
+          name: string;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["setlisten"]["Row"]> & {
+          band_id: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["setlisten"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "setlisten_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      setlist_eintraege: {
+        Row: {
+          id: string;
+          setlist_id: string;
+          song_id: string;
+          position: number;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["setlist_eintraege"]["Row"]
+        > & {
+          setlist_id: string;
+          song_id: string;
+          position: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["setlist_eintraege"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "setlist_eintraege_setlist_id_fkey";
+            columns: ["setlist_id"];
+            isOneToOne: false;
+            referencedRelation: "setlisten";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "setlist_eintraege_song_id_fkey";
+            columns: ["song_id"];
+            isOneToOne: false;
+            referencedRelation: "band_songs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

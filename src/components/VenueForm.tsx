@@ -22,6 +22,7 @@ import type {
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
+import type { SetlisteMitSongs } from "@/lib/queries";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
 import { DokumentChecklist } from "@/components/DokumentChecklist";
@@ -81,6 +82,7 @@ export function VenueForm({
   vorlagenProBand,
   dokumentTypenProBand,
   materialienProBand,
+  setlistenProBand,
   dokumente,
   protokoll,
 }: {
@@ -92,6 +94,7 @@ export function VenueForm({
   vorlagenProBand?: Record<string, EmailVorlage[]>;
   dokumentTypenProBand?: Record<string, BandDokumentTyp[]>;
   materialienProBand?: Record<string, BandMaterial[]>;
+  setlistenProBand?: Record<string, SetlisteMitSongs[]>;
   dokumente?: VenueBandDokument[];
   protokoll?: VenueBandProtokoll[];
 }) {
@@ -698,12 +701,14 @@ export function VenueForm({
                         venueOrt={felder.ort || null}
                         venueAnsprechpartner={felder.ansprechpartner || null}
                         venueEmail={felder.email || null}
+                        venueDatum={felder.veranstaltungsdatum || null}
                         vorlagen={vorlagenProBand?.[band.id] ?? []}
                         emails={(emails ?? []).filter(
                           (m) => m.band.id === band.id
                         )}
                         dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
                         materialien={materialienProBand?.[band.id] ?? []}
+                        setlisten={setlistenProBand?.[band.id] ?? []}
                       />
                     </div>
                   )}

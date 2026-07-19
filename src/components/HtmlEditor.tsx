@@ -7,13 +7,14 @@ const knopfClass =
 
 export type HtmlEditorHandle = {
   insertLink: (url: string, label: string) => void;
+  insertHtml: (html: string) => void;
 };
 
-function escapeAttribut(text: string): string {
+export function escapeAttribut(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
-function escapeText(text: string): string {
+export function escapeText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
@@ -85,16 +86,19 @@ export const HtmlEditor = forwardRef<
     onChange(editorRef.current?.innerHTML ?? "");
   }
 
+  function insertHtml(html: string) {
+    editorRef.current?.focus();
+    document.execCommand("insertHTML", false, html);
+    onChange(editorRef.current?.innerHTML ?? "");
+  }
+
   useImperativeHandle(ref, () => ({
     insertLink(url: string, label: string) {
-      editorRef.current?.focus();
-      document.execCommand(
-        "insertHTML",
-        false,
+      insertHtml(
         `<a href="${escapeAttribut(url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline">${escapeText(label)}</a>`
       );
-      onChange(editorRef.current?.innerHTML ?? "");
     },
+    insertHtml,
   }));
 
   return (
