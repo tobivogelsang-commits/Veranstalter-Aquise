@@ -233,10 +233,19 @@ export function TeamApp({
     setRegistrierungLaeuft(true);
     setRegistrierungFehler(null);
 
-    const { subscription, hinweis } = await versuchePushSubscription();
-    if (hinweis) setPushHinweis(hinweis);
-
-    const ergebnis = await registriereMitglied(bandId, nameEingabe, subscription);
+    let ergebnis;
+    try {
+      const { subscription, hinweis } = await versuchePushSubscription();
+      if (hinweis) setPushHinweis(hinweis);
+      ergebnis = await registriereMitglied(bandId, nameEingabe, subscription);
+    } catch (err) {
+      console.error("Registrierung fehlgeschlagen", err);
+      setRegistrierungLaeuft(false);
+      setRegistrierungFehler(
+        "Registrierung fehlgeschlagen (Netzwerkproblem?). Bitte nochmal versuchen."
+      );
+      return;
+    }
     setRegistrierungLaeuft(false);
 
     if (!ergebnis.ok) {
