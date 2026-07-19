@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   DndContext,
   PointerSensor,
-  TouchSensor,
   closestCenter,
   useDraggable,
   useDroppable,
@@ -58,6 +57,7 @@ function SongZeile({
       <span
         {...listeners}
         {...attributes}
+        style={{ touchAction: "none" }}
         className="cursor-grab select-none px-1 text-slate-300"
         title="Ziehen zum Hinzufügen"
       >
@@ -111,7 +111,12 @@ function SetlistZeile({
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <span {...listeners} {...attributes} className="cursor-grab select-none px-1 text-slate-300">
+      <span
+        {...listeners}
+        {...attributes}
+        style={{ touchAction: "none" }}
+        className="cursor-grab select-none px-1 text-slate-300"
+      >
         ⠿⠿
       </span>
       <span className="w-5 shrink-0 text-xs text-slate-400">{position + 1}</span>
@@ -160,9 +165,11 @@ export function SetlisteBuilder({
   const [umbenennenText, setUmbenennenText] = useState("");
   const [setlistenFehler, setSetlistenFehler] = useState<string | null>(null);
 
+  // Nur PointerSensor: Pointer Events decken Maus UND Touch auf allen
+  // gängigen Browsern ab, ein zusätzlicher TouchSensor würde denselben
+  // Touch-Start doppelt behandeln.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
   const songById = Object.fromEntries(songs.map((s) => [s.id, s]));
@@ -320,7 +327,12 @@ export function SetlisteBuilder({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext
+      id="setliste-builder"
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <h2 className="mb-2 text-sm font-medium text-slate-900">Songs ({songs.length})</h2>
