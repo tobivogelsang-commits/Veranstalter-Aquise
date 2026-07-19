@@ -7,6 +7,7 @@ import {
   getSetlistenMitSongs,
   getVenuesWithRelations,
 } from "@/lib/queries";
+import { getProberaumTermine } from "@/lib/proberaumKalender";
 import { TeamApp } from "@/components/TeamApp";
 
 export const dynamic = "force-dynamic";
@@ -40,11 +41,12 @@ export default async function TeamPage({
   const { bandId } = await params;
   const { tab, ansicht, monat, jahr } = await searchParams;
 
-  const [bandName, venues, songs, setlisten] = await Promise.all([
+  const [bandName, venues, songs, setlisten, proberaumTermine] = await Promise.all([
     getBandName(bandId),
     getVenuesWithRelations(),
     getBandSongs(bandId),
     getSetlistenMitSongs(bandId),
+    getProberaumTermine(),
   ]);
 
   if (!bandName) notFound();
@@ -63,6 +65,7 @@ export default async function TeamPage({
       kalenderAnsicht={ansicht === "jahr" ? "jahr" : "monat"}
       monatParam={monat}
       jahrParam={jahr}
+      proberaumTermine={proberaumTermine}
     />
   );
 }

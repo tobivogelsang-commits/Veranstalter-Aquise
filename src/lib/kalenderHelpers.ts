@@ -1,4 +1,5 @@
 import type { PipelineEntry } from "@/lib/types";
+import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 // venue.veranstaltungsdatum kommt aus Postgres bereits als "yyyy-MM-dd"
 // (Postgres date-Spalte) - hier direkt als Schlüssel nutzen statt über
@@ -14,6 +15,31 @@ export function gruppiereEintraegeProTag(
     const liste = map.get(datum) ?? [];
     liste.push(eintrag);
     map.set(datum, liste);
+  }
+  return map;
+}
+
+function naechsterTagIso(datum: string): string {
+  const [jj, mm, tt] = datum.split("-").map(Number);
+  const d = new Date(jj, mm - 1, tt + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Wie gruppiereEintraegeProTag, aber für den externen Proberaum-Kalender -
+// ein Termin kann mehrere Tage abdecken (datum bis datumBis inklusiv), taucht
+// dann an jedem dieser Tage auf.
+export function gruppiereProberaumProTag(
+  termine: ProberaumTermin[]
+): Map<string, ProberaumTermin[]> {
+  const map = new Map<string, ProberaumTermin[]>();
+  for (const termin of termine) {
+    let tag = termin.datum;
+    while (tag <= termin.datumBis) {
+      const liste = map.get(tag) ?? [];
+      liste.push(termin);
+      map.set(tag, liste);
+      tag = naechsterTagIso(tag);
+    }
   }
   return map;
 }

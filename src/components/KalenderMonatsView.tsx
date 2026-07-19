@@ -14,8 +14,9 @@ import {
 } from "date-fns";
 import { de } from "date-fns/locale";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { gruppiereEintraegeProTag, kalenderPillFarbe } from "@/lib/kalenderHelpers";
+import { gruppiereEintraegeProTag, gruppiereProberaumProTag, kalenderPillFarbe } from "@/lib/kalenderHelpers";
 import type { PipelineEntry } from "@/lib/types";
+import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -43,6 +44,7 @@ export function KalenderMonatsView({
   tabParam,
   zeigeBandName,
   venueLinkErlaubt = true,
+  proberaumTermine = [],
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
@@ -50,6 +52,7 @@ export function KalenderMonatsView({
   tabParam?: string;
   zeigeBandName?: boolean;
   venueLinkErlaubt?: boolean;
+  proberaumTermine?: ProberaumTermin[];
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -60,6 +63,7 @@ export function KalenderMonatsView({
 
   const zeigeBand = zeigeBandName ?? bandFilter === ALLE_BANDS_PARAM;
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
+  const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,6 +97,7 @@ export function KalenderMonatsView({
         {tage.map((tag) => {
           const key = format(tag, "yyyy-MM-dd");
           const tagesEintraege = eintraegeProTag.get(key) ?? [];
+          const tagesProberaum = proberaumProTag.get(key) ?? [];
           const imMonat = isSameMonth(tag, monat);
 
           return (
@@ -148,6 +153,14 @@ export function KalenderMonatsView({
                     </span>
                   );
                 })}
+                {tagesProberaum.length > 0 && (
+                  <span
+                    title={tagesProberaum.map((t) => t.titel).join(", ")}
+                    className="block truncate rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-600"
+                  >
+                    Proberaum belegt
+                  </span>
+                )}
               </div>
             </div>
           );

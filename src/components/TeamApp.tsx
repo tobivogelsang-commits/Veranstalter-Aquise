@@ -17,6 +17,7 @@ import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import type { BandSong, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
+import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 type TeamTab = "dashboard" | "kalender" | "setliste";
 
@@ -171,6 +172,7 @@ export function TeamApp({
   kalenderAnsicht,
   monatParam,
   jahrParam,
+  proberaumTermine,
 }: {
   bandId: string;
   bandName: string;
@@ -181,6 +183,7 @@ export function TeamApp({
   kalenderAnsicht: "monat" | "jahr";
   monatParam?: string;
   jahrParam?: string;
+  proberaumTermine: ProberaumTermin[];
 }) {
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
     ladeIdentitaet(bandId)
@@ -418,6 +421,7 @@ export function TeamApp({
               tabParam="kalender"
               zeigeBandName={false}
               venueLinkErlaubt={false}
+              proberaumTermine={proberaumTermine}
             />
           ) : (
             <KalenderJahresView
@@ -425,6 +429,7 @@ export function TeamApp({
               jahrParam={jahrParam}
               bandFilter={ALLE_BANDS_PARAM}
               tabParam="kalender"
+              proberaumTermine={proberaumTermine}
             />
           )}
           <a

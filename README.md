@@ -47,6 +47,7 @@ SUPABASE_SERVICE_ROLE_KEY=dein-service-role-key
 SERPAPI_KEY=dein-serpapi-key
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=dein-vapid-public-key
 VAPID_PRIVATE_KEY=dein-vapid-private-key
+PROBERAUM_ICAL_URL=dein-proberaum-ical-export-link
 ```
 
 `.env.local` ist in `.gitignore` und wird nicht committet. `.env.local.example` dient als Vorlage.
@@ -83,6 +84,13 @@ node -e "console.log(require('web-push').generateVAPIDKeys())"
 `publicKey` als `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `privateKey` als `VAPID_PRIVATE_KEY`
 in `.env.local` eintragen. Ohne diese Keys funktioniert die Team-App weiter (Anfragen
 lassen sich manuell in der App bestätigen), nur Push-Benachrichtigungen bleiben aus.
+
+### Proberaum-Kalender-Link (optional, siehe Abschnitt "Kalender")
+
+Öffentlichen CalDAV/iCal-Export-Link des Proberaum-Belegungskalenders als
+`PROBERAUM_ICAL_URL` in `.env.local` eintragen. Ohne diesen Wert funktioniert
+die App normal weiter, nur die zusätzlichen "Proberaum belegt"-Einträge im
+Kalender bleiben aus.
 
 ## 4. Lokal starten
 
@@ -243,6 +251,17 @@ deutlich heller = interessiert), damit auf einen Blick erkennbar ist, welcher
 Termin zu welcher Band gehört. In der Jahresansicht führt ein Klick auf einen
 Tag/Monat direkt in die Monatsansicht.
 
+### Proberaum-Kalender (optional)
+
+Ist `PROBERAUM_ICAL_URL` gesetzt (öffentlicher CalDAV/iCal-Export, z. B. ein
+Nextcloud-Freigabelink), werden Belegungstermine des Proberaums als neutrale
+"Proberaum belegt"-Einträge zusätzlich in beiden In-App-Kalendern angezeigt
+(Desktop unter `/kalender` für beide Bands, sowie im Kalender-Tab der
+Team-App) - Details zum jeweiligen Termin stehen im Tooltip. Der Feed wird
+serverseitig eine Stunde lang gecacht, nicht bei jedem Seitenaufruf neu
+abgerufen. Bewusst **nicht** enthalten im privaten `.ics`-Kalender-Abo der
+Bands (`/api/kalender/<band-id>`) - der bleibt reine Gig-Übersicht.
+
 ## Team-App (Verfügbarkeitsabfrage per Push)
 
 Eine bewusst von der Verwaltungsoberfläche getrennte, stark reduzierte
@@ -280,9 +299,9 @@ bestätigen.
 ## Deployment
 
 - **Frontend/API:** [Vercel](https://vercel.com/new) – Projekt importieren, die
-  `NEXT_PUBLIC_SUPABASE_*`-, `SUPABASE_SERVICE_ROLE_KEY`-, `SERPAPI_KEY`- sowie
-  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`-Variablen in den
-  Projekteinstellungen hinterlegen.
+  `NEXT_PUBLIC_SUPABASE_*`-, `SUPABASE_SERVICE_ROLE_KEY`-, `SERPAPI_KEY`-,
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`- sowie optional
+  `PROBERAUM_ICAL_URL`-Variablen in den Projekteinstellungen hinterlegen.
 - **Datenbank:** bleibt bei Supabase (kostenlose Stufe).
 
 ## Bewusst nicht im MVP-Scope
