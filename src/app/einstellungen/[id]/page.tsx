@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 async function getBasisUrl(): Promise<string> {
   const headersList = await headers();
   const host = headersList.get("host") ?? "localhost:3000";
-  const protokoll = host.startsWith("localhost") ? "http" : "https";
+  const protokoll = process.env.NODE_ENV === "production" ? "https" : "http";
   return `${protokoll}://${host}`;
 }
 
