@@ -230,6 +230,72 @@ export interface Database {
           },
         ];
       };
+      band_dokument_typen: {
+        Row: {
+          id: string;
+          band_id: string;
+          name: string;
+          erstellt_am: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["band_dokument_typen"]["Row"]
+        > & {
+          band_id: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["band_dokument_typen"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "band_dokument_typen_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      venue_band_dokumente: {
+        Row: {
+          id: string;
+          venue_id: string;
+          band_id: string;
+          dokument_typ_id: string;
+          versendet_am: string | null;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["venue_band_dokumente"]["Row"]
+        > & {
+          venue_id: string;
+          band_id: string;
+          dokument_typ_id: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["venue_band_dokumente"]["Row"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "venue_band_dokumente_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_band_dokumente_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_band_dokumente_dokument_typ_id_fkey";
+            columns: ["dokument_typ_id"];
+            isOneToOne: false;
+            referencedRelation: "band_dokument_typen";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       band_mitglieder: {
         Row: {
           id: string;

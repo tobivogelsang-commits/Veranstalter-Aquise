@@ -9,6 +9,10 @@ export type BandEmailKonto =
   Database["public"]["Tables"]["band_email_konten"]["Row"];
 export type BandEmail = Database["public"]["Tables"]["band_emails"]["Row"];
 export type EmailVorlage = Database["public"]["Tables"]["email_vorlagen"]["Row"];
+export type BandDokumentTyp =
+  Database["public"]["Tables"]["band_dokument_typen"]["Row"];
+export type VenueBandDokument =
+  Database["public"]["Tables"]["venue_band_dokumente"]["Row"];
 export type BandMitglied = Database["public"]["Tables"]["band_mitglieder"]["Row"];
 export type GigAnfrage = Database["public"]["Tables"]["gig_anfragen"]["Row"];
 export type GigAntwortRow = Database["public"]["Tables"]["gig_antworten"]["Row"];

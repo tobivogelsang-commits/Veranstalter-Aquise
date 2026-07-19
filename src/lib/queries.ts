@@ -4,6 +4,7 @@ import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {
   Band,
+  BandDokumentTyp,
   BandEmailMitVenue,
   BandVenueOption,
   BandWithMaterialien,
@@ -11,6 +12,7 @@ import type {
   GigAnfrageMitAntworten,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
+  VenueBandDokument,
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
@@ -86,6 +88,33 @@ export async function getEmailVorlagen(bandId: string): Promise<EmailVorlage[]> 
     .select("*")
     .eq("band_id", bandId)
     .order("name");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getBandDokumentTypen(
+  bandId: string
+): Promise<BandDokumentTyp[]> {
+  const { data, error } = await supabase
+    .from("band_dokument_typen")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("erstellt_am");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Alle Versendet-Einträge eines Veranstalters (über alle Bands hinweg) -
+// clientseitig pro Band gefiltert, analog zu getEmailsForVenue.
+export async function getVenueBandDokumente(
+  venueId: string
+): Promise<VenueBandDokument[]> {
+  const { data, error } = await supabase
+    .from("venue_band_dokumente")
+    .select("*")
+    .eq("venue_id", venueId);
 
   if (error) throw new Error(error.message);
   return data ?? [];

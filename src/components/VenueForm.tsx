@@ -13,14 +13,17 @@ import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";
 import type {
   Band,
+  BandDokumentTyp,
   EmailVorlage,
   GigAnfrageMitAntworten,
+  VenueBandDokument,
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
 import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
+import { DokumentChecklist } from "@/components/DokumentChecklist";
 import { VenueEmailThread } from "@/components/VenueEmailThread";
 
 function normalizeUrl(url: string) {
@@ -74,6 +77,8 @@ export function VenueForm({
   anfragen,
   mitgliederProBand,
   vorlagenProBand,
+  dokumentTypenProBand,
+  dokumente,
 }: {
   bands: Band[];
   venue?: VenueWithRelations;
@@ -81,6 +86,8 @@ export function VenueForm({
   anfragen?: GigAnfrageMitAntworten[];
   mitgliederProBand?: Record<string, number>;
   vorlagenProBand?: Record<string, EmailVorlage[]>;
+  dokumentTypenProBand?: Record<string, BandDokumentTyp[]>;
+  dokumente?: VenueBandDokument[];
 }) {
   const action = venue ? updateVenue.bind(null, venue.id) : createVenue;
   const gespeichert = useGespeichertHinweis();
@@ -597,6 +604,18 @@ export function VenueForm({
                       <AnfrageBadge
                         anfrage={bandAnfrage}
                         gesamtMitglieder={mitgliederProBand?.[band.id] ?? 0}
+                      />
+                    </div>
+                  )}
+                  {venue && (
+                    <div className="sm:col-span-2">
+                      <DokumentChecklist
+                        bandId={band.id}
+                        venueId={venue.id}
+                        dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
+                        versendet={(dokumente ?? []).filter(
+                          (d) => d.band_id === band.id
+                        )}
                       />
                     </div>
                   )}
