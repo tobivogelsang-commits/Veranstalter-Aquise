@@ -5,6 +5,7 @@ import { getBands, getKalenderEintraege, getVenuesWithRelations } from "@/lib/qu
 import { kalenderPunktFarbe } from "@/lib/kalenderHelpers";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
+import { BandSwitcher } from "@/components/BandSwitcher";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ export default async function KalenderPage({
           <p className="mt-1 text-sm text-slate-500">
             Gebuchte Gigs und Interessenten im Überblick.
           </p>
+          <div className="mt-3">
+            <BandSwitcher bands={bands} />
+          </div>
         </div>
         <div className="flex rounded-md border border-slate-300 text-sm font-medium">
           <Link

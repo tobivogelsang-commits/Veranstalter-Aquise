@@ -2,6 +2,7 @@ import { StatCard } from "@/components/StatCard";
 import { FollowUpList } from "@/components/FollowUpList";
 import { TeamAnfragenList } from "@/components/TeamAnfragenList";
 import { BereitZuBuchenBanner } from "@/components/BereitZuBuchenBanner";
+import { BandSwitcher } from "@/components/BandSwitcher";
 import { ALLE_BANDS_PARAM, STATUS_LABELS } from "@/lib/constants";
 import {
   getAnstehendeFollowUps,
@@ -50,6 +51,9 @@ export default async function DashboardPage({
         <p className="mt-1 text-sm text-slate-500">
           Überblick über eure Veranstalter-Akquise.
         </p>
+        <div className="mt-3">
+          <BandSwitcher bands={bands} />
+        </div>
       </div>
 
       <BereitZuBuchenBanner entries={bereitZuBuchen} />

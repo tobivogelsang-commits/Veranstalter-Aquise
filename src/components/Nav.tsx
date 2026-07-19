@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import clsx from "clsx";
-import { BandSwitcher } from "@/components/BandSwitcher";
-import type { Band } from "@/lib/types";
 
 const LINKS = [
   { href: "/", label: "Dashboard" },
@@ -16,7 +14,7 @@ const LINKS = [
   { href: "/einstellungen", label: "Einstellungen" },
 ];
 
-export function Nav({ bands }: { bands: Band[] }) {
+export function Nav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -33,29 +31,26 @@ export function Nav({ bands }: { bands: Band[] }) {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-6">
-          <span className="text-lg font-semibold text-slate-900">
-            Akquise-Tool
-          </span>
-          <nav className="flex gap-4">
-            {LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={query ? `${link.href}?${query}` : link.href}
-                className={clsx(
-                  "text-sm font-medium",
-                  pathname === link.href
-                    ? "text-slate-900"
-                    : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <BandSwitcher bands={bands} />
+      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+        <span className="text-lg font-semibold text-slate-900">
+          Akquise-Tool
+        </span>
+        <nav className="flex gap-4">
+          {LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={query ? `${link.href}?${query}` : link.href}
+              className={clsx(
+                "text-sm font-medium",
+                pathname === link.href
+                  ? "text-slate-900"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </header>
   );

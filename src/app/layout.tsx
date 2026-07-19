@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
-import { getBands } from "@/lib/queries";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,13 +19,11 @@ export const metadata: Metadata = {
   description: "Veranstalter-Akquise für 90er Coverband und Backseat Alley",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const bands = await getBands();
-
   return (
     <html
       lang="de"
@@ -34,7 +31,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50">
         <Suspense fallback={<div className="h-[65px] border-b border-slate-200 bg-white" />}>
-          <Nav bands={bands} />
+          <Nav />
         </Suspense>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
           {children}

@@ -1,6 +1,7 @@
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { BandSwitcher } from "@/components/BandSwitcher";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { getVenuesWithRelations, toPipelineEntries } from "@/lib/queries";
+import { getBands, getVenuesWithRelations, toPipelineEntries } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function PipelinePage({
   const { band } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
 
-  const venues = await getVenuesWithRelations();
+  const [bands, venues] = await Promise.all([getBands(), getVenuesWithRelations()]);
   const entries = toPipelineEntries(venues, bandFilter);
 
   return (
@@ -22,6 +23,9 @@ export default async function PipelinePage({
         <p className="mt-1 text-sm text-slate-500">
           Karten per Drag & Drop zwischen Status verschieben.
         </p>
+        <div className="mt-3">
+          <BandSwitcher bands={bands} />
+        </div>
       </div>
       <KanbanBoard entries={entries} bandFilter={bandFilter} />
     </div>
