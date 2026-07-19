@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -91,7 +91,17 @@ export function BandEmailSection({
   const [an, setAn] = useState(vorausgewaehlterVenue?.email ?? "");
   const [vorlageId, setVorlageId] = useState("");
   const [betreff, setBetreff] = useState("");
-  const [inhalt, setInhalt] = useState("");
+  // inhaltSeed (State) geht als defaultValue an HtmlEditor und wird nur an
+  // den Reset-Punkten (Vorlage wählen, nach Senden) gesetzt - nie bei jedem
+  // Tastendruck. inhaltRef verfolgt den aktuellen Wert für den Versand
+  // (Refs dürfen laut React nicht beim Rendern gelesen werden, nur in
+  // Event-Handlern). Würde stattdessen der bei jedem Tastendruck
+  // aktualisierte Wert direkt als defaultValue durchgereicht, würde React
+  // dessen dangerouslySetInnerHTML bei jedem Tastendruck neu anwenden und
+  // den Cursor an den Anfang zurücksetzen (Text erscheint dann rückwärts,
+  // da jedes neue Zeichen wieder vorne landet).
+  const [inhaltSeed, setInhaltSeed] = useState("");
+  const inhaltRef = useRef("");
   const [editorKey, setEditorKey] = useState(0);
   const [anhaenge, setAnhaenge] = useState<EmailAnhang[]>([]);
   const [anhangLaeuft, setAnhangLaeuft] = useState(false);
@@ -111,7 +121,9 @@ export function BandEmailSection({
     if (!vorlage) return;
     const venue = venues.find((v) => v.id === venueId);
     setBetreff(ersetzePlatzhalter(vorlage.betreff, venue, bandName));
-    setInhalt(ersetzePlatzhalter(vorlage.inhalt, venue, bandName));
+    const neuerInhalt = ersetzePlatzhalter(vorlage.inhalt, venue, bandName);
+    inhaltRef.current = neuerInhalt;
+    setInhaltSeed(neuerInhalt);
     setEditorKey((k) => k + 1);
   }
 
@@ -158,7 +170,9 @@ export function BandEmailSection({
   const [neueVorlage, setNeueVorlage] = useState(false);
   const [vorlageName, setVorlageName] = useState("");
   const [vorlageBetreff, setVorlageBetreff] = useState("");
-  const [vorlageInhalt, setVorlageInhalt] = useState("");
+  // vorlageInhaltSeed/-Ref - siehe Kommentar bei inhaltSeed/inhaltRef weiter oben.
+  const [vorlageInhaltSeed, setVorlageInhaltSeed] = useState("");
+  const vorlageInhaltRef = useRef("");
   const [vorlageEditorKey, setVorlageEditorKey] = useState(0);
   const [vorlageSpeichertLaeuft, setVorlageSpeichertLaeuft] = useState(false);
   const [vorlageFehler, setVorlageFehler] = useState<string | null>(null);
@@ -168,7 +182,8 @@ export function BandEmailSection({
     setNeueVorlage(false);
     setVorlageName(vorlage.name);
     setVorlageBetreff(vorlage.betreff);
-    setVorlageInhalt(vorlage.inhalt);
+    vorlageInhaltRef.current = vorlage.inhalt;
+    setVorlageInhaltSeed(vorlage.inhalt);
     setVorlageEditorKey((k) => k + 1);
     setVorlageFehler(null);
   }
@@ -178,7 +193,8 @@ export function BandEmailSection({
     setNeueVorlage(true);
     setVorlageName("");
     setVorlageBetreff("");
-    setVorlageInhalt("");
+    vorlageInhaltRef.current = "";
+    setVorlageInhaltSeed("");
     setVorlageEditorKey((k) => k + 1);
     setVorlageFehler(null);
   }
@@ -196,7 +212,7 @@ export function BandEmailSection({
     const formData = new FormData();
     formData.set("name", vorlageName);
     formData.set("betreff", vorlageBetreff);
-    formData.set("inhalt", vorlageInhalt);
+    formData.set("inhalt", vorlageInhaltRef.current);
     const ergebnis = await speichereEmailVorlage(
       bandId,
       bearbeiteteVorlageId,
@@ -243,7 +259,7 @@ export function BandEmailSection({
       bandId,
       an,
       betreff,
-      inhalt,
+      inhaltRef.current,
       venueId || null,
       anhaenge
     );
@@ -256,7 +272,8 @@ export function BandEmailSection({
     setAn("");
     setVorlageId("");
     setBetreff("");
-    setInhalt("");
+    inhaltRef.current = "";
+    setInhaltSeed("");
     setEditorKey((k) => k + 1);
     setAnhaenge([]);
     router.refresh();
@@ -377,8 +394,10 @@ export function BandEmailSection({
               <Field label="Inhalt">
                 <HtmlEditor
                   key={vorlageEditorKey}
-                  defaultValue={vorlageInhalt}
-                  onChange={setVorlageInhalt}
+                  defaultValue={vorlageInhaltSeed}
+                  onChange={(html) => {
+                    vorlageInhaltRef.current = html;
+                  }}
                   onBildHochladen={handleBildHochladen}
                 />
               </Field>
@@ -576,8 +595,10 @@ export function BandEmailSection({
         <Field label="Nachricht">
           <HtmlEditor
             key={editorKey}
-            defaultValue={inhalt}
-            onChange={setInhalt}
+            defaultValue={inhaltSeed}
+            onChange={(html) => {
+              inhaltRef.current = html;
+            }}
             onBildHochladen={handleBildHochladen}
           />
         </Field>

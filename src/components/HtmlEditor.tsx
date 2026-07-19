@@ -74,31 +74,6 @@ export function HtmlEditor({
     onChange(editorRef.current?.innerHTML ?? "");
   }
 
-  // Reine Texteingabe (Tippen, Einfügen) selbst per execCommand("insertText")
-  // einfügen statt dem Browser die native Verarbeitung zu überlassen - manche
-  // Browser wenden auf den allerersten Text in einem leeren contentEditable
-  // sonst ungefragt eine Standard-Formatierung (fett) an. Formatierungs-
-  // Buttons und Bild-Einfügen laufen unverändert über execCommand direkt.
-  // Nebeneffekt: Eingefügter Text aus der Zwischenablage kommt immer als
-  // reiner Text an, ohne fremde Formatierung aus Word/Google Docs o. Ä.
-  function beforeInputBehandeln(e: React.FormEvent<HTMLDivElement>) {
-    const event = e.nativeEvent as InputEvent;
-    if (
-      event.inputType === "insertText" ||
-      event.inputType === "insertReplacementText" ||
-      event.inputType === "insertFromPaste"
-    ) {
-      const text =
-        event.data ??
-        event.dataTransfer?.getData("text/plain") ??
-        null;
-      if (text !== null) {
-        event.preventDefault();
-        document.execCommand("insertText", false, text);
-      }
-    }
-  }
-
   return (
     <div className="rounded-md border border-slate-300">
       <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-1">
@@ -151,7 +126,6 @@ export function HtmlEditor({
         contentEditable
         suppressContentEditableWarning
         className="min-h-[150px] px-3 py-2 text-sm font-normal focus:outline-none [&_img]:my-2 [&_img]:max-w-full"
-        onBeforeInput={beforeInputBehandeln}
         onInput={() => {
           ungewollteFettformatierungEntfernen();
           onChange(editorRef.current?.innerHTML ?? "");
