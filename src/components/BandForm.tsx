@@ -14,6 +14,7 @@ import type {
   BandVenueOption,
   BandWithMaterialien,
   EmailEinstellungenOhnePasswort,
+  EmailVorlage,
 } from "@/lib/types";
 
 const inputClass =
@@ -43,6 +44,7 @@ export function BandForm({
   teamInviteUrl,
   teamQrCodeDataUrl,
   teamMitglieder,
+  emailVorlagen,
 }: {
   band: BandWithMaterialien;
   emailEinstellungen: EmailEinstellungenOhnePasswort;
@@ -52,6 +54,7 @@ export function BandForm({
   teamInviteUrl: string;
   teamQrCodeDataUrl: string;
   teamMitglieder: BandMitgliedOhnePush[];
+  emailVorlagen: EmailVorlage[];
 }) {
   const router = useRouter();
   const action = updateBand.bind(null, band.id);
@@ -165,10 +168,12 @@ export function BandForm({
       <BandEmailSection
         key={vorausgewaehlteVenueId ?? "kein-venue"}
         bandId={band.id}
+        bandName={band.name}
         einstellungen={emailEinstellungen}
         emails={emails}
         venues={venues}
         vorausgewaehlteVenueId={vorausgewaehlteVenueId}
+        vorlagen={emailVorlagen}
       />
 
       <div>

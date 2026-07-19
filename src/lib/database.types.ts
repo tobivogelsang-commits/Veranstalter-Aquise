@@ -24,6 +24,14 @@ export type VenueTyp =
 export type GigAnfrageStatus = "offen" | "bestaetigt" | "abgesagt";
 export type GigAntwort = "kann" | "kann_nicht";
 
+// So in band_emails.anhaenge (jsonb) und beim Versand genutzt - url ist die
+// öffentliche Supabase-Storage-URL, direkt als nodemailer-Attachment-Pfad
+// und (bei Bildern) als <img src> in der HTML-Mail verwendbar.
+export type EmailAnhang = {
+  dateiname: string;
+  url: string;
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -174,6 +182,7 @@ export interface Database {
           text_inhalt: string | null;
           imap_uid: string | null;
           zeitpunkt: string;
+          anhaenge: EmailAnhang[] | null;
         };
         Insert: Partial<Database["public"]["Tables"]["band_emails"]["Row"]> & {
           band_id: string;
@@ -193,6 +202,30 @@ export interface Database {
             columns: ["venue_id"];
             isOneToOne: false;
             referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      email_vorlagen: {
+        Row: {
+          id: string;
+          band_id: string;
+          name: string;
+          betreff: string;
+          inhalt: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["email_vorlagen"]["Row"]> & {
+          band_id: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["email_vorlagen"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "email_vorlagen_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
             referencedColumns: ["id"];
           },
         ];

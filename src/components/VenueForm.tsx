@@ -675,8 +675,34 @@ export function VenueForm({
                     </div>
                   </button>
                   {offen && (
-                    <div className="whitespace-pre-wrap border-t border-slate-100 p-3 text-sm text-slate-700">
-                      {mail.text_inhalt || "(kein Inhalt)"}
+                    <div className="border-t border-slate-100 p-3 text-sm text-slate-700">
+                      {mail.richtung === "gesendet" ? (
+                        <div
+                          className="[&_img]:my-2 [&_img]:max-w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: mail.text_inhalt || "(kein Inhalt)",
+                          }}
+                        />
+                      ) : (
+                        <p className="whitespace-pre-wrap">
+                          {mail.text_inhalt || "(kein Inhalt)"}
+                        </p>
+                      )}
+                      {mail.anhaenge && mail.anhaenge.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-3 border-t border-slate-100 pt-2">
+                          {mail.anhaenge.map((a) => (
+                            <a
+                              key={a.url}
+                              href={a.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
+                            >
+                              📎 {a.dateiname}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>

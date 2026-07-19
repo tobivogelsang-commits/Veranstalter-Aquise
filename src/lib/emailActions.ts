@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { rueckeStatusAutomatischVor } from "@/lib/actions";
+import type { EmailAnhang } from "@/lib/database.types";
 import type { EmailEinstellungenOhnePasswort } from "@/lib/types";
 
 // 2-Wochen-Timer fürs Nachfassen, gestartet beim ersten Kontakt per E-Mail.
@@ -142,12 +143,85 @@ export async function speichereEmailEinstellungen(
   return { ok: true };
 }
 
+export async function speichereEmailVorlage(
+  bandId: string,
+  vorlageId: string | null,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const name = (String(formData.get("name") ?? "")).trim();
+  const betreff = (String(formData.get("betreff") ?? "")).trim();
+  const inhalt = String(formData.get("inhalt") ?? "");
+
+  if (!name) return { ok: false, fehler: "Name fehlt." };
+
+  const { error } = vorlageId
+    ? await supabaseAdmin
+        .from("email_vorlagen")
+        .update({ name, betreff, inhalt })
+        .eq("id", vorlageId)
+    : await supabaseAdmin
+        .from("email_vorlagen")
+        .insert({ band_id: bandId, name, betreff, inhalt });
+
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/bands/${bandId}`);
+  return { ok: true };
+}
+
+export async function loescheEmailVorlage(bandId: string, vorlageId: string) {
+  const { error } = await supabaseAdmin
+    .from("email_vorlagen")
+    .delete()
+    .eq("id", vorlageId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/bands/${bandId}`);
+}
+
+// Lädt eine Datei (Bild fürs Einfügen in den Mailtext, oder ein Anhang wie ein
+// Angebot-PDF) ins öffentliche Storage-Bucket "email-anhaenge" hoch. Die
+// öffentliche URL ist direkt als <img src> in der HTML-Mail sowie als
+// nodemailer-Attachment-Pfad nutzbar (kein Signieren/erneutes Abrufen nötig).
+export async function ladeEmailAnhangHoch(
+  bandId: string,
+  formData: FormData
+): Promise<
+  { ok: true; dateiname: string; url: string } | { ok: false; fehler: string }
+> {
+  const datei = formData.get("datei");
+  if (!(datei instanceof File)) {
+    return { ok: false, fehler: "Keine Datei erhalten." };
+  }
+  if (datei.size === 0) {
+    return { ok: false, fehler: "Datei ist leer." };
+  }
+
+  const sichererName = datei.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const pfad = `${bandId}/${Date.now()}-${sichererName}`;
+  const buffer = Buffer.from(await datei.arrayBuffer());
+
+  const { error } = await supabaseAdmin.storage
+    .from("email-anhaenge")
+    .upload(pfad, buffer, {
+      contentType: datei.type || undefined,
+      upsert: false,
+    });
+
+  if (error) return { ok: false, fehler: error.message };
+
+  const { data } = supabaseAdmin.storage.from("email-anhaenge").getPublicUrl(pfad);
+
+  return { ok: true, dateiname: datei.name, url: data.publicUrl };
+}
+
 export async function sendeEmail(
   bandId: string,
   an: string,
   betreff: string,
-  text: string,
-  venueId?: string | null
+  html: string,
+  venueId?: string | null,
+  anhaenge?: EmailAnhang[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   if (!an.trim()) return { ok: false, fehler: "Empfänger fehlt." };
 
@@ -173,6 +247,11 @@ export async function sendeEmail(
     connectionTimeout: 10000,
   });
 
+  // Einfacher Text-Fallback fürs "text"-Alternativteil der Mail (für Mail-
+  // Programme/Vorschauen ohne HTML-Darstellung) - reines Tag-Strippen reicht,
+  // eine exakte Formatierung ist dafür nicht nötig.
+  const textFallback = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
   try {
     await transporter.sendMail({
       from: konto.absender_name
@@ -180,7 +259,12 @@ export async function sendeEmail(
         : konto.email_adresse,
       to: an,
       subject: betreff,
-      text,
+      html,
+      text: textFallback,
+      attachments: (anhaenge ?? []).map((a) => ({
+        filename: a.dateiname,
+        path: a.url,
+      })),
     });
   } catch (err) {
     return {
@@ -201,7 +285,8 @@ export async function sendeEmail(
     von: konto.email_adresse,
     an,
     betreff,
-    text_inhalt: text,
+    text_inhalt: html,
+    anhaenge: anhaenge && anhaenge.length > 0 ? anhaenge : null,
   });
   if (insertError) throw new Error(insertError.message);
 

@@ -8,6 +8,7 @@ export type BandMaterial = Database["public"]["Tables"]["band_materialien"]["Row
 export type BandEmailKonto =
   Database["public"]["Tables"]["band_email_konten"]["Row"];
 export type BandEmail = Database["public"]["Tables"]["band_emails"]["Row"];
+export type EmailVorlage = Database["public"]["Tables"]["email_vorlagen"]["Row"];
 export type BandMitglied = Database["public"]["Tables"]["band_mitglieder"]["Row"];
 export type GigAnfrage = Database["public"]["Tables"]["gig_anfragen"]["Row"];
 export type GigAntwortRow = Database["public"]["Tables"]["gig_antworten"]["Row"];
@@ -34,8 +35,13 @@ export type VenueEmailMitBand = BandEmail & {
   band: Pick<Band, "id" | "name">;
 };
 
-// Für das Veranstalter-Dropdown im Compose-Formular einer Band.
-export type BandVenueOption = Pick<Venue, "id" | "name" | "email">;
+// Für das Veranstalter-Dropdown im Compose-Formular einer Band - inkl. der
+// Felder, die als E-Mail-Vorlagen-Platzhalter ({{ort}}, {{ansprechpartner}})
+// nutzbar sind.
+export type BandVenueOption = Pick<
+  Venue,
+  "id" | "name" | "email" | "ort" | "ansprechpartner"
+>;
 
 // Ein Venue inkl. aller Band-Zuordnungen (0, 1 oder 2 Bands), so wie er aus
 // der Supabase-Embed-Query kommt.

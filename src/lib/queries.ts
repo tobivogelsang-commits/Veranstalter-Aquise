@@ -7,6 +7,7 @@ import type {
   BandEmailMitVenue,
   BandVenueOption,
   BandWithMaterialien,
+  EmailVorlage,
   GigAnfrageMitAntworten,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
@@ -57,7 +58,7 @@ export async function getVenuesForBand(
 ): Promise<BandVenueOption[]> {
   const { data, error } = await supabase
     .from("venue_band_status")
-    .select("venue:venues(id, name, email)")
+    .select("venue:venues(id, name, email, ort, ansprechpartner)")
     .eq("band_id", bandId);
 
   if (error) throw new Error(error.message);
@@ -77,6 +78,17 @@ export async function getEmailsForVenue(
 
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as VenueEmailMitBand[];
+}
+
+export async function getEmailVorlagen(bandId: string): Promise<EmailVorlage[]> {
+  const { data, error } = await supabase
+    .from("email_vorlagen")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("name");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 export async function getVenuesWithRelations(): Promise<

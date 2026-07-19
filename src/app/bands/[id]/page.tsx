@@ -7,6 +7,7 @@ import { getMitgliederFuerBand } from "@/lib/teamActions";
 import {
   getBandEmails,
   getBandWithMaterialien,
+  getEmailVorlagen,
   getVenuesForBand,
 } from "@/lib/queries";
 
@@ -28,15 +29,23 @@ export default async function BandDetailPage({
 }) {
   const { id } = await params;
   const { venue } = await searchParams;
-  const [band, emailEinstellungen, emails, venues, teamMitglieder, basisUrl] =
-    await Promise.all([
-      getBandWithMaterialien(id),
-      getEmailEinstellungen(id),
-      getBandEmails(id),
-      getVenuesForBand(id),
-      getMitgliederFuerBand(id),
-      getBasisUrl(),
-    ]);
+  const [
+    band,
+    emailEinstellungen,
+    emails,
+    venues,
+    teamMitglieder,
+    basisUrl,
+    emailVorlagen,
+  ] = await Promise.all([
+    getBandWithMaterialien(id),
+    getEmailEinstellungen(id),
+    getBandEmails(id),
+    getVenuesForBand(id),
+    getMitgliederFuerBand(id),
+    getBasisUrl(),
+    getEmailVorlagen(id),
+  ]);
 
   if (!band) notFound();
 
@@ -57,6 +66,7 @@ export default async function BandDetailPage({
         teamInviteUrl={teamInviteUrl}
         teamQrCodeDataUrl={teamQrCodeDataUrl}
         teamMitglieder={teamMitglieder}
+        emailVorlagen={emailVorlagen}
       />
     </div>
   );
