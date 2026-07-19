@@ -4,7 +4,11 @@ import QRCode from "qrcode";
 import { BandForm } from "@/components/BandForm";
 import { getEmailEinstellungen } from "@/lib/emailActions";
 import { getMitgliederFuerBand } from "@/lib/teamActions";
-import { getBandWithMaterialien, getEmailVorlagen } from "@/lib/queries";
+import {
+  getBandDokumentTypen,
+  getBandWithMaterialien,
+  getEmailVorlagen,
+} from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +25,21 @@ export default async function EinstellungenDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [band, emailEinstellungen, teamMitglieder, basisUrl, emailVorlagen] =
-    await Promise.all([
-      getBandWithMaterialien(id),
-      getEmailEinstellungen(id),
-      getMitgliederFuerBand(id),
-      getBasisUrl(),
-      getEmailVorlagen(id),
-    ]);
+  const [
+    band,
+    emailEinstellungen,
+    teamMitglieder,
+    basisUrl,
+    emailVorlagen,
+    dokumentTypen,
+  ] = await Promise.all([
+    getBandWithMaterialien(id),
+    getEmailEinstellungen(id),
+    getMitgliederFuerBand(id),
+    getBasisUrl(),
+    getEmailVorlagen(id),
+    getBandDokumentTypen(id),
+  ]);
 
   if (!band) notFound();
 
@@ -47,6 +58,7 @@ export default async function EinstellungenDetailPage({
         teamQrCodeDataUrl={teamQrCodeDataUrl}
         teamMitglieder={teamMitglieder}
         emailVorlagen={emailVorlagen}
+        dokumentTypen={dokumentTypen}
       />
     </div>
   );

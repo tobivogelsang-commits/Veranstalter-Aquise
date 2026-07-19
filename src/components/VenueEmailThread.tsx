@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
 import { HtmlEditor } from "@/components/HtmlEditor";
-import type { EmailVorlage, VenueEmailMitBand } from "@/lib/types";
+import type { BandDokumentTyp, EmailVorlage, VenueEmailMitBand } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
@@ -56,6 +56,7 @@ export function VenueEmailThread({
   venueEmail,
   vorlagen,
   emails,
+  dokumentTypen,
 }: {
   bandId: string;
   bandName: string;
@@ -66,6 +67,7 @@ export function VenueEmailThread({
   venueEmail: string | null;
   vorlagen: EmailVorlage[];
   emails: VenueEmailMitBand[];
+  dokumentTypen: BandDokumentTyp[];
 }) {
   const router = useRouter();
 
@@ -133,6 +135,19 @@ export function VenueEmailThread({
   function handleAnhangEntfernen(url: string) {
     setAnhaenge((prev) => prev.filter((a) => a.url !== url));
   }
+
+  // Hängt eine in den Band-Einstellungen hinterlegte Datei (Stage Rider,
+  // Angebot etc.) direkt an, ohne sie erneut hochzuladen.
+  function handleDokumentAnhaengen(typ: BandDokumentTyp) {
+    if (!typ.datei_url || !typ.dateiname) return;
+    if (anhaenge.some((a) => a.url === typ.datei_url)) return;
+    setAnhaenge((prev) => [
+      ...prev,
+      { dateiname: typ.dateiname!, url: typ.datei_url! },
+    ]);
+  }
+
+  const dokumenteMitDatei = dokumentTypen.filter((t) => t.datei_url);
 
   async function handleSenden() {
     if (!an.trim() || !betreff.trim()) {
@@ -218,6 +233,21 @@ export function VenueEmailThread({
           />
         </Field>
         <div className="flex flex-col gap-2">
+          {dokumenteMitDatei.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {dokumenteMitDatei.map((typ) => (
+                <button
+                  key={typ.id}
+                  type="button"
+                  onClick={() => handleDokumentAnhaengen(typ)}
+                  disabled={anhaenge.some((a) => a.url === typ.datei_url)}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  + {typ.name}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="w-fit cursor-pointer text-xs font-medium text-slate-600 underline hover:text-slate-900">
             {anhangLaeuft ? "Lädt hoch…" : "+ Anhang hinzufügen"}
             <input

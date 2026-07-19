@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addBandMaterial, deleteBandMaterial, updateBand } from "@/lib/actions";
 import { EmailEinstellungenPanel } from "@/components/EmailEinstellungenPanel";
+import { BandDokumentePanel } from "@/components/BandDokumentePanel";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { TeamEinladung } from "@/components/TeamEinladung";
 import { BAND_MATERIAL_TYPEN } from "@/lib/constants";
 import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import type {
+  BandDokumentTyp,
   BandMitgliedOhnePush,
   BandWithMaterialien,
   EmailEinstellungenOhnePasswort,
@@ -40,6 +42,7 @@ export function BandForm({
   teamQrCodeDataUrl,
   teamMitglieder,
   emailVorlagen,
+  dokumentTypen,
 }: {
   band: BandWithMaterialien;
   emailEinstellungen: EmailEinstellungenOhnePasswort;
@@ -47,6 +50,7 @@ export function BandForm({
   teamQrCodeDataUrl: string;
   teamMitglieder: BandMitgliedOhnePush[];
   emailVorlagen: EmailVorlage[];
+  dokumentTypen: BandDokumentTyp[];
 }) {
   const router = useRouter();
   const action = updateBand.bind(null, band.id);
@@ -261,6 +265,8 @@ export function BandForm({
         </form>
         {fehler && <p className="mt-2 text-sm text-red-600">{fehler}</p>}
       </div>
+
+      <BandDokumentePanel bandId={band.id} dokumentTypen={dokumentTypen} />
     </div>
   );
 }

@@ -236,6 +236,8 @@ export interface Database {
           band_id: string;
           name: string;
           erstellt_am: string;
+          datei_url: string | null;
+          dateiname: string | null;
         };
         Insert: Partial<
           Database["public"]["Tables"]["band_dokument_typen"]["Row"]

@@ -2,15 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Fügt der erweiterbaren Dokument-Liste einer Band einen neuen Typ hinzu
 // (z. B. "Vertrag") - ab dann für jeden Veranstalter dieser Band als
 // ankreuzbares Dokument verfügbar, wie Vorlagen/Mail-Zugangsdaten eine
 // einzige, band-weite Quelle statt pro Veranstalter neu anzulegen.
+// `revalidatePfad` statt einer festen venueId, da die Liste sowohl von einer
+// Veranstalter-Seite als auch aus den Band-Einstellungen heraus gepflegt wird.
 export async function fuegeDokumentTypHinzu(
   bandId: string,
   name: string,
-  venueId: string
+  revalidatePfad: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   const bereinigt = name.trim();
   if (!bereinigt) return { ok: false, fehler: "Name fehlt." };
@@ -21,13 +24,13 @@ export async function fuegeDokumentTypHinzu(
 
   if (error) return { ok: false, fehler: error.message };
 
-  revalidatePath(`/venues/${venueId}`);
+  revalidatePath(revalidatePfad);
   return { ok: true };
 }
 
 export async function entferneDokumentTyp(
   dokumentTypId: string,
-  venueId: string
+  revalidatePfad: string
 ) {
   const { error } = await supabase
     .from("band_dokument_typen")
@@ -35,7 +38,7 @@ export async function entferneDokumentTyp(
     .eq("id", dokumentTypId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/venues/${venueId}`);
+  revalidatePath(revalidatePfad);
 }
 
 // Schaltet um, ob ein Dokument als an diesen Veranstalter (für diese Band)
@@ -68,4 +71,54 @@ export async function toggleDokumentVersendet(
   if (error) throw new Error(error.message);
 
   revalidatePath(`/venues/${venueId}`);
+}
+
+// Lädt die Datei hinter einem Dokumententyp hoch (z. B. das Stage-Rider-PDF)
+// - landet im selben öffentlichen Bucket wie Mail-Anhänge, damit sie sich
+// später ohne erneuten Upload direkt als Anhang verwenden lässt.
+export async function ladeDokumentDateiHoch(
+  bandId: string,
+  dokumentTypId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const datei = formData.get("datei");
+  if (!(datei instanceof File)) {
+    return { ok: false, fehler: "Keine Datei erhalten." };
+  }
+  if (datei.size === 0) {
+    return { ok: false, fehler: "Datei ist leer." };
+  }
+
+  const sichererName = datei.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const pfad = `${bandId}/dokumente/${dokumentTypId}-${Date.now()}-${sichererName}`;
+  const buffer = Buffer.from(await datei.arrayBuffer());
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from("email-anhaenge")
+    .upload(pfad, buffer, {
+      contentType: datei.type || undefined,
+      upsert: false,
+    });
+  if (uploadError) return { ok: false, fehler: uploadError.message };
+
+  const { data } = supabaseAdmin.storage.from("email-anhaenge").getPublicUrl(pfad);
+
+  const { error } = await supabase
+    .from("band_dokument_typen")
+    .update({ datei_url: data.publicUrl, dateiname: datei.name })
+    .eq("id", dokumentTypId);
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true };
+}
+
+export async function entferneDokumentDatei(dokumentTypId: string, bandId: string) {
+  const { error } = await supabase
+    .from("band_dokument_typen")
+    .update({ datei_url: null, dateiname: null })
+    .eq("id", dokumentTypId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/einstellungen/${bandId}`);
 }

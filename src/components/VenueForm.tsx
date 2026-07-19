@@ -699,6 +699,7 @@ export function VenueForm({
                         emails={(emails ?? []).filter(
                           (m) => m.band.id === band.id
                         )}
+                        dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
                       />
                     </div>
                   )}

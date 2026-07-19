@@ -47,7 +47,11 @@ export function DokumentChecklist({
     if (!neuerTyp.trim()) return;
     setHinzufuegenLaeuft(true);
     setFehler(null);
-    const ergebnis = await fuegeDokumentTypHinzu(bandId, neuerTyp, venueId);
+    const ergebnis = await fuegeDokumentTypHinzu(
+      bandId,
+      neuerTyp,
+      `/venues/${venueId}`
+    );
     setHinzufuegenLaeuft(false);
     if (!ergebnis.ok) {
       setFehler(ergebnis.fehler);
@@ -58,7 +62,7 @@ export function DokumentChecklist({
   }
 
   async function handleEntfernen(typId: string) {
-    await entferneDokumentTyp(typId, venueId);
+    await entferneDokumentTyp(typId, `/venues/${venueId}`);
     router.refresh();
   }
 
