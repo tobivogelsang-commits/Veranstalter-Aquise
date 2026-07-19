@@ -296,6 +296,42 @@ export interface Database {
           },
         ];
       };
+      venue_band_protokoll: {
+        Row: {
+          id: string;
+          venue_id: string;
+          band_id: string;
+          typ: string;
+          text: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["venue_band_protokoll"]["Row"]
+        > & {
+          venue_id: string;
+          band_id: string;
+          typ: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["venue_band_protokoll"]["Row"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "venue_band_protokoll_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_band_protokoll_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       band_mitglieder: {
         Row: {
           id: string;

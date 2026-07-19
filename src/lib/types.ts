@@ -13,6 +13,8 @@ export type BandDokumentTyp =
   Database["public"]["Tables"]["band_dokument_typen"]["Row"];
 export type VenueBandDokument =
   Database["public"]["Tables"]["venue_band_dokumente"]["Row"];
+export type VenueBandProtokoll =
+  Database["public"]["Tables"]["venue_band_protokoll"]["Row"];
 export type BandMitglied = Database["public"]["Tables"]["band_mitglieder"]["Row"];
 export type GigAnfrage = Database["public"]["Tables"]["gig_anfragen"]["Row"];
 export type GigAntwortRow = Database["public"]["Tables"]["gig_antworten"]["Row"];

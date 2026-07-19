@@ -8,6 +8,7 @@ import {
   getEmailVorlagen,
   getGigAnfragenFuerVenues,
   getVenueBandDokumente,
+  getVenueBandProtokoll,
   getVenueWithRelations,
 } from "@/lib/queries";
 import type { BandDokumentTyp, EmailVorlage } from "@/lib/types";
@@ -28,14 +29,21 @@ export default async function VenueDetailPage({
 
   if (!venue) notFound();
 
-  const [anfragen, mitgliederProBand, vorlagenProBandListe, dokumentTypenListe, dokumente] =
-    await Promise.all([
-      getGigAnfragenFuerVenues([id]),
-      getBandMitgliederAnzahlProBand(),
-      Promise.all(bands.map((band) => getEmailVorlagen(band.id))),
-      Promise.all(bands.map((band) => getBandDokumentTypen(band.id))),
-      getVenueBandDokumente(id),
-    ]);
+  const [
+    anfragen,
+    mitgliederProBand,
+    vorlagenProBandListe,
+    dokumentTypenListe,
+    dokumente,
+    protokoll,
+  ] = await Promise.all([
+    getGigAnfragenFuerVenues([id]),
+    getBandMitgliederAnzahlProBand(),
+    Promise.all(bands.map((band) => getEmailVorlagen(band.id))),
+    Promise.all(bands.map((band) => getBandDokumentTypen(band.id))),
+    getVenueBandDokumente(id),
+    getVenueBandProtokoll(id),
+  ]);
 
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
   const dokumentTypenProBand: Record<string, BandDokumentTyp[]> = {};
@@ -58,6 +66,7 @@ export default async function VenueDetailPage({
         vorlagenProBand={vorlagenProBand}
         dokumentTypenProBand={dokumentTypenProBand}
         dokumente={dokumente}
+        protokoll={protokoll}
       />
     </div>
   );

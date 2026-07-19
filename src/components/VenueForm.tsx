@@ -17,6 +17,7 @@ import type {
   EmailVorlage,
   GigAnfrageMitAntworten,
   VenueBandDokument,
+  VenueBandProtokoll,
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
@@ -25,6 +26,7 @@ import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
 import { DokumentChecklist } from "@/components/DokumentChecklist";
 import { VenueEmailThread } from "@/components/VenueEmailThread";
+import { VenueProtokoll } from "@/components/VenueProtokoll";
 
 function normalizeUrl(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -79,6 +81,7 @@ export function VenueForm({
   vorlagenProBand,
   dokumentTypenProBand,
   dokumente,
+  protokoll,
 }: {
   bands: Band[];
   venue?: VenueWithRelations;
@@ -88,6 +91,7 @@ export function VenueForm({
   vorlagenProBand?: Record<string, EmailVorlage[]>;
   dokumentTypenProBand?: Record<string, BandDokumentTyp[]>;
   dokumente?: VenueBandDokument[];
+  protokoll?: VenueBandProtokoll[];
 }) {
   const action = venue ? updateVenue.bind(null, venue.id) : createVenue;
   const gespeichert = useGespeichertHinweis();
@@ -604,6 +608,17 @@ export function VenueForm({
                       <AnfrageBadge
                         anfrage={bandAnfrage}
                         gesamtMitglieder={mitgliederProBand?.[band.id] ?? 0}
+                      />
+                    </div>
+                  )}
+                  {venue && (
+                    <div className="sm:col-span-2">
+                      <VenueProtokoll
+                        bandId={band.id}
+                        venueId={venue.id}
+                        eintraege={(protokoll ?? []).filter(
+                          (p) => p.band_id === band.id
+                        )}
                       />
                     </div>
                   )}

@@ -297,6 +297,12 @@ export async function sendeEmail(
       "kontaktiert",
       inZweiWochen()
     );
+    await supabase.from("venue_band_protokoll").insert({
+      venue_id: zugeordneteVenueId,
+      band_id: bandId,
+      typ: "email_gesendet",
+      text: betreff,
+    });
   }
 
   revalidatePath(`/emails/${bandId}`);
@@ -432,6 +438,12 @@ export async function holeEingehendeEmails(
         klassifiziereAntwort(eintrag.text_inhalt),
         null
       );
+      await supabase.from("venue_band_protokoll").insert({
+        venue_id: eintrag.venue_id,
+        band_id: bandId,
+        typ: "email_beantwortet",
+        text: eintrag.betreff,
+      });
     }
   }
 

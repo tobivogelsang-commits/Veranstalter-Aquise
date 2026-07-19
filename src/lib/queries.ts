@@ -13,6 +13,7 @@ import type {
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
   VenueBandDokument,
+  VenueBandProtokoll,
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
@@ -115,6 +116,22 @@ export async function getVenueBandDokumente(
     .from("venue_band_dokumente")
     .select("*")
     .eq("venue_id", venueId);
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Alle Protokoll-Einträge eines Veranstalters (über alle Bands hinweg,
+// neueste zuerst) - clientseitig pro Band gefiltert, analog zu
+// getVenueBandDokumente.
+export async function getVenueBandProtokoll(
+  venueId: string
+): Promise<VenueBandProtokoll[]> {
+  const { data, error } = await supabase
+    .from("venue_band_protokoll")
+    .select("*")
+    .eq("venue_id", venueId)
+    .order("erstellt_am", { ascending: false });
 
   if (error) throw new Error(error.message);
   return data ?? [];
