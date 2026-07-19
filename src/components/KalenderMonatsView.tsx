@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import {
@@ -37,6 +40,10 @@ function monatLink(monat: Date, bandFilter: string, tabParam?: string) {
   return `?${params.toString()}`;
 }
 
+function formatDatum(datum: string): string {
+  return datum.split("-").reverse().join(".");
+}
+
 export function KalenderMonatsView({
   eintraege,
   monatParam,
@@ -64,6 +71,9 @@ export function KalenderMonatsView({
   const zeigeBand = zeigeBandName ?? bandFilter === ALLE_BANDS_PARAM;
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
   const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
+  const [offeneProberaumTermine, setOffeneProberaumTermine] = useState<ProberaumTermin[] | null>(
+    null
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -154,18 +164,55 @@ export function KalenderMonatsView({
                   );
                 })}
                 {tagesProberaum.length > 0 && (
-                  <span
-                    title={tagesProberaum.map((t) => t.titel).join(", ")}
-                    className="block truncate rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-600"
+                  <button
+                    type="button"
+                    onClick={() => setOffeneProberaumTermine(tagesProberaum)}
+                    className="block w-full truncate rounded bg-slate-200 px-1.5 py-0.5 text-left text-xs font-medium text-slate-600 hover:bg-slate-300"
                   >
                     Proberaum belegt
-                  </span>
+                  </button>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {offeneProberaumTermine && (
+        <div
+          className="fixed inset-0 z-20 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setOffeneProberaumTermine(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">Proberaum belegt</h3>
+              <button
+                type="button"
+                onClick={() => setOffeneProberaumTermine(null)}
+                className="text-slate-400 hover:text-slate-700"
+                aria-label="Schließen"
+              >
+                ×
+              </button>
+            </div>
+            <ul className="flex flex-col gap-3">
+              {offeneProberaumTermine.map((termin) => (
+                <li key={termin.id} className="text-sm">
+                  <p className="font-medium text-slate-900">{termin.titel}</p>
+                  <p className="text-xs text-slate-500">
+                    Ab {formatDatum(termin.datum)}
+                    {termin.datumBis !== termin.datum &&
+                      ` bis ${formatDatum(termin.datumBis)}`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
