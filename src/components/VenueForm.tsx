@@ -14,6 +14,7 @@ import type { Status } from "@/lib/database.types";
 import type {
   Band,
   BandDokumentTyp,
+  BandMaterial,
   EmailVorlage,
   GigAnfrageMitAntworten,
   VenueBandDokument,
@@ -79,6 +80,7 @@ export function VenueForm({
   mitgliederProBand,
   vorlagenProBand,
   dokumentTypenProBand,
+  materialienProBand,
   dokumente,
   protokoll,
 }: {
@@ -89,6 +91,7 @@ export function VenueForm({
   mitgliederProBand?: Record<string, number>;
   vorlagenProBand?: Record<string, EmailVorlage[]>;
   dokumentTypenProBand?: Record<string, BandDokumentTyp[]>;
+  materialienProBand?: Record<string, BandMaterial[]>;
   dokumente?: VenueBandDokument[];
   protokoll?: VenueBandProtokoll[];
 }) {
@@ -700,6 +703,7 @@ export function VenueForm({
                           (m) => m.band.id === band.id
                         )}
                         dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
+                        materialien={materialienProBand?.[band.id] ?? []}
                       />
                     </div>
                   )}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { VenueForm } from "@/components/VenueForm";
 import {
   getBandDokumentTypen,
+  getBandMaterialien,
   getBandMitgliederAnzahlProBand,
   getBands,
   getEmailsForVenue,
@@ -11,7 +12,7 @@ import {
   getVenueBandProtokoll,
   getVenueWithRelations,
 } from "@/lib/queries";
-import type { BandDokumentTyp, EmailVorlage } from "@/lib/types";
+import type { BandDokumentTyp, BandMaterial, EmailVorlage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default async function VenueDetailPage({
     mitgliederProBand,
     vorlagenProBandListe,
     dokumentTypenListe,
+    materialienProBandListe,
     dokumente,
     protokoll,
   ] = await Promise.all([
@@ -41,15 +43,18 @@ export default async function VenueDetailPage({
     getBandMitgliederAnzahlProBand(),
     Promise.all(bands.map((band) => getEmailVorlagen(band.id))),
     Promise.all(bands.map((band) => getBandDokumentTypen(band.id))),
+    Promise.all(bands.map((band) => getBandMaterialien(band.id))),
     getVenueBandDokumente(id),
     getVenueBandProtokoll(id),
   ]);
 
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
   const dokumentTypenProBand: Record<string, BandDokumentTyp[]> = {};
+  const materialienProBand: Record<string, BandMaterial[]> = {};
   bands.forEach((band, i) => {
     vorlagenProBand[band.id] = vorlagenProBandListe[i];
     dokumentTypenProBand[band.id] = dokumentTypenListe[i];
+    materialienProBand[band.id] = materialienProBandListe[i];
   });
 
   return (
@@ -65,6 +70,7 @@ export default async function VenueDetailPage({
         mitgliederProBand={mitgliederProBand}
         vorlagenProBand={vorlagenProBand}
         dokumentTypenProBand={dokumentTypenProBand}
+        materialienProBand={materialienProBand}
         dokumente={dokumente}
         protokoll={protokoll}
       />

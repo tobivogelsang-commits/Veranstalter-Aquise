@@ -6,8 +6,13 @@ import { format } from "date-fns";
 import clsx from "clsx";
 import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
-import { HtmlEditor } from "@/components/HtmlEditor";
-import type { BandDokumentTyp, EmailVorlage, VenueEmailMitBand } from "@/lib/types";
+import { HtmlEditor, type HtmlEditorHandle } from "@/components/HtmlEditor";
+import type {
+  BandDokumentTyp,
+  BandMaterial,
+  EmailVorlage,
+  VenueEmailMitBand,
+} from "@/lib/types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
@@ -57,6 +62,7 @@ export function VenueEmailThread({
   vorlagen,
   emails,
   dokumentTypen,
+  materialien,
 }: {
   bandId: string;
   bandName: string;
@@ -68,6 +74,7 @@ export function VenueEmailThread({
   vorlagen: EmailVorlage[];
   emails: VenueEmailMitBand[];
   dokumentTypen: BandDokumentTyp[];
+  materialien: BandMaterial[];
 }) {
   const router = useRouter();
 
@@ -79,6 +86,7 @@ export function VenueEmailThread({
   // zurück (Text erscheint dann rückwärts).
   const [inhaltSeed, setInhaltSeed] = useState("");
   const inhaltRef = useRef("");
+  const editorHandleRef = useRef<HtmlEditorHandle>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [anhaenge, setAnhaenge] = useState<EmailAnhang[]>([]);
   const [anhangLaeuft, setAnhangLaeuft] = useState(false);
@@ -148,6 +156,13 @@ export function VenueEmailThread({
   }
 
   const dokumenteMitDatei = dokumentTypen.filter((t) => t.datei_url);
+
+  // Fügt einen Materialien-Link (Instagram, EPK etc.) als Hyperlink an der
+  // aktuellen Cursor-Position ein, statt ihn als Anhang zu behandeln - anders
+  // als Dokumente sind das reine Links, keine hochgeladenen Dateien.
+  function handleLinkEinfuegen(material: BandMaterial) {
+    editorHandleRef.current?.insertLink(material.url, material.titel);
+  }
 
   async function handleSenden() {
     if (!an.trim() || !betreff.trim()) {
@@ -225,6 +240,7 @@ export function VenueEmailThread({
         <Field label="Nachricht">
           <HtmlEditor
             key={editorKey}
+            ref={editorHandleRef}
             defaultValue={inhaltSeed}
             onChange={(html) => {
               inhaltRef.current = html;
@@ -232,6 +248,20 @@ export function VenueEmailThread({
             onBildHochladen={handleBildHochladen}
           />
         </Field>
+        {materialien.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {materialien.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleLinkEinfuegen(m)}
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                🔗 {m.typ ?? m.titel}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           {dokumenteMitDatei.length > 0 && (
             <div className="flex flex-wrap gap-2">

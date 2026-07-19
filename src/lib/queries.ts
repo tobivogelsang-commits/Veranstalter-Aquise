@@ -6,6 +6,7 @@ import type {
   Band,
   BandDokumentTyp,
   BandEmailMitVenue,
+  BandMaterial,
   BandVenueOption,
   BandWithMaterialien,
   EmailVorlage,
@@ -90,6 +91,20 @@ export async function getEmailVorlagen(bandId: string): Promise<EmailVorlage[]> 
     .select("*")
     .eq("band_id", bandId)
     .order("name");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Nur die Materialien-Liste (Titel + Link) einer Band - für die Schnell-
+// Einfügen-Buttons im Mail-Compose-Bereich, ohne die ganze Band mitzuladen
+// wie getBandWithMaterialien.
+export async function getBandMaterialien(bandId: string): Promise<BandMaterial[]> {
+  const { data, error } = await supabase
+    .from("band_materialien")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("erstellt_am");
 
   if (error) throw new Error(error.message);
   return data ?? [];

@@ -1,9 +1,21 @@
 "use client";
 
-import { useRef } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 
 const knopfClass =
   "rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200";
+
+export type HtmlEditorHandle = {
+  insertLink: (url: string, label: string) => void;
+};
+
+function escapeAttribut(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+function escapeText(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 // Einfaches contentEditable-Feld mit Basis-Formatierung, bewusst ohne
 // Editor-Bibliothek. "defaultValue" statt "value": der Inhalt wird nur beim
@@ -11,15 +23,14 @@ const knopfClass =
 // sonst würde die Cursor-Position bei jedem Zeichen zurückspringen. Soll der
 // Inhalt von außen ersetzt werden (z. B. Vorlage auswählen), muss die
 // aufrufende Stelle einen neuen "key" übergeben (erzwingt Remount).
-export function HtmlEditor({
-  defaultValue,
-  onChange,
-  onBildHochladen,
-}: {
-  defaultValue: string;
-  onChange: (html: string) => void;
-  onBildHochladen?: (datei: File) => Promise<string | null>;
-}) {
+export const HtmlEditor = forwardRef<
+  HtmlEditorHandle,
+  {
+    defaultValue: string;
+    onChange: (html: string) => void;
+    onBildHochladen?: (datei: File) => Promise<string | null>;
+  }
+>(function HtmlEditor({ defaultValue, onChange, onBildHochladen }, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
   const dateiInputRef = useRef<HTMLInputElement>(null);
   // Manche Browser wrappen den allerersten getippten/eingefügten Text in
@@ -73,6 +84,18 @@ export function HtmlEditor({
     document.execCommand("insertImage", false, url);
     onChange(editorRef.current?.innerHTML ?? "");
   }
+
+  useImperativeHandle(ref, () => ({
+    insertLink(url: string, label: string) {
+      editorRef.current?.focus();
+      document.execCommand(
+        "insertHTML",
+        false,
+        `<a href="${escapeAttribut(url)}" target="_blank" rel="noopener noreferrer">${escapeText(label)}</a>`
+      );
+      onChange(editorRef.current?.innerHTML ?? "");
+    },
+  }));
 
   return (
     <div className="rounded-md border border-slate-300">
@@ -140,4 +163,4 @@ export function HtmlEditor({
       />
     </div>
   );
-}
+});

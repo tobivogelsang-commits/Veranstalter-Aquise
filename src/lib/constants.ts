@@ -59,10 +59,9 @@ export const ALLE_BANDS_PARAM = "alle";
 // Vorschläge für die Materialliste einer Band - Freitext in der DB, damit
 // später weitere Arten ergänzt werden können, ohne Migration.
 export const BAND_MATERIAL_TYPEN = [
-  "Stage Rider",
-  "EPK",
+  "Instagram",
+  "TikTok",
+  "Facebook",
   "YouTube",
-  "Fotos",
-  "Social Media",
-  "Sonstiges",
+  "EPK",
 ];
