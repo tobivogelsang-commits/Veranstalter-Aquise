@@ -139,7 +139,7 @@ export async function speichereEmailEinstellungen(
 
   if (error) return { ok: false, fehler: error.message };
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
   return { ok: true };
 }
 
@@ -165,7 +165,7 @@ export async function speichereEmailVorlage(
 
   if (error) return { ok: false, fehler: error.message };
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
   return { ok: true };
 }
 
@@ -176,7 +176,7 @@ export async function loescheEmailVorlage(bandId: string, vorlageId: string) {
     .eq("id", vorlageId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
 }
 
 // Lädt eine Datei (Bild fürs Einfügen in den Mailtext, oder ein Anhang wie ein
@@ -299,7 +299,7 @@ export async function sendeEmail(
     );
   }
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/emails/${bandId}`);
   return { ok: true };
 }
 
@@ -435,6 +435,6 @@ export async function holeEingehendeEmails(
     }
   }
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/emails/${bandId}`);
   return { ok: true, neu: neueNachrichten.length };
 }

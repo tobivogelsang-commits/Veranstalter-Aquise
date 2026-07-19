@@ -4,12 +4,7 @@ import QRCode from "qrcode";
 import { BandForm } from "@/components/BandForm";
 import { getEmailEinstellungen } from "@/lib/emailActions";
 import { getMitgliederFuerBand } from "@/lib/teamActions";
-import {
-  getBandEmails,
-  getBandWithMaterialien,
-  getEmailVorlagen,
-  getVenuesForBand,
-} from "@/lib/queries";
+import { getBandWithMaterialien, getEmailVorlagen } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -20,32 +15,20 @@ async function getBasisUrl(): Promise<string> {
   return `${protokoll}://${host}`;
 }
 
-export default async function BandDetailPage({
+export default async function EinstellungenDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ venue?: string }>;
 }) {
   const { id } = await params;
-  const { venue } = await searchParams;
-  const [
-    band,
-    emailEinstellungen,
-    emails,
-    venues,
-    teamMitglieder,
-    basisUrl,
-    emailVorlagen,
-  ] = await Promise.all([
-    getBandWithMaterialien(id),
-    getEmailEinstellungen(id),
-    getBandEmails(id),
-    getVenuesForBand(id),
-    getMitgliederFuerBand(id),
-    getBasisUrl(),
-    getEmailVorlagen(id),
-  ]);
+  const [band, emailEinstellungen, teamMitglieder, basisUrl, emailVorlagen] =
+    await Promise.all([
+      getBandWithMaterialien(id),
+      getEmailEinstellungen(id),
+      getMitgliederFuerBand(id),
+      getBasisUrl(),
+      getEmailVorlagen(id),
+    ]);
 
   if (!band) notFound();
 
@@ -60,9 +43,6 @@ export default async function BandDetailPage({
       <BandForm
         band={band}
         emailEinstellungen={emailEinstellungen}
-        emails={emails}
-        venues={venues}
-        vorausgewaehlteVenueId={venue}
         teamInviteUrl={teamInviteUrl}
         teamQrCodeDataUrl={teamQrCodeDataUrl}
         teamMitglieder={teamMitglieder}

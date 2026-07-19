@@ -284,7 +284,7 @@ export async function entferneMitglied(mitgliedId: string, bandId: string) {
     .eq("id", mitgliedId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
 }
 
 // Dünner Server-Action-Wrapper um die Query aus queries.ts, damit die

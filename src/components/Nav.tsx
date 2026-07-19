@@ -12,7 +12,8 @@ const LINKS = [
   { href: "/venues", label: "Veranstalter" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/kalender", label: "Kalender" },
-  { href: "/bands", label: "Bands" },
+  { href: "/emails", label: "E-Mails" },
+  { href: "/einstellungen", label: "Einstellungen" },
 ];
 
 export function Nav({ bands }: { bands: Band[] }) {

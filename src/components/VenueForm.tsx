@@ -484,7 +484,7 @@ export function VenueForm({
               {linkedBands.map((band) => (
                 <Link
                   key={band.id}
-                  href={`/bands/${band.id}?venue=${venue.id}`}
+                  href={`/emails/${band.id}?venue=${venue.id}`}
                   className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
                 >
                   E-Mail senden{linkedBands.length > 1 ? ` (${band.name})` : ""}
@@ -560,7 +560,7 @@ export function VenueForm({
                   </label>
                   {venue && istVerknuepft && (
                     <Link
-                      href={`/bands/${band.id}?venue=${venue.id}`}
+                      href={`/emails/${band.id}?venue=${venue.id}`}
                       className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
                     >
                       E-Mail schreiben

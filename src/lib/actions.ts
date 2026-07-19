@@ -1052,9 +1052,9 @@ export async function updateBand(bandId: string, formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/");
-  revalidatePath("/bands");
-  revalidatePath(`/bands/${bandId}`);
-  redirect(`/bands/${bandId}?gespeichert=1`);
+  revalidatePath("/einstellungen");
+  revalidatePath(`/einstellungen/${bandId}`);
+  redirect(`/einstellungen/${bandId}?gespeichert=1`);
 }
 
 export async function addBandMaterial(
@@ -1075,7 +1075,7 @@ export async function addBandMaterial(
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
 }
 
 export async function deleteBandMaterial(materialId: string, bandId: string) {
@@ -1085,5 +1085,5 @@ export async function deleteBandMaterial(materialId: string, bandId: string) {
     .eq("id", materialId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/bands/${bandId}`);
+  revalidatePath(`/einstellungen/${bandId}`);
 }

@@ -3,15 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addBandMaterial, deleteBandMaterial, updateBand } from "@/lib/actions";
-import { BandEmailSection } from "@/components/BandEmailSection";
+import { EmailEinstellungenPanel } from "@/components/EmailEinstellungenPanel";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { TeamEinladung } from "@/components/TeamEinladung";
 import { BAND_MATERIAL_TYPEN } from "@/lib/constants";
 import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import type {
-  BandEmailMitVenue,
   BandMitgliedOhnePush,
-  BandVenueOption,
   BandWithMaterialien,
   EmailEinstellungenOhnePasswort,
   EmailVorlage,
@@ -38,9 +36,6 @@ function Field({
 export function BandForm({
   band,
   emailEinstellungen,
-  emails,
-  venues,
-  vorausgewaehlteVenueId,
   teamInviteUrl,
   teamQrCodeDataUrl,
   teamMitglieder,
@@ -48,9 +43,6 @@ export function BandForm({
 }: {
   band: BandWithMaterialien;
   emailEinstellungen: EmailEinstellungenOhnePasswort;
-  emails: BandEmailMitVenue[];
-  venues: BandVenueOption[];
-  vorausgewaehlteVenueId?: string;
   teamInviteUrl: string;
   teamQrCodeDataUrl: string;
   teamMitglieder: BandMitgliedOhnePush[];
@@ -165,14 +157,9 @@ export function BandForm({
         mitglieder={teamMitglieder}
       />
 
-      <BandEmailSection
-        key={vorausgewaehlteVenueId ?? "kein-venue"}
+      <EmailEinstellungenPanel
         bandId={band.id}
-        bandName={band.name}
         einstellungen={emailEinstellungen}
-        emails={emails}
-        venues={venues}
-        vorausgewaehlteVenueId={vorausgewaehlteVenueId}
         vorlagen={emailVorlagen}
       />
 
