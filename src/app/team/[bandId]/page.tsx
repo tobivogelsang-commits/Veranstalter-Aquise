@@ -27,10 +27,18 @@ export async function generateMetadata({
 
 export default async function TeamPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ bandId: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    ansicht?: string;
+    monat?: string;
+    jahr?: string;
+  }>;
 }) {
   const { bandId } = await params;
+  const { tab, ansicht, monat, jahr } = await searchParams;
 
   const [bandName, venues, songs, setlisten] = await Promise.all([
     getBandName(bandId),
@@ -42,6 +50,7 @@ export default async function TeamPage({
   if (!bandName) notFound();
 
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
+  const aktiverTab = tab === "kalender" || tab === "setliste" ? tab : "dashboard";
 
   return (
     <TeamApp
@@ -50,6 +59,10 @@ export default async function TeamPage({
       kalenderEintraege={kalenderEintraege}
       songs={songs}
       setlisten={setlisten}
+      aktiverTab={aktiverTab}
+      kalenderAnsicht={ansicht === "jahr" ? "jahr" : "monat"}
+      monatParam={monat}
+      jahrParam={jahr}
     />
   );
 }

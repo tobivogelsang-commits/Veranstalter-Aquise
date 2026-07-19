@@ -22,18 +22,20 @@ function parseJahrParam(jahrParam?: string): number {
   return new Date().getFullYear();
 }
 
-function jahrLink(jahr: number, bandFilter: string) {
+function jahrLink(jahr: number, bandFilter: string, tabParam?: string) {
   const params = new URLSearchParams();
   params.set("ansicht", "jahr");
   params.set("jahr", String(jahr));
   if (bandFilter !== ALLE_BANDS_PARAM) params.set("band", bandFilter);
+  if (tabParam) params.set("tab", tabParam);
   return `?${params.toString()}`;
 }
 
-function monatDetailLink(monat: Date, bandFilter: string) {
+function monatDetailLink(monat: Date, bandFilter: string, tabParam?: string) {
   const params = new URLSearchParams();
   params.set("monat", format(monat, "yyyy-MM"));
   if (bandFilter !== ALLE_BANDS_PARAM) params.set("band", bandFilter);
+  if (tabParam) params.set("tab", tabParam);
   return `?${params.toString()}`;
 }
 
@@ -55,10 +57,12 @@ function MiniMonat({
   monat,
   eintraegeProTag,
   bandFilter,
+  tabParam,
 }: {
   monat: Date;
   eintraegeProTag: Map<string, PipelineEntry[]>;
   bandFilter: string;
+  tabParam?: string;
 }) {
   const monatsStart = startOfMonth(monat);
   const monatsEnde = endOfMonth(monat);
@@ -69,7 +73,7 @@ function MiniMonat({
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <Link
-        href={monatDetailLink(monat, bandFilter)}
+        href={monatDetailLink(monat, bandFilter, tabParam)}
         className="mb-2 block text-sm font-semibold capitalize text-slate-900 hover:underline"
       >
         {format(monat, "MMMM", { locale: de })}
@@ -117,7 +121,7 @@ function MiniMonat({
             <div key={key} className="flex flex-col items-center gap-0.5 py-0.5">
               {tagesEintraege.length > 0 ? (
                 <Link
-                  href={monatDetailLink(monat, bandFilter)}
+                  href={monatDetailLink(monat, bandFilter, tabParam)}
                   title={titel}
                   className="flex flex-col items-center gap-0.5"
                 >
@@ -142,10 +146,12 @@ export function KalenderJahresView({
   eintraege,
   jahrParam,
   bandFilter,
+  tabParam,
 }: {
   eintraege: PipelineEntry[];
   jahrParam?: string;
   bandFilter: string;
+  tabParam?: string;
 }) {
   const jahr = parseJahrParam(jahrParam);
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
@@ -155,14 +161,14 @@ export function KalenderJahresView({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Link
-          href={jahrLink(jahr - 1, bandFilter)}
+          href={jahrLink(jahr - 1, bandFilter, tabParam)}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
           ← {jahr - 1}
         </Link>
         <h2 className="text-lg font-semibold text-slate-900">{jahr}</h2>
         <Link
-          href={jahrLink(jahr + 1, bandFilter)}
+          href={jahrLink(jahr + 1, bandFilter, tabParam)}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
           {jahr + 1} →
@@ -176,6 +182,7 @@ export function KalenderJahresView({
             monat={monat}
             eintraegeProTag={eintraegeProTag}
             bandFilter={bandFilter}
+            tabParam={tabParam}
           />
         ))}
       </div>

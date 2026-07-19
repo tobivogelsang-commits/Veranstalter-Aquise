@@ -28,10 +28,11 @@ function parseMonatParam(monatParam?: string): Date {
   return new Date(heute.getFullYear(), heute.getMonth(), 1);
 }
 
-function monatLink(monat: Date, bandFilter: string) {
+function monatLink(monat: Date, bandFilter: string, tabParam?: string) {
   const params = new URLSearchParams();
   params.set("monat", format(monat, "yyyy-MM"));
   if (bandFilter !== ALLE_BANDS_PARAM) params.set("band", bandFilter);
+  if (tabParam) params.set("tab", tabParam);
   return `?${params.toString()}`;
 }
 
@@ -39,10 +40,16 @@ export function KalenderMonatsView({
   eintraege,
   monatParam,
   bandFilter,
+  tabParam,
+  zeigeBandName,
+  venueLinkErlaubt = true,
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
   bandFilter: string;
+  tabParam?: string;
+  zeigeBandName?: boolean;
+  venueLinkErlaubt?: boolean;
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -51,14 +58,14 @@ export function KalenderMonatsView({
   const gitterEnde = endOfWeek(monatsEnde, { weekStartsOn: 1 });
   const tage = eachDayOfInterval({ start: gitterStart, end: gitterEnde });
 
-  const zeigeBand = bandFilter === ALLE_BANDS_PARAM;
+  const zeigeBand = zeigeBandName ?? bandFilter === ALLE_BANDS_PARAM;
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Link
-          href={monatLink(subMonths(monat, 1), bandFilter)}
+          href={monatLink(subMonths(monat, 1), bandFilter, tabParam)}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
           ← Vorheriger Monat
@@ -67,7 +74,7 @@ export function KalenderMonatsView({
           {format(monat, "MMMM yyyy", { locale: de })}
         </h2>
         <Link
-          href={monatLink(addMonths(monat, 1), bandFilter)}
+          href={monatLink(addMonths(monat, 1), bandFilter, tabParam)}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
           Nächster Monat →
@@ -109,27 +116,38 @@ export function KalenderMonatsView({
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                {tagesEintraege.map((eintrag) => (
-                  <Link
-                    key={eintrag.relation.id}
-                    href={`/venues/${eintrag.venue.id}`}
-                    title={
-                      zeigeBand
-                        ? `${eintrag.venue.name} (${eintrag.band.name})`
-                        : eintrag.venue.name
-                    }
-                    className={clsx(
-                      "block truncate rounded px-1.5 py-0.5 text-xs font-medium",
-                      kalenderPillFarbe(
-                        eintrag.band.name,
-                        eintrag.relation.status as "gebucht" | "interessiert"
-                      )
-                    )}
-                  >
-                    {eintrag.venue.name}
-                    {zeigeBand ? ` · ${eintrag.band.name}` : ""}
-                  </Link>
-                ))}
+                {tagesEintraege.map((eintrag) => {
+                  const titel = zeigeBand
+                    ? `${eintrag.venue.name} (${eintrag.band.name})`
+                    : eintrag.venue.name;
+                  const klassen = clsx(
+                    "block truncate rounded px-1.5 py-0.5 text-xs font-medium",
+                    kalenderPillFarbe(
+                      eintrag.band.name,
+                      eintrag.relation.status as "gebucht" | "interessiert"
+                    )
+                  );
+                  const inhalt = (
+                    <>
+                      {eintrag.venue.name}
+                      {zeigeBand ? ` · ${eintrag.band.name}` : ""}
+                    </>
+                  );
+                  return venueLinkErlaubt ? (
+                    <Link
+                      key={eintrag.relation.id}
+                      href={`/venues/${eintrag.venue.id}`}
+                      title={titel}
+                      className={klassen}
+                    >
+                      {inhalt}
+                    </Link>
+                  ) : (
+                    <span key={eintrag.relation.id} title={titel} className={klassen}>
+                      {inhalt}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           );

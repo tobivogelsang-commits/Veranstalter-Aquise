@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import {
   registriereMitglied,
@@ -10,9 +11,54 @@ import {
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
 import { kalenderPillFarbe } from "@/lib/kalenderHelpers";
+import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
+import { KalenderMonatsView } from "@/components/KalenderMonatsView";
+import { KalenderJahresView } from "@/components/KalenderJahresView";
 import type { BandSong, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
+
+type TeamTab = "dashboard" | "kalender" | "setliste";
+
+function heuteAlsIsoDatum(): string {
+  const heute = new Date();
+  const jj = heute.getFullYear();
+  const mm = String(heute.getMonth() + 1).padStart(2, "0");
+  const tt = String(heute.getDate()).padStart(2, "0");
+  return `${jj}-${mm}-${tt}`;
+}
+
+function tabLink(tab: TeamTab) {
+  return `?tab=${tab}`;
+}
+
+function HomeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="M4 11.5 12 4l8 7.5" />
+      <path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 9.5h16M8 3v3M16 3v3" />
+    </svg>
+  );
+}
+
+function SetlisteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="M9 17V5l10-2v12" />
+      <circle cx="6" cy="17" r="2.5" />
+      <circle cx="16" cy="15" r="2.5" />
+    </svg>
+  );
+}
 
 const STORAGE_PREFIX = "team-mitglied:";
 
@@ -121,12 +167,20 @@ export function TeamApp({
   kalenderEintraege,
   songs,
   setlisten,
+  aktiverTab,
+  kalenderAnsicht,
+  monatParam,
+  jahrParam,
 }: {
   bandId: string;
   bandName: string;
   kalenderEintraege: PipelineEntry[];
   songs: BandSong[];
   setlisten: SetlisteMitSongs[];
+  aktiverTab: TeamTab;
+  kalenderAnsicht: "monat" | "jahr";
+  monatParam?: string;
+  jahrParam?: string;
 }) {
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
     ladeIdentitaet(bandId)
@@ -233,12 +287,18 @@ export function TeamApp({
     );
   }
 
-  const sortierteEintraege = [...kalenderEintraege].sort((a, b) =>
-    (a.venue.veranstaltungsdatum ?? "").localeCompare(b.venue.veranstaltungsdatum ?? "")
-  );
+  const heute = heuteAlsIsoDatum();
+  const naechsteGebuchteTermine = kalenderEintraege
+    .filter(
+      (e) => e.relation.status === "gebucht" && (e.venue.veranstaltungsdatum ?? "") >= heute
+    )
+    .sort((a, b) =>
+      (a.venue.veranstaltungsdatum ?? "").localeCompare(b.venue.veranstaltungsdatum ?? "")
+    )
+    .slice(0, 3);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pb-16 pt-8">
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pb-24 pt-8">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
         <p className="text-sm text-slate-500">Hi {identitaet.name}!</p>
@@ -248,85 +308,168 @@ export function TeamApp({
         <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">{pushHinweis}</p>
       )}
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-900">Offene Anfragen</h2>
-        {offeneAnfragen.length === 0 ? (
-          <p className="text-sm text-slate-500">Aktuell nichts zu bestätigen.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {offeneAnfragen.map((anfrage) => (
-              <li
-                key={anfrage.id}
-                className="rounded-lg border border-slate-200 bg-white p-3"
-              >
-                <p className="font-medium text-slate-900">{anfrage.venue.name}</p>
-                <p className="text-xs text-slate-500">
-                  {anfrage.venue.veranstaltungsdatum
-                    ? anfrage.venue.veranstaltungsdatum.split("-").reverse().join(".")
-                    : "Termin noch offen"}
-                  {anfrage.venue.ort ? ` · ${anfrage.venue.ort}` : ""}
-                </p>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={antwortLaeuft[anfrage.id]}
-                    onClick={() => handleAntwort(anfrage.id, "kann")}
-                    className="flex-1 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+      {aktiverTab === "dashboard" && (
+        <>
+          <div>
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">Offene Anfragen</h2>
+            {offeneAnfragen.length === 0 ? (
+              <p className="text-sm text-slate-500">Aktuell nichts zu bestätigen.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {offeneAnfragen.map((anfrage) => (
+                  <li
+                    key={anfrage.id}
+                    className="rounded-lg border border-slate-200 bg-white p-3"
                   >
-                    Ich kann
-                  </button>
-                  <button
-                    type="button"
-                    disabled={antwortLaeuft[anfrage.id]}
-                    onClick={() => handleAntwort(anfrage.id, "kann_nicht")}
-                    className="flex-1 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Ich kann nicht
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                    <p className="font-medium text-slate-900">{anfrage.venue.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {anfrage.venue.veranstaltungsdatum
+                        ? anfrage.venue.veranstaltungsdatum.split("-").reverse().join(".")
+                        : "Termin noch offen"}
+                      {anfrage.venue.ort ? ` · ${anfrage.venue.ort}` : ""}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={antwortLaeuft[anfrage.id]}
+                        onClick={() => handleAntwort(anfrage.id, "kann")}
+                        className="flex-1 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        Ich kann
+                      </button>
+                      <button
+                        type="button"
+                        disabled={antwortLaeuft[anfrage.id]}
+                        onClick={() => handleAntwort(anfrage.id, "kann_nicht")}
+                        className="flex-1 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Ich kann nicht
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-900">Kalender</h2>
-        {sortierteEintraege.length === 0 ? (
-          <p className="text-sm text-slate-500">Noch keine Termine.</p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {sortierteEintraege.map((eintrag) => (
-              <li
-                key={eintrag.relation.id}
-                className={clsx(
-                  "flex items-center justify-between rounded-md px-3 py-2 text-sm",
-                  kalenderPillFarbe(
-                    bandName,
-                    eintrag.relation.status as "gebucht" | "interessiert"
-                  )
-                )}
-              >
-                <span className="font-medium">{eintrag.venue.name}</span>
-                <span>
-                  {eintrag.venue.veranstaltungsdatum?.split("-").reverse().join(".")}
+          <div>
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">Nächste Termine</h2>
+            {naechsteGebuchteTermine.length === 0 ? (
+              <p className="text-sm text-slate-500">Aktuell keine gebuchten Termine.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {naechsteGebuchteTermine.map((eintrag) => (
+                  <li
+                    key={eintrag.relation.id}
+                    className={clsx(
+                      "flex items-center justify-between rounded-md px-3 py-2 text-sm",
+                      kalenderPillFarbe(bandName, "gebucht")
+                    )}
+                  >
+                    <span className="font-medium">{eintrag.venue.name}</span>
+                    <span>
+                      {eintrag.venue.veranstaltungsdatum?.split("-").reverse().join(".")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link
+              href={tabLink("kalender")}
+              className="mt-3 inline-block text-xs font-medium text-slate-600 underline"
+            >
+              Alle Termine im Kalender ansehen
+            </Link>
+          </div>
+        </>
+      )}
+
+      {aktiverTab === "kalender" && (
+        <div>
+          <div className="mb-4 flex rounded-md border border-slate-300 text-sm font-medium">
+            <Link
+              href={`?tab=kalender&ansicht=monat${monatParam ? `&monat=${monatParam}` : ""}`}
+              className={clsx(
+                "rounded-l-md px-3 py-1.5",
+                kalenderAnsicht === "monat"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              )}
+            >
+              Monat
+            </Link>
+            <Link
+              href={`?tab=kalender&ansicht=jahr${jahrParam ? `&jahr=${jahrParam}` : ""}`}
+              className={clsx(
+                "rounded-r-md border-l border-slate-300 px-3 py-1.5",
+                kalenderAnsicht === "jahr"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              )}
+            >
+              Jahr
+            </Link>
+          </div>
+          {kalenderAnsicht === "monat" ? (
+            <KalenderMonatsView
+              eintraege={kalenderEintraege}
+              monatParam={monatParam}
+              bandFilter={ALLE_BANDS_PARAM}
+              tabParam="kalender"
+              zeigeBandName={false}
+              venueLinkErlaubt={false}
+            />
+          ) : (
+            <KalenderJahresView
+              eintraege={kalenderEintraege}
+              jahrParam={jahrParam}
+              bandFilter={ALLE_BANDS_PARAM}
+              tabParam="kalender"
+            />
+          )}
+          <a
+            href={`/api/kalender/${bandId}`}
+            className="mt-4 inline-block text-xs font-medium text-slate-600 underline"
+          >
+            Kalender abonnieren (für privaten Kalender) ↗
+          </a>
+        </div>
+      )}
+
+      {aktiverTab === "setliste" && (
+        <div>
+          <SetlisteBuilder bandId={bandId} initialSongs={songs} initialSetlisten={setlisten} />
+        </div>
+      )}
+
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex max-w-md">
+          {(
+            [
+              { tab: "dashboard" as const, label: "Dashboard", icon: <HomeIcon /> },
+              { tab: "kalender" as const, label: "Kalender", icon: <CalendarIcon /> },
+              { tab: "setliste" as const, label: "Setliste", icon: <SetlisteIcon /> },
+            ]
+          ).map((item) => (
+            <Link
+              key={item.tab}
+              href={tabLink(item.tab)}
+              className={clsx(
+                "relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium",
+                aktiverTab === item.tab ? "text-slate-900" : "text-slate-400"
+              )}
+            >
+              {item.icon}
+              {item.tab === "dashboard" && offeneAnfragen.length > 0 && (
+                <span className="absolute right-[calc(50%-20px)] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                  {offeneAnfragen.length}
                 </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <a
-          href={`/api/kalender/${bandId}`}
-          className="mt-3 inline-block text-xs font-medium text-slate-600 underline"
-        >
-          Kalender abonnieren (für privaten Kalender) ↗
-        </a>
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-900">Setliste</h2>
-        <SetlisteBuilder bandId={bandId} initialSongs={songs} initialSetlisten={setlisten} />
-      </div>
+              )}
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
