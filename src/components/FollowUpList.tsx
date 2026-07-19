@@ -21,7 +21,13 @@ export function FollowUpList({ entries }: { entries: PipelineEntry[] }) {
         const ueberfaellig = isPast(datum) && !isToday(datum);
 
         return (
-          <li key={entry.relation.id} className="flex items-center justify-between gap-4 p-4">
+          <li
+            key={entry.relation.id}
+            className={clsx(
+              "flex items-center justify-between gap-4 p-4",
+              ueberfaellig && "bg-red-50"
+            )}
+          >
             <div>
               <Link
                 href={`/venues/${entry.venue.id}`}

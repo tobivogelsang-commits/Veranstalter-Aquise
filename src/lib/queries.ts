@@ -12,6 +12,7 @@ import type {
   GigAnfrageMitAntworten,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
+  Venue,
   VenueBandDokument,
   VenueBandProtokoll,
   VenueEmailMitBand,
@@ -135,6 +136,59 @@ export async function getVenueBandProtokoll(
 
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+export type EingehendeEmailUebersicht = BandEmailMitVenue & {
+  band: Pick<Band, "id" | "name">;
+};
+
+// Neueste eingegangene Antworten über alle (oder eine) Band(s) hinweg - fürs
+// "Neue E-Mails"-Widget auf dem Dashboard, respektiert denselben Band-Filter
+// wie der Rest der Seite.
+export async function getNeuesteEingehendeEmails(
+  bandFilter: string,
+  limit: number
+): Promise<EingehendeEmailUebersicht[]> {
+  let query = supabase
+    .from("band_emails")
+    .select("*, venue:venues(id, name), band:bands(id, name)")
+    .eq("richtung", "empfangen")
+    .order("zeitpunkt", { ascending: false })
+    .limit(limit);
+
+  if (bandFilter !== ALLE_BANDS_PARAM) {
+    query = query.eq("band_id", bandFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as EingehendeEmailUebersicht[];
+}
+
+export type ProtokollUebersicht = VenueBandProtokoll & {
+  venue: Pick<Venue, "id" | "name">;
+  band: Pick<Band, "id" | "name">;
+};
+
+// Neueste Protokoll-Einträge über alle (oder eine) Band(s) hinweg - fürs
+// Aktivitäts-Feed auf dem Dashboard.
+export async function getNeuesteProtokollEintraege(
+  bandFilter: string,
+  limit: number
+): Promise<ProtokollUebersicht[]> {
+  let query = supabase
+    .from("venue_band_protokoll")
+    .select("*, venue:venues(id, name), band:bands(id, name)")
+    .order("erstellt_am", { ascending: false })
+    .limit(limit);
+
+  if (bandFilter !== ALLE_BANDS_PARAM) {
+    query = query.eq("band_id", bandFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as ProtokollUebersicht[];
 }
 
 export async function getVenuesWithRelations(): Promise<

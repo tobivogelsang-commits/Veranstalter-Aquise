@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { fuegeProtokollEintragHinzu } from "@/lib/protokollActions";
+import { TYP_LABELS } from "@/lib/protokollTypen";
 import type { VenueBandProtokoll } from "@/lib/types";
 
 const MANUELLE_TYPEN = [
@@ -14,17 +15,6 @@ const MANUELLE_TYPEN = [
   "tiktok",
   "kontakt",
 ] as const;
-
-const TYP_LABELS: Record<string, string> = {
-  notiz: "Notiz",
-  anruf: "Anrufversuch",
-  instagram: "Instagram",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  kontakt: "Kontakt",
-  email_gesendet: "E-Mail verschickt",
-  email_beantwortet: "Auf E-Mail geantwortet",
-};
 
 // Protokoll/Log für diesen Veranstalter UND diese eine Band (komplett
 // getrennt, wie Dokumente/Mails). Manuelle Einträge (Notiz, Anrufversuch,

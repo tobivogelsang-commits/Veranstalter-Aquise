@@ -1,18 +1,23 @@
 import { StatCard } from "@/components/StatCard";
 import { FollowUpList } from "@/components/FollowUpList";
-import { TeamAnfragenList } from "@/components/TeamAnfragenList";
+import { OffeneTeamAntworten } from "@/components/OffeneTeamAntworten";
+import { NeueEmailsWidget } from "@/components/NeueEmailsWidget";
+import { AktivitaetsFeedWidget } from "@/components/AktivitaetsFeedWidget";
 import { BereitZuBuchenBanner } from "@/components/BereitZuBuchenBanner";
 import { BandSwitcher } from "@/components/BandSwitcher";
-import { ALLE_BANDS_PARAM, STATUS_LABELS } from "@/lib/constants";
+import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import {
   getAnstehendeFollowUps,
-  getBandMitgliederAnzahlProBand,
   getBands,
   getDashboardStats,
   getGigAnfragenFuerVenues,
+  getNeuesteEingehendeEmails,
+  getNeuesteProtokollEintraege,
   getVenuesWithRelations,
   toPipelineEntries,
 } from "@/lib/queries";
+import { getMitgliederFuerBand } from "@/lib/teamActions";
+import type { BandMitgliedOhnePush } from "@/lib/types";
 
 // Live-Daten pro Request, keine statische Zwischenspeicherung beim Build.
 export const dynamic = "force-dynamic";
@@ -35,14 +40,22 @@ export default async function DashboardPage({
   const bereitZuBuchen = toPipelineEntries(venues, bandFilter).filter(
     (entry) => entry.relation.status === "bereit_zu_buchen"
   );
+  const anzahlFuerStatus = (status: string) =>
+    stats.statusVerteilung.find((s) => s.status === status)?.anzahl ?? 0;
 
-  const [alleAnfragen, mitgliederProBand] = await Promise.all([
+  const [alleAnfragen, mitgliederListen, neueEmails, aktivitaeten] = await Promise.all([
     getGigAnfragenFuerVenues(venues.map((v) => v.id)),
-    getBandMitgliederAnzahlProBand(),
+    Promise.all(bands.map((b) => getMitgliederFuerBand(b.id))),
+    getNeuesteEingehendeEmails(bandFilter, 5),
+    getNeuesteProtokollEintraege(bandFilter, 5),
   ]);
   const anfragen = alleAnfragen.filter(
     (a) => bandFilter === ALLE_BANDS_PARAM || a.band_id === bandFilter
   );
+  const mitgliederProBand: Record<string, BandMitgliedOhnePush[]> = {};
+  bands.forEach((b, i) => {
+    mitgliederProBand[b.id] = mitgliederListen[i];
+  });
 
   return (
     <div className="flex flex-col gap-8">
@@ -56,46 +69,27 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Kontaktiert" value={anzahlFuerStatus("kontaktiert")} />
+        <StatCard label="Interessiert" value={anzahlFuerStatus("interessiert")} />
+        <StatCard label="Gebucht" value={anzahlFuerStatus("gebucht")} />
+      </section>
+
+      <NeueEmailsWidget emails={neueEmails} />
+
       <BereitZuBuchenBanner entries={bereitZuBuchen} />
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Veranstalter gesamt" value={stats.gesamtVeranstalter} />
-        {stats.proBand.map(({ band, anzahl }) => (
-          <StatCard key={band.id} label={band.name} value={anzahl} />
-        ))}
-      </section>
-
       <section>
-        <h2 className="mb-3 text-lg font-medium text-slate-900">
-          Status-Verteilung {bandFilter === ALLE_BANDS_PARAM ? "(beide Bands)" : ""}
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-          {stats.statusVerteilung.map(({ status, anzahl }) => (
-            <div
-              key={status}
-              className="rounded-lg border border-slate-200 bg-white p-3 text-center"
-            >
-              <p className="text-xl font-semibold text-slate-900">{anzahl}</p>
-              <p className="text-xs text-slate-500">{STATUS_LABELS[status]}</p>
-            </div>
-          ))}
-          {stats.statusVerteilung.length === 0 && (
-            <p className="col-span-full text-sm text-slate-500">
-              Noch keine Veranstalter zugeordnet.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-lg font-medium text-slate-900">Team-Anfragen</h2>
-        <TeamAnfragenList
+        <h2 className="mb-3 text-lg font-medium text-slate-900">Offene Team-Antworten</h2>
+        <OffeneTeamAntworten
           anfragen={anfragen}
           venues={venues}
           bands={bands}
           mitgliederProBand={mitgliederProBand}
         />
       </section>
+
+      <AktivitaetsFeedWidget eintraege={aktivitaeten} />
 
       <section>
         <h2 className="mb-3 text-lg font-medium text-slate-900">
