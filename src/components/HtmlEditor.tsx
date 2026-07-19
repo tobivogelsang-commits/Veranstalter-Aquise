@@ -91,7 +91,7 @@ export const HtmlEditor = forwardRef<
       document.execCommand(
         "insertHTML",
         false,
-        `<a href="${escapeAttribut(url)}" target="_blank" rel="noopener noreferrer">${escapeText(label)}</a>`
+        `<a href="${escapeAttribut(url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline">${escapeText(label)}</a>`
       );
       onChange(editorRef.current?.innerHTML ?? "");
     },
