@@ -122,15 +122,22 @@ export async function createVenue(formData: FormData) {
   redirect(`/venues/${venue.id}`);
 }
 
-export async function updateVenue(venueId: string, formData: FormData) {
+// Speichert ein Feld oder eine Band-Zuordnung sofort bei Änderung
+// (Blur/Change) statt über einen expliziten "Speichern"-Button - gibt daher
+// ein Ergebnis zurück statt zu redirecten (ein Redirect würde die gerade
+// bearbeitete Seite neu laden und den Fokus/die Eingabe unterbrechen).
+export async function autosaveVenue(
+  venueId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
   const felder = venueFieldsFromForm(formData);
-  if (!felder.name) throw new Error("Name ist ein Pflichtfeld.");
+  if (!felder.name) return { ok: false, fehler: "Name ist ein Pflichtfeld." };
 
   const { error } = await supabase
     .from("venues")
     .update({ ...felder, updated_at: new Date().toISOString() })
     .eq("id", venueId);
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, fehler: error.message };
 
   const { data: bands } = await supabase.from("bands").select("id");
   const { data: bestehende } = await supabase
@@ -149,7 +156,7 @@ export async function updateVenue(venueId: string, formData: FormData) {
   revalidatePath("/venues");
   revalidatePath("/pipeline");
   revalidatePath(`/venues/${venueId}`);
-  redirect(`/venues/${venueId}?gespeichert=1`);
+  return { ok: true };
 }
 
 export async function deleteVenue(venueId: string) {

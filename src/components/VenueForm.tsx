@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { format } from "date-fns";
 import {
+  autosaveVenue,
   createVenue,
   deleteVenue,
   rechercheKontakt,
   updateStatus,
-  updateVenue,
 } from "@/lib/actions";
 import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";
@@ -21,7 +21,6 @@ import type {
   VenueEmailMitBand,
   VenueWithRelations,
 } from "@/lib/types";
-import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
 import { DokumentChecklist } from "@/components/DokumentChecklist";
@@ -93,8 +92,24 @@ export function VenueForm({
   dokumente?: VenueBandDokument[];
   protokoll?: VenueBandProtokoll[];
 }) {
-  const action = venue ? updateVenue.bind(null, venue.id) : createVenue;
-  const gespeichert = useGespeichertHinweis();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [speichernSignal, setSpeichernSignal] = useState(0);
+  const [speicherFehler, setSpeicherFehler] = useState<string | null>(null);
+
+  // Speichert das komplette Formular sofort (Blur/Change statt Button) - liest
+  // die aktuellen DOM-Werte direkt aus dem Formular, das deckt auch
+  // unkontrollierte Felder wie den Follow-up-Termin pro Band ab.
+  async function autosave() {
+    if (!venue || !formRef.current) return;
+    const formData = new FormData(formRef.current);
+    const ergebnis = await autosaveVenue(venue.id, formData);
+    if (!ergebnis.ok) {
+      setSpeicherFehler(ergebnis.fehler);
+      return;
+    }
+    setSpeicherFehler(null);
+    setSpeichernSignal((n) => n + 1);
+  }
 
   const [felder, setFelder] = useState<FelderState>({
     name: venue?.name ?? "",
@@ -271,6 +286,13 @@ export function VenueForm({
     // direkt in die entsprechenden Felder wandern. Die Notizen bleiben so den
     // Veranstaltungsinformationen vorbehalten (Termin, Programm etc.).
     setFelder(next);
+    if (gefuellt.length > 0) {
+      // Autosave erst nachdem React die neuen Feldwerte ins DOM committet hat
+      // (autosave liest das Formular direkt aus, nicht aus dem next-Objekt).
+      setTimeout(() => {
+        autosave();
+      }, 0);
+    }
 
     setRecherche({
       laeuft: false,
@@ -287,8 +309,13 @@ export function VenueForm({
 
   return (
     <>
-      <SpeichernToast show={gespeichert} />
-      <form action={action} className="flex max-w-2xl flex-col gap-6">
+      <SpeichernToast trigger={speichernSignal} />
+      <form
+        ref={formRef}
+        action={venue ? undefined : createVenue}
+        onSubmit={venue ? (e) => e.preventDefault() : undefined}
+        className="flex max-w-2xl flex-col gap-6"
+      >
       {venue && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -349,6 +376,7 @@ export function VenueForm({
             required
             value={felder.name}
             onChange={(e) => setFeld("name", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -358,6 +386,7 @@ export function VenueForm({
             name="veranstaltungsdatum"
             value={felder.veranstaltungsdatum}
             onChange={(e) => setFeld("veranstaltungsdatum", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -365,7 +394,10 @@ export function VenueForm({
           <select
             name="typ"
             value={felder.typ}
-            onChange={(e) => setFeld("typ", e.target.value)}
+            onChange={(e) => {
+              setFeld("typ", e.target.value);
+              autosave();
+            }}
             className={inputClass}
           >
             <option value="">- wählen -</option>
@@ -381,6 +413,7 @@ export function VenueForm({
             name="ort"
             value={felder.ort}
             onChange={(e) => setFeld("ort", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -389,6 +422,7 @@ export function VenueForm({
             name="region"
             value={felder.region}
             onChange={(e) => setFeld("region", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -397,6 +431,7 @@ export function VenueForm({
             name="strasse"
             value={felder.strasse}
             onChange={(e) => setFeld("strasse", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -405,6 +440,7 @@ export function VenueForm({
             name="website"
             value={felder.website}
             onChange={(e) => setFeld("website", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
           {felder.website && (
@@ -424,6 +460,7 @@ export function VenueForm({
             name="instagram"
             value={felder.instagram}
             onChange={(e) => setFeld("instagram", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
           {felder.instagram && (
@@ -442,6 +479,7 @@ export function VenueForm({
             name="tiktok"
             value={felder.tiktok}
             onChange={(e) => setFeld("tiktok", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
           {felder.tiktok && (
@@ -460,6 +498,7 @@ export function VenueForm({
             name="facebook"
             value={felder.facebook}
             onChange={(e) => setFeld("facebook", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
           {felder.facebook && (
@@ -478,6 +517,7 @@ export function VenueForm({
             name="ansprechpartner"
             value={felder.ansprechpartner}
             onChange={(e) => setFeld("ansprechpartner", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -487,6 +527,7 @@ export function VenueForm({
             type="email"
             value={felder.email}
             onChange={(e) => setFeld("email", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -495,6 +536,7 @@ export function VenueForm({
             name="telefon"
             value={felder.telefon}
             onChange={(e) => setFeld("telefon", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
           {felder.telefon && (
@@ -511,6 +553,7 @@ export function VenueForm({
             name="quelle"
             value={felder.quelle}
             onChange={(e) => setFeld("quelle", e.target.value)}
+            onBlur={autosave}
             className={inputClass}
           />
         </Field>
@@ -522,6 +565,7 @@ export function VenueForm({
           rows={8}
           value={felder.notizen}
           onChange={(e) => setFeld("notizen", e.target.value)}
+          onBlur={autosave}
           className={inputClass}
         />
       </Field>
@@ -546,12 +590,13 @@ export function VenueForm({
                       type="checkbox"
                       name={`band_${band.id}_linked`}
                       defaultChecked={istVerknuepft}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setLinked((prev) => ({
                           ...prev,
                           [band.id]: e.target.checked,
-                        }))
-                      }
+                        }));
+                        autosave();
+                      }}
                     />
                     {band.name}
                   </label>
@@ -567,12 +612,17 @@ export function VenueForm({
                     <select
                       name={`band_${band.id}_status`}
                       value={bandStatus[band.id] ?? "neu"}
-                      onChange={(e) =>
-                        setBandStatus((prev) => ({
-                          ...prev,
-                          [band.id]: e.target.value as Status,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const neu = e.target.value as Status;
+                        if (neu !== bandStatus[band.id]) {
+                          setLetzterKontakt((prev) => ({
+                            ...prev,
+                            [band.id]: new Date().toISOString(),
+                          }));
+                        }
+                        setBandStatus((prev) => ({ ...prev, [band.id]: neu }));
+                        autosave();
+                      }}
                       className={inputClass}
                     >
                       {STATUS_ORDER.map((status) => (
@@ -594,6 +644,7 @@ export function VenueForm({
                             )
                           : ""
                       }
+                      onBlur={autosave}
                       className={inputClass}
                     />
                   </Field>
@@ -658,13 +709,19 @@ export function VenueForm({
         </div>
       </div>
 
+      {speicherFehler && (
+        <p className="text-sm text-red-600">{speicherFehler}</p>
+      )}
+
       <div className="flex gap-3">
-        <button
-          type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Speichern
-        </button>
+        {!venue && (
+          <button
+            type="submit"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Anlegen
+          </button>
+        )}
         {venue && (
           <button
             type="button"

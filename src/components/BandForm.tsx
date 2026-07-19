@@ -88,7 +88,7 @@ export function BandForm({
 
   return (
     <div className="flex max-w-2xl flex-col gap-8">
-      <SpeichernToast show={gespeichert} />
+      <SpeichernToast trigger={gespeichert ? 1 : 0} />
       <form action={action} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name *">

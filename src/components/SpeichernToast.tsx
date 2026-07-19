@@ -3,14 +3,23 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 
-export function SpeichernToast({ show }: { show: boolean }) {
-  const [sichtbar, setSichtbar] = useState(show);
+// `trigger` statt eines einfachen booleans, damit der Hinweis bei jedem neuen
+// Speichervorgang erneut aufblitzt (z. B. bei Autosave, wo derselbe "true"-
+// Zustand sonst mehrfach hintereinander keinen neuen Effekt auslösen würde).
+// Der `key={trigger}` auf Toast sorgt für einen frischen Mount pro
+// Speichervorgang, statt sichtbar per Effekt synchron zu setzen.
+export function SpeichernToast({ trigger }: { trigger: number }) {
+  if (trigger === 0) return null;
+  return <Toast key={trigger} />;
+}
+
+function Toast() {
+  const [sichtbar, setSichtbar] = useState(true);
 
   useEffect(() => {
-    if (!show) return;
     const timeout = setTimeout(() => setSichtbar(false), 2500);
     return () => clearTimeout(timeout);
-  }, [show]);
+  }, []);
 
   return (
     <div
