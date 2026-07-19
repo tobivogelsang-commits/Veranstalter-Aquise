@@ -1,12 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import clsx from "clsx";
-import { holeEingehendeEmails, ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
+import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
+import { EmailVerlauf } from "@/components/EmailVerlauf";
 import { HtmlEditor } from "@/components/HtmlEditor";
 import type { BandEmailMitVenue, BandVenueOption, EmailVorlage } from "@/lib/types";
 
@@ -135,11 +133,6 @@ export function BandEmailSection({
     setAnhaenge((prev) => prev.filter((a) => a.url !== url));
   }
 
-  const [abrufenLaeuft, setAbrufenLaeuft] = useState(false);
-  const [abrufenFehler, setAbrufenFehler] = useState<string | null>(null);
-
-  const [geoeffneteMail, setGeoeffneteMail] = useState<string | null>(null);
-
   async function handleSenden(e: React.FormEvent) {
     e.preventDefault();
     setSendenLaeuft(true);
@@ -165,18 +158,6 @@ export function BandEmailSection({
     setInhaltSeed("");
     setEditorKey((k) => k + 1);
     setAnhaenge([]);
-    router.refresh();
-  }
-
-  async function handleAbrufen() {
-    setAbrufenLaeuft(true);
-    setAbrufenFehler(null);
-    const ergebnis = await holeEingehendeEmails(bandId);
-    setAbrufenLaeuft(false);
-    if (!ergebnis.ok) {
-      setAbrufenFehler(ergebnis.fehler);
-      return;
-    }
     router.refresh();
   }
 
@@ -293,110 +274,7 @@ export function BandEmailSection({
         </div>
       </form>
 
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-slate-900">Verlauf</h3>
-          <button
-            type="button"
-            disabled={abrufenLaeuft}
-            onClick={handleAbrufen}
-            className="text-xs font-medium text-slate-600 underline hover:text-slate-900 disabled:opacity-50"
-          >
-            {abrufenLaeuft ? "Postfach wird geprüft…" : "Postfach aktualisieren"}
-          </button>
-        </div>
-        {abrufenFehler && (
-          <p className="mb-2 text-sm text-red-600">{abrufenFehler}</p>
-        )}
-
-        {emails.length === 0 ? (
-          <p className="text-sm text-slate-500">Noch keine E-Mails.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {emails.map((mail) => {
-              const offen = geoeffneteMail === mail.id;
-              return (
-                <li
-                  key={mail.id}
-                  className="rounded-lg border border-slate-200 bg-white"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setGeoeffneteMail(offen ? null : mail.id)}
-                    className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">
-                        {mail.betreff || "(kein Betreff)"}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {mail.richtung === "gesendet"
-                          ? `An: ${mail.an}`
-                          : `Von: ${mail.von}`}
-                      </p>
-                      {mail.venue && (
-                        <Link
-                          href={`/venues/${mail.venue.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-slate-500 underline"
-                        >
-                          → {mail.venue.name}
-                        </Link>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <span
-                        className={clsx(
-                          "inline-block rounded-full px-2 py-0.5 text-xs",
-                          mail.richtung === "gesendet"
-                            ? "bg-sky-100 text-sky-700"
-                            : "bg-green-100 text-green-700"
-                        )}
-                      >
-                        {mail.richtung === "gesendet" ? "Gesendet" : "Empfangen"}
-                      </span>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {format(new Date(mail.zeitpunkt), "dd.MM.yyyy HH:mm")}
-                      </p>
-                    </div>
-                  </button>
-                  {offen && (
-                    <div className="border-t border-slate-100 p-3 text-sm text-slate-700">
-                      {mail.richtung === "gesendet" ? (
-                        <div
-                          className="[&_img]:my-2 [&_img]:max-w-full"
-                          dangerouslySetInnerHTML={{
-                            __html: mail.text_inhalt || "(kein Inhalt)",
-                          }}
-                        />
-                      ) : (
-                        <p className="whitespace-pre-wrap">
-                          {mail.text_inhalt || "(kein Inhalt)"}
-                        </p>
-                      )}
-                      {mail.anhaenge && mail.anhaenge.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-3 border-t border-slate-100 pt-2">
-                          {mail.anhaenge.map((a) => (
-                            <a
-                              key={a.url}
-                              href={a.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
-                            >
-                              📎 {a.dateiname}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      <EmailVerlauf bandId={bandId} emails={emails} />
     </div>
   );
 }
