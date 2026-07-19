@@ -65,3 +65,18 @@ export const BAND_MATERIAL_TYPEN = [
   "YouTube",
   "EPK",
 ];
+
+// Home-Bildschirm-Icon der Team-App pro Band (statische Datei unter
+// public/team-icons/, keine Datenbank-Spalte) - fehlt ein Eintrag, greift in
+// getTeamIconPfade() der Standard-favicon als Fallback. Provisorisch als
+// Konstante gepflegt, bis ggf. ein Upload-UI dafür existiert.
+export const TEAM_ICON_PFADE: Record<string, { klein: string; gross: string }> = {
+  "a9a405e1-6ad8-4575-af0d-f0862f4e7ceb": {
+    klein: "/team-icons/trash-back-192.jpg",
+    gross: "/team-icons/trash-back-512.jpg",
+  },
+};
+
+export function getTeamIconPfade(bandId: string): { klein: string; gross: string } | null {
+  return TEAM_ICON_PFADE[bandId] ?? null;
+}

@@ -8,6 +8,7 @@ import {
   getVenuesWithRelations,
 } from "@/lib/queries";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
+import { getTeamIconPfade } from "@/lib/constants";
 import { TeamApp } from "@/components/TeamApp";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { bandId } = await params;
   const bandName = (await getBandName(bandId)) ?? "Team";
+  const teamIcon = getTeamIconPfade(bandId);
 
   return {
     title: `${bandName} – Team`,
     manifest: `/api/team-manifest/${bandId}`,
+    icons: teamIcon
+      ? { apple: teamIcon.gross, icon: teamIcon.klein }
+      : undefined,
   };
 }
 
