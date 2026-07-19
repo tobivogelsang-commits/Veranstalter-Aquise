@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
-import clsx from "clsx";
 import {
   createVenue,
   deleteVenue,
@@ -15,6 +13,7 @@ import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";
 import type {
   Band,
+  EmailVorlage,
   GigAnfrageMitAntworten,
   VenueEmailMitBand,
   VenueWithRelations,
@@ -22,6 +21,7 @@ import type {
 import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
+import { VenueEmailThread } from "@/components/VenueEmailThread";
 
 function normalizeUrl(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -73,14 +73,15 @@ export function VenueForm({
   emails,
   anfragen,
   mitgliederProBand,
+  vorlagenProBand,
 }: {
   bands: Band[];
   venue?: VenueWithRelations;
   emails?: VenueEmailMitBand[];
   anfragen?: GigAnfrageMitAntworten[];
   mitgliederProBand?: Record<string, number>;
+  vorlagenProBand?: Record<string, EmailVorlage[]>;
 }) {
-  const [geoeffneteMail, setGeoeffneteMail] = useState<string | null>(null);
   const action = venue ? updateVenue.bind(null, venue.id) : createVenue;
   const gespeichert = useGespeichertHinweis();
 
@@ -119,8 +120,6 @@ export function VenueForm({
   function relationFor(bandId: string) {
     return venue?.venue_band_status.find((r) => r.band_id === bandId);
   }
-
-  const linkedBands = bands.filter((band) => linked[band.id]);
 
   // Aktuellste Team-Anfrage für diese Band an diesem Veranstalter - eine
   // offene hat Vorrang, sonst die zuletzt erstellte (z. B. bereits
@@ -479,19 +478,6 @@ export function VenueForm({
             onChange={(e) => setFeld("email", e.target.value)}
             className={inputClass}
           />
-          {venue && linkedBands.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-3">
-              {linkedBands.map((band) => (
-                <Link
-                  key={band.id}
-                  href={`/emails/${band.id}?venue=${venue.id}`}
-                  className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
-                >
-                  E-Mail senden{linkedBands.length > 1 ? ` (${band.name})` : ""}
-                </Link>
-              ))}
-            </div>
-          )}
         </Field>
         <Field label="Telefon">
           <input
@@ -558,14 +544,6 @@ export function VenueForm({
                     />
                     {band.name}
                   </label>
-                  {venue && istVerknuepft && (
-                    <Link
-                      href={`/emails/${band.id}?venue=${venue.id}`}
-                      className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
-                    >
-                      E-Mail schreiben
-                    </Link>
-                  )}
                 </div>
                 <div
                   className={
@@ -622,95 +600,29 @@ export function VenueForm({
                       />
                     </div>
                   )}
+                  {venue && (
+                    <div className="sm:col-span-2">
+                      <VenueEmailThread
+                        bandId={band.id}
+                        bandName={band.name}
+                        venueId={venue.id}
+                        venueName={felder.name}
+                        venueOrt={felder.ort || null}
+                        venueAnsprechpartner={felder.ansprechpartner || null}
+                        venueEmail={felder.email || null}
+                        vorlagen={vorlagenProBand?.[band.id] ?? []}
+                        emails={(emails ?? []).filter(
+                          (m) => m.band.id === band.id
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
-      {emails && emails.length > 0 && (
-        <div>
-          <h2 className="mb-2 text-base font-medium text-slate-900">
-            E-Mail-Verlauf
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {emails.map((mail) => {
-              const offen = geoeffneteMail === mail.id;
-              return (
-                <li
-                  key={mail.id}
-                  className="rounded-lg border border-slate-200 bg-white"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setGeoeffneteMail(offen ? null : mail.id)}
-                    className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">
-                        {mail.betreff || "(kein Betreff)"}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {mail.richtung === "gesendet"
-                          ? `An: ${mail.an}`
-                          : `Von: ${mail.von}`}{" "}
-                        · {mail.band.name}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <span
-                        className={clsx(
-                          "inline-block rounded-full px-2 py-0.5 text-xs",
-                          mail.richtung === "gesendet"
-                            ? "bg-sky-100 text-sky-700"
-                            : "bg-green-100 text-green-700"
-                        )}
-                      >
-                        {mail.richtung === "gesendet" ? "Gesendet" : "Empfangen"}
-                      </span>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {format(new Date(mail.zeitpunkt), "dd.MM.yyyy HH:mm")}
-                      </p>
-                    </div>
-                  </button>
-                  {offen && (
-                    <div className="border-t border-slate-100 p-3 text-sm text-slate-700">
-                      {mail.richtung === "gesendet" ? (
-                        <div
-                          className="[&_img]:my-2 [&_img]:max-w-full"
-                          dangerouslySetInnerHTML={{
-                            __html: mail.text_inhalt || "(kein Inhalt)",
-                          }}
-                        />
-                      ) : (
-                        <p className="whitespace-pre-wrap">
-                          {mail.text_inhalt || "(kein Inhalt)"}
-                        </p>
-                      )}
-                      {mail.anhaenge && mail.anhaenge.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-3 border-t border-slate-100 pt-2">
-                          {mail.anhaenge.map((a) => (
-                            <a
-                              key={a.url}
-                              href={a.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
-                            >
-                              📎 {a.dateiname}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
 
       <div className="flex gap-3">
         <button

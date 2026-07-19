@@ -4,9 +4,11 @@ import {
   getBandMitgliederAnzahlProBand,
   getBands,
   getEmailsForVenue,
+  getEmailVorlagen,
   getGigAnfragenFuerVenues,
   getVenueWithRelations,
 } from "@/lib/queries";
+import type { EmailVorlage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +26,16 @@ export default async function VenueDetailPage({
 
   if (!venue) notFound();
 
-  const [anfragen, mitgliederProBand] = await Promise.all([
+  const [anfragen, mitgliederProBand, vorlagenProBandListe] = await Promise.all([
     getGigAnfragenFuerVenues([id]),
     getBandMitgliederAnzahlProBand(),
+    Promise.all(bands.map((band) => getEmailVorlagen(band.id))),
   ]);
+
+  const vorlagenProBand: Record<string, EmailVorlage[]> = {};
+  bands.forEach((band, i) => {
+    vorlagenProBand[band.id] = vorlagenProBandListe[i];
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,6 +48,7 @@ export default async function VenueDetailPage({
         emails={emails}
         anfragen={anfragen}
         mitgliederProBand={mitgliederProBand}
+        vorlagenProBand={vorlagenProBand}
       />
     </div>
   );
