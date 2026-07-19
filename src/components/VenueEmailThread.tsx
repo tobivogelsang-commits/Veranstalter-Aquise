@@ -17,6 +17,14 @@ import type {
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
 
+const MATERIAL_ICONS: Record<string, string> = {
+  Instagram: "📷",
+  TikTok: "🎵",
+  Facebook: "📘",
+  YouTube: "▶️",
+  EPK: "📄",
+};
+
 function Field({
   label,
   children,
@@ -161,7 +169,9 @@ export function VenueEmailThread({
   // aktuellen Cursor-Position ein, statt ihn als Anhang zu behandeln - anders
   // als Dokumente sind das reine Links, keine hochgeladenen Dateien.
   function handleLinkEinfuegen(material: BandMaterial) {
-    editorHandleRef.current?.insertLink(material.url, material.titel);
+    const icon = material.typ ? MATERIAL_ICONS[material.typ] : undefined;
+    const label = icon ? `${icon} ${material.titel}` : material.titel;
+    editorHandleRef.current?.insertLink(material.url, label);
   }
 
   async function handleSenden() {
@@ -257,7 +267,7 @@ export function VenueEmailThread({
                 onClick={() => handleLinkEinfuegen(m)}
                 className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
               >
-                🔗 {m.typ ?? m.titel}
+                {(m.typ && MATERIAL_ICONS[m.typ]) ?? "🔗"} {m.typ ?? m.titel}
               </button>
             ))}
           </div>
