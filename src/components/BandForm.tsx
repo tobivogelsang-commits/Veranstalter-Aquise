@@ -225,7 +225,7 @@ export function BandForm({
               onChange={(e) =>
                 setNeu((prev) => ({ ...prev, titel: e.target.value }))
               }
-              placeholder="z. B. Stage Rider 2026"
+              placeholder="z. B. Facebook Link"
               className={inputClass}
             />
           </Field>
