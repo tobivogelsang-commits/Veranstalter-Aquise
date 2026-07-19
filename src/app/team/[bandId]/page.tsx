@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getBandName } from "@/lib/teamActions";
-import { getKalenderEintraege, getVenuesWithRelations } from "@/lib/queries";
+import {
+  getBandSongs,
+  getKalenderEintraege,
+  getSetlistenMitSongs,
+  getVenuesWithRelations,
+} from "@/lib/queries";
 import { TeamApp } from "@/components/TeamApp";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +32,11 @@ export default async function TeamPage({
 }) {
   const { bandId } = await params;
 
-  const [bandName, venues] = await Promise.all([
+  const [bandName, venues, songs, setlisten] = await Promise.all([
     getBandName(bandId),
     getVenuesWithRelations(),
+    getBandSongs(bandId),
+    getSetlistenMitSongs(bandId),
   ]);
 
   if (!bandName) notFound();
@@ -37,6 +44,12 @@ export default async function TeamPage({
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
 
   return (
-    <TeamApp bandId={bandId} bandName={bandName} kalenderEintraege={kalenderEintraege} />
+    <TeamApp
+      bandId={bandId}
+      bandName={bandName}
+      kalenderEintraege={kalenderEintraege}
+      songs={songs}
+      setlisten={setlisten}
+    />
   );
 }

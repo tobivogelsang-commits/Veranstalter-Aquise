@@ -27,6 +27,7 @@ export async function fuegeSongHinzu(
   if (error) return { ok: false, fehler: error.message };
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
   return { ok: true, song: data };
 }
 
@@ -35,6 +36,7 @@ export async function entferneSong(songId: string, bandId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
 }
 
 export async function erstelleSetliste(
@@ -53,6 +55,7 @@ export async function erstelleSetliste(
   if (error) return { ok: false, fehler: error.message };
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
   return { ok: true, setliste: data };
 }
 
@@ -71,6 +74,7 @@ export async function benenneSetlisteUm(
   if (error) return { ok: false, fehler: error.message };
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
   return { ok: true };
 }
 
@@ -108,6 +112,7 @@ export async function dupliziereSetliste(
   }
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
   return { ok: true, setliste: neueSetliste };
 }
 
@@ -116,6 +121,7 @@ export async function loescheSetliste(setlistId: string, bandId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
 }
 
 // Ersetzt die komplette Song-Reihenfolge einer Setliste - einfacher als
@@ -144,5 +150,6 @@ export async function speichereSetlistReihenfolge(
   }
 
   revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
   return { ok: true };
 }

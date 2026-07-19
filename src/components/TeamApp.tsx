@@ -10,7 +10,9 @@ import {
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
 import { kalenderPillFarbe } from "@/lib/kalenderHelpers";
-import type { OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
+import { SetlisteBuilder } from "@/components/SetlisteBuilder";
+import type { BandSong, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
+import type { SetlisteMitSongs } from "@/lib/queries";
 
 const STORAGE_PREFIX = "team-mitglied:";
 
@@ -117,10 +119,14 @@ export function TeamApp({
   bandId,
   bandName,
   kalenderEintraege,
+  songs,
+  setlisten,
 }: {
   bandId: string;
   bandName: string;
   kalenderEintraege: PipelineEntry[];
+  songs: BandSong[];
+  setlisten: SetlisteMitSongs[];
 }) {
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
     ladeIdentitaet(bandId)
@@ -315,6 +321,11 @@ export function TeamApp({
         >
           Kalender abonnieren (für privaten Kalender) ↗
         </a>
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-slate-900">Setliste</h2>
+        <SetlisteBuilder bandId={bandId} initialSongs={songs} initialSetlisten={setlisten} />
       </div>
     </div>
   );
