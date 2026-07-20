@@ -15,7 +15,19 @@ export async function POST(request: Request) {
   }
 
   const { anfrageId, mitgliedId, antwort } = body;
-  if (!anfrageId || !mitgliedId || (antwort !== "kann" && antwort !== "kann_nicht")) {
+  // Format vorab prüfen: Dieser Endpunkt ist ohne Login erreichbar, deshalb
+  // sollen offensichtlich unsinnige Anfragen gar nicht erst die Datenbank
+  // erreichen. Die eigentliche Berechtigung (gehört das Mitglied zur Band der
+  // Anfrage?) prüft beantworteAnfrage.
+  const istUuid = (wert: unknown): wert is string =>
+    typeof wert === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wert);
+
+  if (
+    !istUuid(anfrageId) ||
+    !istUuid(mitgliedId) ||
+    (antwort !== "kann" && antwort !== "kann_nicht")
+  ) {
     return NextResponse.json(
       { ok: false, fehler: "Fehlende oder ungültige Felder." },
       { status: 400 }

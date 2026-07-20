@@ -29,6 +29,31 @@ export type PushSubscriptionInput = {
   keys: { p256dh: string; auth: string };
 };
 
+// Obergrenze pro Band. Die Registrierung ist ohne Login offen (jede/r mit dem
+// Team-Link kann sich eintragen) - ohne Deckel könnte jemand die Tabelle
+// beliebig vollschreiben und damit auch Push-Versand und "x von y bestätigt"
+// unbrauchbar machen. Für eine Band ist das großzügig bemessen.
+const MAX_MITGLIEDER_PRO_BAND = 50;
+const MAX_NAME_LAENGE = 80;
+
+// Die Team-App hat bewusst keinen Login: Ausweis ist die nicht erratbare
+// Mitglieds-UUID. Diese Prüfung stellt sicher, dass eine Mitglieds-UUID nur
+// innerhalb der eigenen Band wirkt - sonst könnte jemand mit einer fremden
+// (oder aus einem anderen Kontext bekannten) Kombination Antworten für eine
+// andere Band abgeben oder deren offene Anfragen auslesen.
+async function gehoertMitgliedZuBand(
+  mitgliedId: string,
+  bandId: string
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("id")
+    .eq("id", mitgliedId)
+    .eq("band_id", bandId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 // Legt ein neues Teammitglied an (einmalige Namenseingabe, kein Login/Passwort)
 // inkl. Push-Subscription. subscription ist optional, falls jemand
 // Benachrichtigungen ablehnt oder der Browser sie nicht unterstützt - die
@@ -40,13 +65,34 @@ export async function registriereMitglied(
   name: string,
   subscription: PushSubscriptionInput | null
 ): Promise<{ ok: true; mitgliedId: string } | { ok: false; fehler: string }> {
-  if (!name.trim()) return { ok: false, fehler: "Name fehlt." };
+  const sauberName = name.trim().slice(0, MAX_NAME_LAENGE);
+  if (!sauberName) return { ok: false, fehler: "Name fehlt." };
+
+  // Existiert die Band überhaupt? Ohne Prüfung liefe man in einen rohen
+  // Fremdschlüssel-Fehler, dessen Meldung nichts erklärt.
+  const { data: band } = await supabaseAdmin
+    .from("bands")
+    .select("id")
+    .eq("id", bandId)
+    .maybeSingle();
+  if (!band) return { ok: false, fehler: "Band nicht gefunden." };
+
+  const { count } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("id", { count: "exact", head: true })
+    .eq("band_id", bandId);
+  if ((count ?? 0) >= MAX_MITGLIEDER_PRO_BAND) {
+    return {
+      ok: false,
+      fehler: "Diese Band hat bereits die maximale Anzahl an Mitgliedern.",
+    };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("band_mitglieder")
     .insert({
       band_id: bandId,
-      name: name.trim(),
+      name: sauberName,
       push_endpoint: subscription?.endpoint ?? null,
       push_p256dh: subscription?.keys.p256dh ?? null,
       push_auth: subscription?.keys.auth ?? null,
@@ -234,6 +280,31 @@ export async function beantworteAnfrage(
   mitgliedId: string,
   antwort: GigAntwort
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (antwort !== "kann" && antwort !== "kann_nicht") {
+    return { ok: false, fehler: "Ungültige Antwort." };
+  }
+
+  // Ohne diese Prüfung könnte jede/r mit einer beliebigen Anfrage- und
+  // Mitglieds-UUID Antworten fälschen - und da eine vollständige Zusage den
+  // Kontakt automatisch auf "Bereit zu buchen" vorrücken lässt, ließe sich so
+  // die Pipeline von außen manipulieren.
+  const { data: anfrage } = await supabaseAdmin
+    .from("gig_anfragen")
+    .select("band_id")
+    .eq("id", anfrageId)
+    .maybeSingle();
+
+  // Bewusst dieselbe Meldung für "gibt es nicht" und "gehört nicht zu deiner
+  // Band": Sonst verriete die Antwort, welche Anfrage-IDs existieren.
+  const abweisung = {
+    ok: false as const,
+    fehler: "Anfrage nicht gefunden.",
+  };
+  if (!anfrage) return abweisung;
+  if (!(await gehoertMitgliedZuBand(mitgliedId, anfrage.band_id))) {
+    return abweisung;
+  }
+
   const { error } = await supabaseAdmin.from("gig_antworten").upsert(
     {
       anfrage_id: anfrageId,
@@ -300,5 +371,10 @@ export async function holeOffeneAnfragen(
   mitgliedId: string,
   bandId: string
 ): Promise<OffeneAnfrageFuerMitglied[]> {
+  // Ohne diese Prüfung könnte man mit einer beliebigen Mitglieds-UUID die
+  // offenen Anfragen einer fremden Band abrufen (inkl. Veranstaltername,
+  // Ort und Datum). Leere Liste statt Fehler - die Team-App zeigt dann
+  // schlicht nichts an.
+  if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) return [];
   return getOffeneAnfragenFuerMitglied(mitgliedId, bandId);
 }
