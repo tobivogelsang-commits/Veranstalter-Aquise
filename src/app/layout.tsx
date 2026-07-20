@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -17,6 +17,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Akquise-Tool | Veranstalter-Akquise",
   description: "Veranstalter-Akquise für 90er Coverband und Backseat Alley",
+};
+
+// viewport-fit=cover aktiviert die iOS Safe-Area-Insets, damit die untere
+// Navigationsleiste der Team-App per env(safe-area-inset-bottom) nicht mit dem
+// iPhone-Home-Indicator (dem Balken unten) kollidiert.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

@@ -315,7 +315,7 @@ export function TeamApp({
     .slice(0, 3);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pb-24 pt-8">
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pt-8 pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
@@ -489,7 +489,7 @@ export function TeamApp({
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
         <div className="mx-auto flex max-w-md">
           {(
             [
