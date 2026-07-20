@@ -15,6 +15,15 @@ const knopfClass =
 // Sichtbar "eingerastet", solange die Formatierung an der Cursorposition gilt.
 const knopfAktivClass = "bg-slate-300 text-slate-900 hover:bg-slate-300";
 
+// Bewusst wenige, klar unterscheidbare Stufen statt einer Punktgenau-Auswahl -
+// in einer Akquise-Mail geht es um "Überschrift", "normal" und "Kleingedrucktes".
+// "Normal" entspricht der Grundgröße des Editors (text-sm = 14px).
+const SCHRIFTGROESSEN = [
+  { name: "Klein", wert: "12px" },
+  { name: "Normal", wert: "14px" },
+  { name: "Groß", wert: "18px" },
+] as const;
+
 export type HtmlEditorHandle = {
   insertLink: (url: string, label: string) => void;
   insertHtml: (html: string) => void;
@@ -113,6 +122,37 @@ export const HtmlEditor = forwardRef<
     aktualisiereAktiveFormate();
   }
 
+  // Zuletzt gewählte Schriftgröße - nötig, weil execCommand("fontSize") bei
+  // leerer Auswahl keine Auszeichnung erzeugt, sondern nur einen Stil für das
+  // NÄCHSTE Zeichen vormerkt. Das Ersetzen des Markers muss dann beim Tippen
+  // nachgeholt werden (siehe onInput).
+  const letzteGroesseRef = useRef<string>(SCHRIFTGROESSEN[1].wert);
+
+  // execCommand kennt nur die Stufen 1-7 und erzeugt veraltete <font>-Tags.
+  // Stufe 7 dient uns deshalb nur als Markierung, die wir sofort durch ein
+  // <span style="font-size:…"> ersetzen: Inline-CSS ist das, was E-Mail-
+  // Programme zuverlässig darstellen, <font size> ignorieren manche.
+  function markerInSpansUmwandeln() {
+    const wurzel = editorRef.current;
+    if (!wurzel) return;
+    wurzel.querySelectorAll('font[size="7"]').forEach((el) => {
+      const span = document.createElement("span");
+      span.style.fontSize = letzteGroesseRef.current;
+      while (el.firstChild) span.appendChild(el.firstChild);
+      el.replaceWith(span);
+    });
+  }
+
+  function setzeSchriftgroesse(wert: string) {
+    const wurzel = editorRef.current;
+    if (!wurzel) return;
+    letzteGroesseRef.current = wert;
+    wurzel.focus();
+    document.execCommand("fontSize", false, "7");
+    markerInSpansUmwandeln();
+    onChange(wurzel.innerHTML);
+  }
+
   function ungewollteFettformatierungEntfernen() {
     const wurzel = editorRef.current;
     if (!wurzel || fettManuellRef.current) return;
@@ -207,6 +247,19 @@ export const HtmlEditor = forwardRef<
         >
           Liste
         </button>
+        <span className="mx-1 w-px self-stretch bg-slate-300" aria-hidden />
+        {SCHRIFTGROESSEN.map((groesse) => (
+          <button
+            key={groesse.wert}
+            type="button"
+            title={`Schriftgröße ${groesse.name} (markierten Text auswählen)`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setzeSchriftgroesse(groesse.wert)}
+            className={knopfClass}
+          >
+            {groesse.name}
+          </button>
+        ))}
         {onBildHochladen && (
           <>
             <button
@@ -234,6 +287,7 @@ export const HtmlEditor = forwardRef<
         className="min-h-[150px] px-3 py-2 text-sm font-normal focus:outline-none [&_img]:my-2 [&_img]:max-w-full"
         onInput={() => {
           ungewollteFettformatierungEntfernen();
+          markerInSpansUmwandeln();
           onChange(editorRef.current?.innerHTML ?? "");
           aktualisiereAktiveFormate();
         }}
