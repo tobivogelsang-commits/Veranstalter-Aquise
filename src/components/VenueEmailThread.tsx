@@ -46,6 +46,25 @@ function Field({
   );
 }
 
+// Wie Field, aber als <div> statt <label>. Wichtig fuer den HtmlEditor: Ein
+// Klick irgendwo in ein <label> wird vom Browser an das erste bedienbare
+// Element darin weitergereicht - das waere hier der Fett-Knopf der Toolbar.
+// Dadurch aktivierte jeder Klick ins Textfeld ungewollt Fettschrift.
+function EditorFeld({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 function ersetzePlatzhalter(
   text: string,
   venueName: string,
@@ -288,7 +307,7 @@ export function VenueEmailThread({
             className={inputClass}
           />
         </Field>
-        <Field label="Nachricht">
+        <EditorFeld label="Nachricht">
           <HtmlEditor
             key={editorKey}
             ref={editorHandleRef}
@@ -298,7 +317,7 @@ export function VenueEmailThread({
             }}
             onBildHochladen={handleBildHochladen}
           />
-        </Field>
+        </EditorFeld>
         {materialien.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {materialien.map((m) => (

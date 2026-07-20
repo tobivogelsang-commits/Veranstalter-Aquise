@@ -29,6 +29,25 @@ function Field({
   );
 }
 
+// Wie Field, aber als <div> statt <label>. Wichtig fuer den HtmlEditor: Ein
+// Klick irgendwo in ein <label> wird vom Browser an das erste bedienbare
+// Element darin weitergereicht - das waere hier der Fett-Knopf der Toolbar.
+// Dadurch aktivierte jeder Klick ins Textfeld ungewollt Fettschrift.
+function EditorFeld({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 // Vorlagen-Verwaltung (anlegen/bearbeiten/löschen) und Mail-Zugangsdaten
 // (SMTP/IMAP) einer Band - beides zusammen "Einstellungen", einzige Quelle
 // für das, was beim Schreiben (auf der E-Mails- und Veranstalter-Seite)
@@ -250,7 +269,7 @@ export function EmailEinstellungenPanel({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Inhalt">
+              <EditorFeld label="Inhalt">
                 <HtmlEditor
                   key={vorlageEditorKey}
                   defaultValue={vorlageInhaltSeed}
@@ -259,7 +278,7 @@ export function EmailEinstellungenPanel({
                   }}
                   onBildHochladen={handleBildHochladen}
                 />
-              </Field>
+              </EditorFeld>
               <div className="flex items-center gap-3">
                 <button
                   type="submit"

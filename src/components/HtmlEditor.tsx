@@ -1,9 +1,19 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import clsx from "clsx";
 
 const knopfClass =
   "rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200";
+// Sichtbar "eingerastet", solange die Formatierung an der Cursorposition gilt.
+const knopfAktivClass = "bg-slate-300 text-slate-900 hover:bg-slate-300";
 
 export type HtmlEditorHandle = {
   insertLink: (url: string, label: string) => void;
@@ -34,6 +44,25 @@ export const HtmlEditor = forwardRef<
 >(function HtmlEditor({ defaultValue, onChange, onBildHochladen }, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
   const dateiInputRef = useRef<HTMLInputElement>(null);
+
+  // Startinhalt EINMALIG beim Mounten ins DOM schreiben - bewusst nicht über
+  // dangerouslySetInnerHTML. React würde den Inhalt sonst bei jedem Re-Render
+  // des Elternteils erneut setzen und damit alles Getippte verwerfen: schon ein
+  // "Lädt hoch…"-Zustand beim Anhang-Upload hat so die ganze Mail gelöscht.
+  // Nach dem Mounten gehört der Inhalt dem Nutzer bzw. dem DOM; soll er von
+  // außen ersetzt werden (Vorlage wählen), erzwingt die aufrufende Stelle über
+  // einen neuen "key" einen Remount, wodurch dieser Effekt erneut läuft.
+  //
+  // Ein wirklich leeres contentEditable (innerHTML "") lässt Chrome den ersten
+  // getippten Buchstaben teils fälschlich fett einfügen - ein leerer Block gibt
+  // dem Cursor einen eindeutigen, unformatierten Kontext.
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = defaultValue || "<div><br></div>";
+    }
+    // Nur beim Mounten - deshalb bewusst ohne defaultValue in den Dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Manche Browser wrappen den allerersten getippten/eingefügten Text in
   // einem leeren contentEditable ungefragt in <b> (Signatur: ein <b>/<strong>,
   // das als einziges Kind seines Elternknotens steht und dessen kompletten
@@ -42,11 +71,46 @@ export const HtmlEditor = forwardRef<
   // über den Button ausgewählt, dann bleibt es unangetastet.
   const fettManuellRef = useRef(false);
 
+  // Damit die Toolbar anzeigt, welche Formatierung an der Cursorposition gilt
+  // (sonst sieht man nicht, ob Fett gerade an ist). queryCommandState ist wie
+  // execCommand offiziell veraltet, passt aber zum Ansatz dieses Editors und
+  // funktioniert in allen Zielbrowsern.
+  const [aktiveFormate, setAktiveFormate] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    insertUnorderedList: false,
+  });
+
+  const aktualisiereAktiveFormate = useCallback(() => {
+    const wurzel = editorRef.current;
+    const auswahl = document.getSelection();
+    // Nur reagieren, wenn der Cursor wirklich in diesem Editor steht - sonst
+    // würden sich zwei Editoren auf derselben Seite gegenseitig markieren.
+    if (!wurzel || !auswahl?.anchorNode || !wurzel.contains(auswahl.anchorNode)) {
+      return;
+    }
+    setAktiveFormate({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+    });
+  }, []);
+
+  // selectionchange gibt es nur auf document-Ebene, nicht am Element.
+  useEffect(() => {
+    document.addEventListener("selectionchange", aktualisiereAktiveFormate);
+    return () =>
+      document.removeEventListener("selectionchange", aktualisiereAktiveFormate);
+  }, [aktualisiereAktiveFormate]);
+
   function formatieren(befehl: string) {
     editorRef.current?.focus();
     if (befehl === "bold") fettManuellRef.current = true;
     document.execCommand(befehl);
     onChange(editorRef.current?.innerHTML ?? "");
+    aktualisiereAktiveFormate();
   }
 
   function ungewollteFettformatierungEntfernen() {
@@ -108,7 +172,8 @@ export const HtmlEditor = forwardRef<
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatieren("bold")}
-          className={knopfClass}
+          aria-pressed={aktiveFormate.bold}
+          className={clsx(knopfClass, aktiveFormate.bold && knopfAktivClass)}
         >
           <strong>F</strong>
         </button>
@@ -116,15 +181,29 @@ export const HtmlEditor = forwardRef<
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatieren("italic")}
-          className={knopfClass}
+          aria-pressed={aktiveFormate.italic}
+          className={clsx(knopfClass, aktiveFormate.italic && knopfAktivClass)}
         >
           <em>K</em>
         </button>
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
+          onClick={() => formatieren("underline")}
+          aria-pressed={aktiveFormate.underline}
+          className={clsx(knopfClass, aktiveFormate.underline && knopfAktivClass)}
+        >
+          <u>U</u>
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatieren("insertUnorderedList")}
-          className={knopfClass}
+          aria-pressed={aktiveFormate.insertUnorderedList}
+          className={clsx(
+            knopfClass,
+            aktiveFormate.insertUnorderedList && knopfAktivClass
+          )}
         >
           Liste
         </button>
@@ -156,14 +235,16 @@ export const HtmlEditor = forwardRef<
         onInput={() => {
           ungewollteFettformatierungEntfernen();
           onChange(editorRef.current?.innerHTML ?? "");
+          aktualisiereAktiveFormate();
         }}
-        // Ein wirklich leeres contentEditable (innerHTML "") lässt Chrome den
-        // allerersten getippten Buchstaben teils fälschlich fett einfügen, da
-        // die Formatierung für einen Cursor direkt im Root-Element (ohne
-        // umgebendes Block-Element) uneindeutig ist. Ein leerer Block als
-        // Startzustand gibt dem Cursor einen eindeutigen, unformatierten
-        // Kontext.
-        dangerouslySetInnerHTML={{ __html: defaultValue || "<div><br></div>" }}
+        onBlur={() =>
+          setAktiveFormate({
+            bold: false,
+            italic: false,
+            underline: false,
+            insertUnorderedList: false,
+          })
+        }
       />
     </div>
   );

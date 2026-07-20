@@ -30,6 +30,25 @@ function Field({
   );
 }
 
+// Wie Field, aber als <div> statt <label>. Wichtig fuer den HtmlEditor: Ein
+// Klick irgendwo in ein <label> wird vom Browser an das erste bedienbare
+// Element darin weitergereicht - das waere hier der Fett-Knopf der Toolbar.
+// Dadurch aktivierte jeder Klick ins Textfeld ungewollt Fettschrift.
+function EditorFeld({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 // Ersetzt {{veranstalter}}, {{ort}}, {{ansprechpartner}}, {{band}} durch die
 // Daten des aktuell im Compose-Formular ausgewählten Veranstalters/der Band -
 // einmalig beim Auswählen der Vorlage, nicht laufend aktualisiert.
@@ -223,7 +242,7 @@ export function BandEmailSection({
             className={inputClass}
           />
         </Field>
-        <Field label="Nachricht">
+        <EditorFeld label="Nachricht">
           <HtmlEditor
             key={editorKey}
             defaultValue={inhaltSeed}
@@ -232,7 +251,7 @@ export function BandEmailSection({
             }}
             onBildHochladen={handleBildHochladen}
           />
-        </Field>
+        </EditorFeld>
         <div className="flex flex-col gap-2">
           <label className="w-fit cursor-pointer text-xs font-medium text-slate-600 underline hover:text-slate-900">
             {anhangLaeuft ? "Lädt hoch…" : "+ Anhang hinzufügen"}
