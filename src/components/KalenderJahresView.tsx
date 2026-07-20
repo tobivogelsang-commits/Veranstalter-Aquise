@@ -176,6 +176,8 @@ export function KalenderJahresView({
   tabParam,
   proberaumTermine = [],
   termine = [],
+  kompakt = false,
+  vorGitter,
 }: {
   eintraege: PipelineEntry[];
   jahrParam?: string;
@@ -183,6 +185,8 @@ export function KalenderJahresView({
   tabParam?: string;
   proberaumTermine?: ProberaumTermin[];
   termine?: KalenderTermin[];
+  kompakt?: boolean;
+  vorGitter?: React.ReactNode;
 }) {
   const jahr = parseJahrParam(jahrParam);
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
@@ -190,23 +194,33 @@ export function KalenderJahresView({
   const termineProTag = gruppiereTermineProTag(termine, `${jahr}-01-01`, `${jahr}-12-31`);
   const monate = Array.from({ length: 12 }, (_, i) => new Date(jahr, i, 1));
 
+  const navBtnKlasse = kompakt
+    ? "rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+    : "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100";
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Link
           href={jahrLink(jahr - 1, bandFilter, tabParam)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          aria-label={`${jahr - 1}`}
+          className={navBtnKlasse}
         >
-          ← {jahr - 1}
+          {kompakt ? "←" : `← ${jahr - 1}`}
         </Link>
-        <h2 className="text-lg font-semibold text-slate-900">{jahr}</h2>
+        <h2 className={kompakt ? "text-base font-semibold text-slate-900" : "text-lg font-semibold text-slate-900"}>
+          {jahr}
+        </h2>
         <Link
           href={jahrLink(jahr + 1, bandFilter, tabParam)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          aria-label={`${jahr + 1}`}
+          className={navBtnKlasse}
         >
-          {jahr + 1} →
+          {kompakt ? "→" : `${jahr + 1} →`}
         </Link>
       </div>
+
+      {vorGitter}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {monate.map((monat) => (

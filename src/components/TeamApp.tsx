@@ -166,6 +166,7 @@ async function versuchePushSubscription(): Promise<{
 export function TeamApp({
   bandId,
   bandName,
+  logoUrl,
   kalenderEintraege,
   songs,
   setlisten,
@@ -178,6 +179,7 @@ export function TeamApp({
 }: {
   bandId: string;
   bandName: string;
+  logoUrl: string | null;
   kalenderEintraege: PipelineEntry[];
   songs: BandSong[];
   setlisten: SetlisteMitSongs[];
@@ -314,9 +316,19 @@ export function TeamApp({
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pb-24 pt-8">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
-        <p className="text-sm text-slate-500">Hi {identitaet.name}!</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
+          <p className="text-sm text-slate-500">Hi {identitaet.name}!</p>
+        </div>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={bandName}
+            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+          />
+        )}
       </div>
 
       {pushHinweis && (
@@ -401,11 +413,11 @@ export function TeamApp({
 
       {aktiverTab === "kalender" && (
         <div>
-          <div className="mb-4 flex rounded-md border border-slate-300 text-sm font-medium">
+          <div className="mb-4 inline-flex rounded-md border border-slate-300 text-sm font-medium">
             <Link
               href={`?tab=kalender&ansicht=monat${monatParam ? `&monat=${monatParam}` : ""}`}
               className={clsx(
-                "rounded-l-md px-3 py-1.5",
+                "w-20 rounded-l-md py-1.5 text-center",
                 kalenderAnsicht === "monat"
                   ? "bg-slate-900 text-white"
                   : "text-slate-700 hover:bg-slate-100"
@@ -416,7 +428,7 @@ export function TeamApp({
             <Link
               href={`?tab=kalender&ansicht=jahr${jahrParam ? `&jahr=${jahrParam}` : ""}`}
               className={clsx(
-                "rounded-r-md border-l border-slate-300 px-3 py-1.5",
+                "w-20 rounded-r-md border-l border-slate-300 py-1.5 text-center",
                 kalenderAnsicht === "jahr"
                   ? "bg-slate-900 text-white"
                   : "text-slate-700 hover:bg-slate-100"
@@ -435,6 +447,14 @@ export function TeamApp({
               venueLinkErlaubt={false}
               proberaumTermine={proberaumTermine}
               termine={termine}
+              kompakt
+              vorGitter={
+                <TermineManager
+                  bands={[{ id: bandId, name: bandName }]}
+                  bandFilter={bandId}
+                  initialTermine={termine}
+                />
+              }
             />
           ) : (
             <KalenderJahresView
@@ -444,6 +464,14 @@ export function TeamApp({
               tabParam="kalender"
               proberaumTermine={proberaumTermine}
               termine={termine}
+              kompakt
+              vorGitter={
+                <TermineManager
+                  bands={[{ id: bandId, name: bandName }]}
+                  bandFilter={bandId}
+                  initialTermine={termine}
+                />
+              }
             />
           )}
           <a
@@ -452,14 +480,6 @@ export function TeamApp({
           >
             Kalender abonnieren (für privaten Kalender) ↗
           </a>
-
-          <div className="mt-6">
-            <TermineManager
-              bands={[{ id: bandId, name: bandName }]}
-              bandFilter={bandId}
-              initialTermine={termine}
-            />
-          </div>
         </div>
       )}
 

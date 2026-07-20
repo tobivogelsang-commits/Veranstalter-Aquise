@@ -59,6 +59,8 @@ export function KalenderMonatsView({
   venueLinkErlaubt = true,
   proberaumTermine = [],
   termine = [],
+  kompakt = false,
+  vorGitter,
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
@@ -68,6 +70,8 @@ export function KalenderMonatsView({
   venueLinkErlaubt?: boolean;
   proberaumTermine?: ProberaumTermin[];
   termine?: KalenderTermin[];
+  kompakt?: boolean;
+  vorGitter?: React.ReactNode;
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -91,23 +95,47 @@ export function KalenderMonatsView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <Link
-          href={monatLink(subMonths(monat, 1), bandFilter, tabParam)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          ← Vorheriger Monat
-        </Link>
-        <h2 className="text-lg font-semibold capitalize text-slate-900">
-          {format(monat, "MMMM yyyy", { locale: de })}
-        </h2>
-        <Link
-          href={monatLink(addMonths(monat, 1), bandFilter, tabParam)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Nächster Monat →
-        </Link>
-      </div>
+      {kompakt ? (
+        <div className="flex items-center justify-between">
+          <Link
+            href={monatLink(subMonths(monat, 1), bandFilter, tabParam)}
+            aria-label="Vorheriger Monat"
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+          >
+            ←
+          </Link>
+          <h2 className="text-base font-semibold capitalize text-slate-900">
+            {format(monat, "MMMM yyyy", { locale: de })}
+          </h2>
+          <Link
+            href={monatLink(addMonths(monat, 1), bandFilter, tabParam)}
+            aria-label="Nächster Monat"
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+          >
+            →
+          </Link>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <Link
+            href={monatLink(subMonths(monat, 1), bandFilter, tabParam)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            ← Vorheriger Monat
+          </Link>
+          <h2 className="text-lg font-semibold capitalize text-slate-900">
+            {format(monat, "MMMM yyyy", { locale: de })}
+          </h2>
+          <Link
+            href={monatLink(addMonths(monat, 1), bandFilter, tabParam)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Nächster Monat →
+          </Link>
+        </div>
+      )}
+
+      {vorGitter}
 
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 text-xs">
         {WOCHENTAGE.map((tag) => (

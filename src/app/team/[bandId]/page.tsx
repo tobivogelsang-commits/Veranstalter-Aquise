@@ -60,11 +60,13 @@ export default async function TeamPage({
 
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
   const aktiverTab = tab === "kalender" || tab === "setliste" ? tab : "dashboard";
+  const logoUrl = getTeamIconPfade(bandId)?.klein ?? null;
 
   return (
     <TeamApp
       bandId={bandId}
       bandName={bandName}
+      logoUrl={logoUrl}
       kalenderEintraege={kalenderEintraege}
       songs={songs}
       setlisten={setlisten}
