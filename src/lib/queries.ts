@@ -5,11 +5,12 @@
 // (öffentliche Team-/Kalender-Routen). `supabase` und `supabaseAdmin` sind
 // hier bewusst derselbe (privilegierte) Client.
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { signierteAnhangUrls } from "@/lib/storage";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {
   Band,
-  BandDokumentTyp,
+  BandDokumentTypMitUrl,
   BandEmailMitVenue,
   BandMaterial,
   BandSong,
@@ -50,6 +51,22 @@ export async function getBandWithMaterialien(
   return data as unknown as BandWithMaterialien | null;
 }
 
+// Anhänge liegen als Storage-Pfade im privaten Bucket. Fürs Anzeigen ergänzen
+// wir pro Mail kurzlebige signierte Download-Links - in einem Sammelaufruf,
+// nicht einzeln pro Anhang.
+async function mitSigniertenAnhaengen<
+  T extends { anhaenge: { dateiname: string; pfad: string }[] | null },
+>(mails: T[]): Promise<T[]> {
+  const pfade = mails.flatMap((m) => (m.anhaenge ?? []).map((a) => a.pfad));
+  const urls = await signierteAnhangUrls(pfade);
+
+  return mails.map((mail) => ({
+    ...mail,
+    anhaenge:
+      mail.anhaenge?.map((a) => ({ ...a, url: urls[a.pfad] ?? "" })) ?? null,
+  }));
+}
+
 export async function getBandEmails(
   bandId: string
 ): Promise<BandEmailMitVenue[]> {
@@ -60,7 +77,7 @@ export async function getBandEmails(
     .order("zeitpunkt", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as BandEmailMitVenue[];
+  return mitSigniertenAnhaengen((data ?? []) as unknown as BandEmailMitVenue[]);
 }
 
 // Veranstalter, die dieser Band zugeordnet sind - fürs Dropdown im
@@ -89,7 +106,7 @@ export async function getEmailsForVenue(
     .order("zeitpunkt", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as VenueEmailMitBand[];
+  return mitSigniertenAnhaengen((data ?? []) as unknown as VenueEmailMitBand[]);
 }
 
 export async function getEmailVorlagen(bandId: string): Promise<EmailVorlage[]> {
@@ -117,9 +134,11 @@ export async function getBandMaterialien(bandId: string): Promise<BandMaterial[]
   return data ?? [];
 }
 
+// Liefert zusätzlich zum rohen Storage-Pfad (datei_pfad, zum Anhängen an eine
+// Mail) einen frisch signierten Download-Link für die Anzeige.
 export async function getBandDokumentTypen(
   bandId: string
-): Promise<BandDokumentTyp[]> {
+): Promise<BandDokumentTypMitUrl[]> {
   const { data, error } = await supabase
     .from("band_dokument_typen")
     .select("*")
@@ -127,7 +146,16 @@ export async function getBandDokumentTypen(
     .order("erstellt_am");
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  const typen = data ?? [];
+  const urls = await signierteAnhangUrls(
+    typen.map((t) => t.datei_pfad).filter((p): p is string => Boolean(p))
+  );
+
+  return typen.map((typ) => ({
+    ...typ,
+    datei_url: typ.datei_pfad ? (urls[typ.datei_pfad] ?? null) : null,
+  }));
 }
 
 // Alle Versendet-Einträge eines Veranstalters (über alle Bands hinweg) -

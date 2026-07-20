@@ -10,7 +10,7 @@ import { TeamEinladung } from "@/components/TeamEinladung";
 import { BAND_MATERIAL_TYPEN } from "@/lib/constants";
 import { useGespeichertHinweis } from "@/lib/useGespeichertHinweis";
 import type {
-  BandDokumentTyp,
+  BandDokumentTypMitUrl,
   BandMitgliedOhnePush,
   BandWithMaterialien,
   EmailEinstellungenOhnePasswort,
@@ -50,7 +50,7 @@ export function BandForm({
   teamQrCodeDataUrl: string;
   teamMitglieder: BandMitgliedOhnePush[];
   emailVorlagen: EmailVorlage[];
-  dokumentTypen: BandDokumentTyp[];
+  dokumentTypen: BandDokumentTypMitUrl[];
 }) {
   const router = useRouter();
   const action = updateBand.bind(null, band.id);

@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import clsx from "clsx";
-import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
+import {
+  ladeEmailAnhangHoch,
+  ladeInlineBildHoch,
+  sendeEmail,
+} from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
 import { escapeText, HtmlEditor, type HtmlEditorHandle } from "@/components/HtmlEditor";
 import type {
-  BandDokumentTyp,
+  BandDokumentTypMitUrl,
   BandMaterial,
   EmailVorlage,
   VenueEmailMitBand,
@@ -86,7 +90,7 @@ export function VenueEmailThread({
   venueDatum: string | null;
   vorlagen: EmailVorlage[];
   emails: VenueEmailMitBand[];
-  dokumentTypen: BandDokumentTyp[];
+  dokumentTypen: BandDokumentTypMitUrl[];
   materialien: BandMaterial[];
   setlisten: SetlisteMitSongs[];
 }) {
@@ -131,7 +135,9 @@ export function VenueEmailThread({
   async function handleBildHochladen(datei: File): Promise<string | null> {
     const formData = new FormData();
     formData.set("datei", datei);
-    const ergebnis = await ladeEmailAnhangHoch(bandId, formData);
+    // Inline-Bild -> öffentlicher Bucket, damit es im Mailprogramm des
+    // Empfängers auch später noch lädt.
+    const ergebnis = await ladeInlineBildHoch(bandId, formData);
     return ergebnis.ok ? ergebnis.url : null;
   }
 
@@ -148,29 +154,30 @@ export function VenueEmailThread({
       if (ergebnis.ok) {
         setAnhaenge((prev) => [
           ...prev,
-          { dateiname: ergebnis.dateiname, url: ergebnis.url },
+          { dateiname: ergebnis.dateiname, pfad: ergebnis.pfad },
         ]);
       }
     }
     setAnhangLaeuft(false);
   }
 
-  function handleAnhangEntfernen(url: string) {
-    setAnhaenge((prev) => prev.filter((a) => a.url !== url));
+  function handleAnhangEntfernen(pfad: string) {
+    setAnhaenge((prev) => prev.filter((a) => a.pfad !== pfad));
   }
 
   // Hängt eine in den Band-Einstellungen hinterlegte Datei (Stage Rider,
-  // Angebot etc.) direkt an, ohne sie erneut hochzuladen.
-  function handleDokumentAnhaengen(typ: BandDokumentTyp) {
-    if (!typ.datei_url || !typ.dateiname) return;
-    if (anhaenge.some((a) => a.url === typ.datei_url)) return;
+  // Angebot etc.) direkt an, ohne sie erneut hochzuladen. Angehängt wird der
+  // Storage-Pfad; der Inhalt wird erst beim Versand serverseitig geholt.
+  function handleDokumentAnhaengen(typ: BandDokumentTypMitUrl) {
+    if (!typ.datei_pfad || !typ.dateiname) return;
+    if (anhaenge.some((a) => a.pfad === typ.datei_pfad)) return;
     setAnhaenge((prev) => [
       ...prev,
-      { dateiname: typ.dateiname!, url: typ.datei_url! },
+      { dateiname: typ.dateiname!, pfad: typ.datei_pfad! },
     ]);
   }
 
-  const dokumenteMitDatei = dokumentTypen.filter((t) => t.datei_url);
+  const dokumenteMitDatei = dokumentTypen.filter((t) => t.datei_pfad);
 
   // Fügt einen Materialien-Link (Instagram, EPK etc.) als Hyperlink an der
   // aktuellen Cursor-Position ein, statt ihn als Anhang zu behandeln - anders
@@ -336,7 +343,7 @@ export function VenueEmailThread({
                   key={typ.id}
                   type="button"
                   onClick={() => handleDokumentAnhaengen(typ)}
-                  disabled={anhaenge.some((a) => a.url === typ.datei_url)}
+                  disabled={anhaenge.some((a) => a.pfad === typ.datei_pfad)}
                   className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                 >
                   + {typ.name}
@@ -358,13 +365,13 @@ export function VenueEmailThread({
             <ul className="flex flex-col gap-1">
               {anhaenge.map((a) => (
                 <li
-                  key={a.url}
+                  key={a.pfad}
                   className="flex items-center gap-2 text-xs text-slate-600"
                 >
                   📎 {a.dateiname}
                   <button
                     type="button"
-                    onClick={() => handleAnhangEntfernen(a.url)}
+                    onClick={() => handleAnhangEntfernen(a.pfad)}
                     className="text-red-600 hover:text-red-800"
                   >
                     entfernen

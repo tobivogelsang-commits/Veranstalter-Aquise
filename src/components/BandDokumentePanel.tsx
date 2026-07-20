@@ -8,7 +8,7 @@ import {
   fuegeDokumentTypHinzu,
   ladeDokumentDateiHoch,
 } from "@/lib/dokumentActions";
-import type { BandDokumentTyp } from "@/lib/types";
+import type { BandDokumentTypMitUrl } from "@/lib/types";
 
 // Verwaltet die band-weite Dokument-Typen-Liste (Stage Rider, Angebot,
 // Pressetext etc. - dieselbe Liste wie die Checkliste auf der Veranstalter-
@@ -20,7 +20,7 @@ export function BandDokumentePanel({
   dokumentTypen,
 }: {
   bandId: string;
-  dokumentTypen: BandDokumentTyp[];
+  dokumentTypen: BandDokumentTypMitUrl[];
 }) {
   const router = useRouter();
   const [neuerTyp, setNeuerTyp] = useState("");

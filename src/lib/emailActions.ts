@@ -9,6 +9,12 @@ import { revalidatePath } from "next/cache";
 // E-Mail-Funktionen sind reine Inhaber-Aktionen (siehe requireOwner()).
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
+import {
+  ANHANG_BUCKET,
+  BILD_BUCKET,
+  anhangPfad,
+  ladeAnhangBuffer,
+} from "@/lib/storage";
 import { rueckeStatusAutomatischVor } from "@/lib/actions";
 import type { EmailAnhang } from "@/lib/database.types";
 import type { EmailEinstellungenOhnePasswort } from "@/lib/types";
@@ -186,15 +192,15 @@ export async function loescheEmailVorlage(bandId: string, vorlageId: string) {
   revalidatePath(`/einstellungen/${bandId}`);
 }
 
-// Lädt eine Datei (Bild fürs Einfügen in den Mailtext, oder ein Anhang wie ein
-// Angebot-PDF) ins öffentliche Storage-Bucket "email-anhaenge" hoch. Die
-// öffentliche URL ist direkt als <img src> in der HTML-Mail sowie als
-// nodemailer-Attachment-Pfad nutzbar (kein Signieren/erneutes Abrufen nötig).
+// Lädt einen Mail-Anhang (z. B. ein Angebots-PDF) in den PRIVATEN Bucket hoch.
+// Zurück kommt nur der Storage-Pfad - keine öffentliche URL. Beim Versand wird
+// die Datei serverseitig geholt und in die Mail kopiert, in der App entsteht
+// bei Bedarf ein kurzlebiger signierter Link.
 export async function ladeEmailAnhangHoch(
   bandId: string,
   formData: FormData
 ): Promise<
-  { ok: true; dateiname: string; url: string } | { ok: false; fehler: string }
+  { ok: true; dateiname: string; pfad: string } | { ok: false; fehler: string }
 > {
   await requireOwner();
   const datei = formData.get("datei");
@@ -205,12 +211,11 @@ export async function ladeEmailAnhangHoch(
     return { ok: false, fehler: "Datei ist leer." };
   }
 
-  const sichererName = datei.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const pfad = `${bandId}/${Date.now()}-${sichererName}`;
+  const pfad = anhangPfad(bandId, datei.name);
   const buffer = Buffer.from(await datei.arrayBuffer());
 
   const { error } = await supabaseAdmin.storage
-    .from("email-anhaenge")
+    .from(ANHANG_BUCKET)
     .upload(pfad, buffer, {
       contentType: datei.type || undefined,
       upsert: false,
@@ -218,9 +223,42 @@ export async function ladeEmailAnhangHoch(
 
   if (error) return { ok: false, fehler: error.message };
 
-  const { data } = supabaseAdmin.storage.from("email-anhaenge").getPublicUrl(pfad);
+  return { ok: true, dateiname: datei.name, pfad };
+}
 
-  return { ok: true, dateiname: datei.name, url: data.publicUrl };
+// Bilder, die im Mailtext eingebettet werden (<img src>), landen bewusst im
+// ÖFFENTLICHEN Bucket: das Mailprogramm des Empfängers lädt sie ggf. erst Wochen
+// später nach, eine signierte URL wäre dann längst abgelaufen.
+export async function ladeInlineBildHoch(
+  bandId: string,
+  formData: FormData
+): Promise<{ ok: true; url: string } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const datei = formData.get("datei");
+  if (!(datei instanceof File)) {
+    return { ok: false, fehler: "Keine Datei erhalten." };
+  }
+  if (datei.size === 0) {
+    return { ok: false, fehler: "Datei ist leer." };
+  }
+  if (!datei.type.startsWith("image/")) {
+    return { ok: false, fehler: "Nur Bilddateien können eingebettet werden." };
+  }
+
+  const pfad = anhangPfad(bandId, datei.name);
+  const buffer = Buffer.from(await datei.arrayBuffer());
+
+  const { error } = await supabaseAdmin.storage
+    .from(BILD_BUCKET)
+    .upload(pfad, buffer, {
+      contentType: datei.type || undefined,
+      upsert: false,
+    });
+
+  if (error) return { ok: false, fehler: error.message };
+
+  const { data } = supabaseAdmin.storage.from(BILD_BUCKET).getPublicUrl(pfad);
+  return { ok: true, url: data.publicUrl };
 }
 
 export async function sendeEmail(
@@ -261,6 +299,22 @@ export async function sendeEmail(
   // eine exakte Formatierung ist dafür nicht nötig.
   const textFallback = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
+  // Anhänge liegen im privaten Bucket: Inhalt serverseitig holen und direkt
+  // mitschicken, statt nodemailer eine (nicht mehr öffentliche) URL abrufen zu
+  // lassen. Schlägt ein Download fehl, lieber abbrechen als eine Mail mit
+  // stillschweigend fehlendem Anhang zu verschicken.
+  const anhangDateien = [];
+  for (const anhang of anhaenge ?? []) {
+    const inhalt = await ladeAnhangBuffer(anhang.pfad);
+    if (!inhalt) {
+      return {
+        ok: false,
+        fehler: `Anhang "${anhang.dateiname}" konnte nicht geladen werden.`,
+      };
+    }
+    anhangDateien.push({ filename: anhang.dateiname, content: inhalt });
+  }
+
   try {
     await transporter.sendMail({
       from: konto.absender_name
@@ -270,10 +324,7 @@ export async function sendeEmail(
       subject: betreff,
       html,
       text: textFallback,
-      attachments: (anhaenge ?? []).map((a) => ({
-        filename: a.dateiname,
-        path: a.url,
-      })),
+      attachments: anhangDateien,
     });
   } catch (err) {
     return {

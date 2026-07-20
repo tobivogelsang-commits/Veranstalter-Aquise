@@ -1,4 +1,4 @@
-import type { Database } from "@/lib/database.types";
+import type { Database, EmailAnhangAnzeige } from "@/lib/database.types";
 
 export type Band = Database["public"]["Tables"]["bands"]["Row"];
 export type Venue = Database["public"]["Tables"]["venues"]["Row"];
@@ -34,14 +34,24 @@ export type EmailEinstellungenOhnePasswort = Omit<BandEmailKonto, "passwort"> & 
 
 // Für die Verlaufsliste auf der Band-Seite: welcher Veranstalter (falls
 // zugeordnet) gehört zu dieser E-Mail.
-export type BandEmailMitVenue = BandEmail & {
+// `anhaenge` wird bewusst ersetzt (Omit) statt ergänzt: gespeichert ist nur der
+// Storage-Pfad, beim Laden kommt eine kurzlebige signierte URL dazu (queries.ts).
+export type BandEmailMitVenue = Omit<BandEmail, "anhaenge"> & {
   venue: Pick<Venue, "id" | "name"> | null;
+  anhaenge: EmailAnhangAnzeige[] | null;
 };
 
 // Für den E-Mail-Verlauf auf der Veranstalter-Seite: über welche Band wurde
 // diese E-Mail gesendet/empfangen.
-export type VenueEmailMitBand = BandEmail & {
+export type VenueEmailMitBand = Omit<BandEmail, "anhaenge"> & {
   band: Pick<Band, "id" | "name">;
+  anhaenge: EmailAnhangAnzeige[] | null;
+};
+
+// Dokumententyp inkl. frisch signiertem Download-Link (null, wenn keine Datei
+// hinterlegt ist). datei_pfad bleibt der rohe Storage-Pfad zum Anhängen.
+export type BandDokumentTypMitUrl = BandDokumentTyp & {
+  datei_url: string | null;
 };
 
 // Für das Veranstalter-Dropdown im Compose-Formular einer Band - inkl. der

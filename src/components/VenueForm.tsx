@@ -13,7 +13,7 @@ import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";
 import type {
   Band,
-  BandDokumentTyp,
+  BandDokumentTypMitUrl,
   BandMaterial,
   EmailVorlage,
   GigAnfrageMitAntworten,
@@ -92,7 +92,7 @@ export function VenueForm({
   anfragen?: GigAnfrageMitAntworten[];
   mitgliederProBand?: Record<string, number>;
   vorlagenProBand?: Record<string, EmailVorlage[]>;
-  dokumentTypenProBand?: Record<string, BandDokumentTyp[]>;
+  dokumentTypenProBand?: Record<string, BandDokumentTypMitUrl[]>;
   materialienProBand?: Record<string, BandMaterial[]>;
   setlistenProBand?: Record<string, SetlisteMitSongs[]>;
   dokumente?: VenueBandDokument[];

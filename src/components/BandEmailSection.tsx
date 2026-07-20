@@ -2,7 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
+import {
+  ladeEmailAnhangHoch,
+  ladeInlineBildHoch,
+  sendeEmail,
+} from "@/lib/emailActions";
 import type { EmailAnhang } from "@/lib/database.types";
 import { EmailVerlauf } from "@/components/EmailVerlauf";
 import { HtmlEditor } from "@/components/HtmlEditor";
@@ -105,7 +109,9 @@ export function BandEmailSection({
   async function handleBildHochladen(datei: File): Promise<string | null> {
     const formData = new FormData();
     formData.set("datei", datei);
-    const ergebnis = await ladeEmailAnhangHoch(bandId, formData);
+    // Inline-Bild -> öffentlicher Bucket, damit es im Mailprogramm des
+    // Empfängers auch später noch lädt.
+    const ergebnis = await ladeInlineBildHoch(bandId, formData);
     return ergebnis.ok ? ergebnis.url : null;
   }
 
@@ -122,15 +128,15 @@ export function BandEmailSection({
       if (ergebnis.ok) {
         setAnhaenge((prev) => [
           ...prev,
-          { dateiname: ergebnis.dateiname, url: ergebnis.url },
+          { dateiname: ergebnis.dateiname, pfad: ergebnis.pfad },
         ]);
       }
     }
     setAnhangLaeuft(false);
   }
 
-  function handleAnhangEntfernen(url: string) {
-    setAnhaenge((prev) => prev.filter((a) => a.url !== url));
+  function handleAnhangEntfernen(pfad: string) {
+    setAnhaenge((prev) => prev.filter((a) => a.pfad !== pfad));
   }
 
   async function handleSenden(e: React.FormEvent) {
@@ -242,13 +248,13 @@ export function BandEmailSection({
             <ul className="flex flex-col gap-1">
               {anhaenge.map((a) => (
                 <li
-                  key={a.url}
+                  key={a.pfad}
                   className="flex items-center gap-2 text-xs text-slate-600"
                 >
                   📎 {a.dateiname}
                   <button
                     type="button"
-                    onClick={() => handleAnhangEntfernen(a.url)}
+                    onClick={() => handleAnhangEntfernen(a.pfad)}
                     className="text-red-600 hover:text-red-800"
                   >
                     entfernen

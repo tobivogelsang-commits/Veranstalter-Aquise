@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 // derselbe privilegierte Client; alle Funktionen sind Inhaber-Aktionen.
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
+import { ANHANG_BUCKET, anhangPfad } from "@/lib/storage";
 
 // Fügt der erweiterbaren Dokument-Liste einer Band einen neuen Typ hinzu
 // (z. B. "Vertrag") - ab dann für jeden Veranstalter dieser Band als
@@ -95,23 +96,22 @@ export async function ladeDokumentDateiHoch(
     return { ok: false, fehler: "Datei ist leer." };
   }
 
-  const sichererName = datei.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const pfad = `${bandId}/dokumente/${dokumentTypId}-${Date.now()}-${sichererName}`;
+  const pfad = anhangPfad(bandId, `${dokumentTypId}-${datei.name}`, "dokumente");
   const buffer = Buffer.from(await datei.arrayBuffer());
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from("email-anhaenge")
+    .from(ANHANG_BUCKET)
     .upload(pfad, buffer, {
       contentType: datei.type || undefined,
       upsert: false,
     });
   if (uploadError) return { ok: false, fehler: uploadError.message };
 
-  const { data } = supabaseAdmin.storage.from("email-anhaenge").getPublicUrl(pfad);
-
+  // Nur der Pfad wird gespeichert - der Bucket ist privat, Download-Links
+  // entstehen erst beim Anzeigen als kurzlebige signierte URL.
   const { error } = await supabase
     .from("band_dokument_typen")
-    .update({ datei_url: data.publicUrl, dateiname: datei.name })
+    .update({ datei_pfad: pfad, dateiname: datei.name })
     .eq("id", dokumentTypId);
   if (error) return { ok: false, fehler: error.message };
 
@@ -123,7 +123,7 @@ export async function entferneDokumentDatei(dokumentTypId: string, bandId: strin
   await requireOwner();
   const { error } = await supabase
     .from("band_dokument_typen")
-    .update({ datei_url: null, dateiname: null })
+    .update({ datei_pfad: null, dateiname: null })
     .eq("id", dokumentTypId);
   if (error) throw new Error(error.message);
 

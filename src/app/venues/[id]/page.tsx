@@ -14,7 +14,7 @@ import {
   getVenueWithRelations,
   type SetlisteMitSongs,
 } from "@/lib/queries";
-import type { BandDokumentTyp, BandMaterial, EmailVorlage } from "@/lib/types";
+import type { BandDokumentTypMitUrl, BandMaterial, EmailVorlage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,7 @@ export default async function VenueDetailPage({
   ]);
 
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
-  const dokumentTypenProBand: Record<string, BandDokumentTyp[]> = {};
+  const dokumentTypenProBand: Record<string, BandDokumentTypMitUrl[]> = {};
   const materialienProBand: Record<string, BandMaterial[]> = {};
   const setlistenProBand: Record<string, SetlisteMitSongs[]> = {};
   bands.forEach((band, i) => {

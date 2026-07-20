@@ -27,8 +27,16 @@ export type GigAntwort = "kann" | "kann_nicht";
 // So in band_emails.anhaenge (jsonb) und beim Versand genutzt - url ist die
 // öffentliche Supabase-Storage-URL, direkt als nodemailer-Attachment-Pfad
 // und (bei Bildern) als <img src> in der HTML-Mail verwendbar.
+// So wird ein Anhang gespeichert: als Storage-Pfad im privaten Bucket, NICHT
+// als URL. Öffentliche URLs wären dauerhaft abrufbar; Download-Links entstehen
+// erst beim Anzeigen als kurzlebige signierte URL (siehe EmailAnhangAnzeige).
 export type EmailAnhang = {
   dateiname: string;
+  pfad: string;
+};
+
+// Anzeige-Variante: um eine frisch signierte, zeitlich begrenzte URL ergänzt.
+export type EmailAnhangAnzeige = EmailAnhang & {
   url: string;
 };
 
@@ -236,7 +244,7 @@ export interface Database {
           band_id: string;
           name: string;
           erstellt_am: string;
-          datei_url: string | null;
+          datei_pfad: string | null;
           dateiname: string | null;
         };
         Insert: Partial<

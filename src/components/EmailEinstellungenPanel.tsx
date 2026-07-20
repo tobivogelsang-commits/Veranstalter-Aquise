@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ladeEmailAnhangHoch,
+  ladeInlineBildHoch,
   loescheEmailVorlage,
   speichereEmailEinstellungen,
   speichereEmailVorlage,
@@ -72,7 +72,7 @@ export function EmailEinstellungenPanel({
   async function handleBildHochladen(datei: File): Promise<string | null> {
     const formData = new FormData();
     formData.set("datei", datei);
-    const ergebnis = await ladeEmailAnhangHoch(bandId, formData);
+    const ergebnis = await ladeInlineBildHoch(bandId, formData);
     return ergebnis.ok ? ergebnis.url : null;
   }
 
