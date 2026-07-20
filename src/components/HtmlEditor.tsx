@@ -135,12 +135,42 @@ export const HtmlEditor = forwardRef<
   function markerInSpansUmwandeln() {
     const wurzel = editorRef.current;
     if (!wurzel) return;
-    wurzel.querySelectorAll('font[size="7"]').forEach((el) => {
+    const marker = wurzel.querySelectorAll('font[size="7"]');
+    if (marker.length === 0) return;
+
+    // Cursorposition merken: Beim Austausch der Elemente verwirft der Browser
+    // die Auswahl und setzt den Cursor an den Anfang. Getippter Text landete
+    // dadurch rückwärts - aus "Mus" wurde "usM".
+    const auswahl = document.getSelection();
+    const gemerkt =
+      auswahl && auswahl.rangeCount > 0
+        ? {
+            knoten: auswahl.getRangeAt(0).startContainer,
+            versatz: auswahl.getRangeAt(0).startOffset,
+          }
+        : null;
+
+    marker.forEach((el) => {
       const span = document.createElement("span");
       span.style.fontSize = letzteGroesseRef.current;
       while (el.firstChild) span.appendChild(el.firstChild);
       el.replaceWith(span);
     });
+
+    // Die Textknoten wurden nur umgehängt, nicht neu erzeugt - die gemerkte
+    // Position bleibt daher gültig.
+    if (auswahl && gemerkt && wurzel.contains(gemerkt.knoten)) {
+      try {
+        const bereich = document.createRange();
+        bereich.setStart(gemerkt.knoten, gemerkt.versatz);
+        bereich.collapse(true);
+        auswahl.removeAllRanges();
+        auswahl.addRange(bereich);
+      } catch {
+        // Position nicht mehr gültig - dann lieber die Browser-Vorgabe
+        // stehen lassen, als den Editor mit einem Fehler abzuwürgen.
+      }
+    }
   }
 
   function setzeSchriftgroesse(wert: string) {
