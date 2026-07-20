@@ -4,8 +4,11 @@ import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+// service_role-Client für alle Datenzugriffe (umgeht RLS). `supabase` und
+// `supabaseAdmin` sind hier bewusst derselbe privilegierte Client - die
+// E-Mail-Funktionen sind reine Inhaber-Aktionen (siehe requireOwner()).
+import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { requireOwner } from "@/lib/authServer";
 import { rueckeStatusAutomatischVor } from "@/lib/actions";
 import type { EmailAnhang } from "@/lib/database.types";
 import type { EmailEinstellungenOhnePasswort } from "@/lib/types";
@@ -84,6 +87,7 @@ function leereEinstellungen(bandId: string): EmailEinstellungenOhnePasswort {
 export async function getEmailEinstellungen(
   bandId: string
 ): Promise<EmailEinstellungenOhnePasswort> {
+  await requireOwner();
   const { data, error } = await supabaseAdmin
     .from("band_email_konten")
     .select("*")
@@ -101,6 +105,7 @@ export async function speichereEmailEinstellungen(
   bandId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
   function str(key: string): string | null {
     const value = formData.get(key);
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -148,6 +153,7 @@ export async function speichereEmailVorlage(
   vorlageId: string | null,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
   const name = (String(formData.get("name") ?? "")).trim();
   const betreff = (String(formData.get("betreff") ?? "")).trim();
   const inhalt = String(formData.get("inhalt") ?? "");
@@ -170,6 +176,7 @@ export async function speichereEmailVorlage(
 }
 
 export async function loescheEmailVorlage(bandId: string, vorlageId: string) {
+  await requireOwner();
   const { error } = await supabaseAdmin
     .from("email_vorlagen")
     .delete()
@@ -189,6 +196,7 @@ export async function ladeEmailAnhangHoch(
 ): Promise<
   { ok: true; dateiname: string; url: string } | { ok: false; fehler: string }
 > {
+  await requireOwner();
   const datei = formData.get("datei");
   if (!(datei instanceof File)) {
     return { ok: false, fehler: "Keine Datei erhalten." };
@@ -223,6 +231,7 @@ export async function sendeEmail(
   venueId?: string | null,
   anhaenge?: EmailAnhang[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
   if (!an.trim()) return { ok: false, fehler: "Empfänger fehlt." };
 
   const { data: konto, error } = await supabaseAdmin
@@ -312,6 +321,7 @@ export async function sendeEmail(
 export async function holeEingehendeEmails(
   bandId: string
 ): Promise<{ ok: true; neu: number } | { ok: false; fehler: string }> {
+  await requireOwner();
   const { data: konto, error } = await supabaseAdmin
     .from("band_email_konten")
     .select("*")

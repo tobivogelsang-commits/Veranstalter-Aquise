@@ -2,8 +2,12 @@
 
 import webpush from "web-push";
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+// service_role-Client (umgeht RLS). `supabase` und `supabaseAdmin` sind hier
+// derselbe privilegierte Client. Achtung: Die meisten Funktionen hier sind
+// bewusst ÖFFENTLICH (Team-App ohne Login) - nur die Inhaber-Funktionen
+// (getMitgliederFuerBand, entferneMitglied) rufen requireOwner() auf.
+import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { requireOwner } from "@/lib/authServer";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
@@ -265,6 +269,7 @@ export async function getBandName(bandId: string): Promise<string | null> {
 export async function getMitgliederFuerBand(
   bandId: string
 ): Promise<BandMitgliedOhnePush[]> {
+  await requireOwner();
   const { data, error } = await supabaseAdmin
     .from("band_mitglieder")
     .select("id, band_id, name, erstellt_am")
@@ -278,6 +283,7 @@ export async function getMitgliederFuerBand(
 // Entfernt ein Mitglied (z. B. hat die Band verlassen oder doppelt
 // registriert). Löscht per Kaskade auch seine bisherigen Antworten.
 export async function entferneMitglied(mitgliedId: string, bandId: string) {
+  await requireOwner();
   const { error } = await supabaseAdmin
     .from("band_mitglieder")
     .delete()

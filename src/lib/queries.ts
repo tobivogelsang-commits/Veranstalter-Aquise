@@ -1,5 +1,10 @@
-import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+// service_role-Client für ALLE Datenzugriffe (umgeht RLS). Seit dem
+// RLS-Lockdown (Migration 0016) haben anon/authenticated keinen
+// Tabellenzugriff mehr. Diese Reads laufen serverseitig; der Schutz erfolgt
+// über den Login-Proxy (Inhaber-Bereich) bzw. die nicht erratbare Band-UUID
+// (öffentliche Team-/Kalender-Routen). `supabase` und `supabaseAdmin` sind
+// hier bewusst derselbe (privilegierte) Client.
+import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {

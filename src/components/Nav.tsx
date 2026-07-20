@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import clsx from "clsx";
+import { signOut } from "@/lib/authActions";
 
 const LINKS = [
   { href: "/", label: "Dashboard" },
@@ -24,7 +25,11 @@ export function Nav() {
   // Suche etc. bekommen, nur zur reduzierten Kalender-Ansicht dort. Die
   // Druckansicht (/druckansicht/...) ist bewusst komplett chromfrei, damit
   // beim Drucken/Als-PDF-Speichern keine Navigation mit aufs Papier kommt.
-  if (pathname?.startsWith("/team") || pathname?.startsWith("/druckansicht")) {
+  if (
+    pathname?.startsWith("/team") ||
+    pathname?.startsWith("/druckansicht") ||
+    pathname === "/login"
+  ) {
     return null;
   }
 
@@ -56,6 +61,14 @@ export function Nav() {
             </Link>
           ))}
         </nav>
+        <form action={signOut} className="ml-auto">
+          <button
+            type="submit"
+            className="text-sm font-medium text-slate-400 hover:text-slate-900"
+          >
+            Abmelden
+          </button>
+        </form>
       </div>
     </header>
   );

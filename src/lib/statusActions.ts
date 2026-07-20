@@ -1,6 +1,10 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+// service_role-Client (umgeht RLS). setzeStatusVorwaerts ist ein interner
+// Helper, der sowohl aus Inhaber-Aktionen als auch aus dem öffentlichen
+// Team-Flow (beantworteAnfrage) aufgerufen wird - daher bewusst ohne
+// requireOwner(); der Schutz sitzt an den jeweiligen Einstiegspunkten.
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { STATUS_ORDER } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";
 

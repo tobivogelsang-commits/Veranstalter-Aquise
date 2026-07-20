@@ -152,8 +152,11 @@ npx supabase gen types typescript --project-id <dein-projekt-ref> > src/lib/data
   und Zeitstempeln für letzten Kontakt / nächsten Follow-up.
 
 `user_id`-Spalten auf `bands` und `venues` sind für spätere Mehrbenutzerfähigkeit
-vorbereitet. RLS ist aktiv, aber (Single-User-MVP, kein Login) mit bewusst offenen
-Policies für `anon`/`authenticated` (siehe `0002_open_policies.sql`).
+vorbereitet. RLS ist auf allen Tabellen aktiv. Die ursprünglich offenen Policies
+(`0002_open_policies.sql`) wurden mit `0016_login_rls_lockdown.sql` entfernt –
+seither hat der anon-Key **keinen** direkten Tabellenzugriff mehr; der gesamte
+Zugriff läuft serverseitig über den `service_role`-Client, geschützt durch den
+Login (siehe [Zugriffsschutz](#zugriffsschutz-login)).
 
 ## Kontakt vervollständigen
 
@@ -295,6 +298,26 @@ bestätigen.
   für Anfragen ist davon unabhängig und weiterhin sofort.
 - **Mitgliederverwaltung**: Auf der Band-Seite können registrierte Mitglieder
   entfernt werden (z. B. bei Bandwechsel oder Doppel-Registrierung).
+
+## Zugriffsschutz (Login)
+
+Der Akquise-Bereich (Dashboard, Veranstalter, E-Mails, Einstellungen …) ist per
+Supabase Auth geschützt. Ein Next.js-Proxy (`src/proxy.ts`) leitet nicht
+angemeldete Aufrufe auf `/login` um; jede Inhaber-Server-Action prüft die Session
+zusätzlich per `requireOwner()`. Die **Team-App** der Bandmitglieder
+(`/team/[bandId]`) und die `.ics`-Kalender-Feeds bleiben bewusst ohne Login
+(geschützt durch die nicht erratbare Band-UUID).
+
+Einrichtung:
+
+1. In Supabase unter **Authentication → Users** einen Nutzer anlegen (E-Mail +
+   Passwort). Die E-Mail muss zu keiner der App-Adressen passen – sie ist reine
+   Login-Kennung.
+2. Keine neuen Env-Variablen nötig – der Login nutzt den vorhandenen
+   `NEXT_PUBLIC_SUPABASE_*`-Anon-Key.
+3. Reihenfolge beim Ausrollen: **erst** den App-Code (mit Login) deployen, **dann**
+   `0016_login_rls_lockdown.sql` auf die Datenbank anwenden. Andernfalls würde der
+   alte anon-basierte Code nach dem Policy-Drop keine Daten mehr lesen.
 
 ## Deployment
 

@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+// Single-User-Modell: seit dem RLS-Lockdown (Migration 0016) haben anon/
+// authenticated keinen Tabellenzugriff mehr. Der gesamte serverseitige
+// Datenzugriff läuft daher über den service_role-Client (umgeht RLS). Der
+// Zugriffsschutz erfolgt über den Login-Proxy + requireOwner() je Aktion.
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { requireOwner } from "@/lib/authServer";
 import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
@@ -102,6 +107,7 @@ async function syncBandZuordnungen(
 }
 
 export async function createVenue(formData: FormData) {
+  await requireOwner();
   const felder = venueFieldsFromForm(formData);
   if (!felder.name) throw new Error("Name ist ein Pflichtfeld.");
 
@@ -130,6 +136,7 @@ export async function autosaveVenue(
   venueId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
   const felder = venueFieldsFromForm(formData);
   if (!felder.name) return { ok: false, fehler: "Name ist ein Pflichtfeld." };
 
@@ -160,6 +167,7 @@ export async function autosaveVenue(
 }
 
 export async function deleteVenue(venueId: string) {
+  await requireOwner();
   const { error } = await supabase.from("venues").delete().eq("id", venueId);
   if (error) throw new Error(error.message);
 
@@ -465,6 +473,7 @@ export async function rechercheKontakt(
   ort: string | null,
   bekannteWebsite?: string | null
 ): Promise<KontaktRechercheResult> {
+  await requireOwner();
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     return {
@@ -836,6 +845,7 @@ export async function sucheVeranstalter(
   ort: string,
   zusatz: string
 ): Promise<VeranstalterSucheResult> {
+  await requireOwner();
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     return {
@@ -973,6 +983,7 @@ export async function updateStatus(
   bandId: string,
   status: Status
 ) {
+  await requireOwner();
   const { data: bestehende } = await supabase
     .from("venue_band_status")
     .select("status")
@@ -1039,6 +1050,7 @@ export async function rueckeStatusAutomatischVor(
 }
 
 export async function updateBand(bandId: string, formData: FormData) {
+  await requireOwner();
   const name = str(formData, "name");
   if (!name) throw new Error("Name ist ein Pflichtfeld.");
 
@@ -1070,6 +1082,7 @@ export async function addBandMaterial(
   url: string,
   typ: string
 ) {
+  await requireOwner();
   if (!titel.trim() || !url.trim()) {
     throw new Error("Titel und Link sind Pflichtfelder.");
   }
@@ -1086,6 +1099,7 @@ export async function addBandMaterial(
 }
 
 export async function deleteBandMaterial(materialId: string, bandId: string) {
+  await requireOwner();
   const { error } = await supabase
     .from("band_materialien")
     .delete()

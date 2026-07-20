@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { requireOwner } from "@/lib/authServer";
 
 // Fügt dem Protokoll eines Veranstalters (für eine bestimmte Band) einen
 // manuellen Eintrag hinzu, z.B. "Anrufversuch" oder "Notiz". Automatische
@@ -13,6 +14,7 @@ export async function fuegeProtokollEintragHinzu(
   typ: string,
   text: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
   const bereinigt = text.trim();
   if (!bereinigt) return { ok: false, fehler: "Text fehlt." };
 

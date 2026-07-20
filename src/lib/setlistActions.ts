@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabase";
+// service_role-Client (umgeht RLS). Diese Aktionen werden bewusst auch aus der
+// öffentlichen Team-App (SetlisteBuilder) genutzt - daher KEIN requireOwner();
+// Schutz ist die nicht erratbare Band-UUID, wie beim übrigen Team-Bereich.
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import type { BandSong, Setliste } from "@/lib/types";
 
 export async function fuegeSongHinzu(
