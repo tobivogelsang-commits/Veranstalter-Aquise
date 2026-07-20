@@ -62,7 +62,25 @@ function SetlisteIcon() {
   );
 }
 
+function MondIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z" />
+    </svg>
+  );
+}
+
+function SonneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
 const STORAGE_PREFIX = "team-mitglied:";
+const DUNKEL_PREFIX = "team-dunkelmodus:";
 
 type Identitaet = { mitgliedId: string; name: string };
 
@@ -199,6 +217,33 @@ export function TeamApp({
   const [pushHinweis, setPushHinweis] = useState<string | null>(null);
   const [offeneAnfragen, setOffeneAnfragen] = useState<OffeneAnfrageFuerMitglied[]>([]);
   const [antwortLaeuft, setAntwortLaeuft] = useState<Record<string, boolean>>({});
+  // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
+  // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
+  const [dunkelmodus, setDunkelmodus] = useState(false);
+
+  useEffect(() => {
+    try {
+      // Bewusst erst nach dem Mount aus localStorage lesen (nicht im useState-
+      // Initializer), sonst würde der Server-Render (immer hell) vom Client
+      // abweichen -> Hydration-Mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDunkelmodus(window.localStorage.getItem(DUNKEL_PREFIX + bandId) === "1");
+    } catch {
+      // localStorage evtl. nicht verfügbar - Dark-Modus bleibt aus.
+    }
+  }, [bandId]);
+
+  function toggleDunkelmodus() {
+    setDunkelmodus((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(DUNKEL_PREFIX + bandId, next ? "1" : "0");
+      } catch {
+        // Speichern fehlgeschlagen - Umschaltung gilt trotzdem für diese Sitzung.
+      }
+      return next;
+    });
+  }
 
   async function ladeOffeneAnfragen(mitgliedId: string) {
     const anfragen = await holeOffeneAnfragen(mitgliedId, bandId);
@@ -304,6 +349,11 @@ export function TeamApp({
     );
   }
 
+  // Auf dem Dashboard füllt das Band-Logo den ganzen Screen als abgedunkelter
+  // Hintergrund (Variante "immersiv dunkel") - Inhalte liegen in hellem Text
+  // darüber. Auf den anderen Tabs bleibt es hell.
+  const dashboardDunkel = aktiverTab === "dashboard" && !!logoUrl;
+
   const heute = heuteAlsIsoDatum();
   const naechsteGebuchteTermine = kalenderEintraege
     .filter(
@@ -315,41 +365,111 @@ export function TeamApp({
     .slice(0, 3);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 pt-8 pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
-          <p className="text-sm text-slate-500">Hi {identitaet.name}!</p>
-        </div>
-        {logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt={bandName}
-            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+    <div className={clsx(dunkelmodus && "dark")}>
+      {dashboardDunkel && (
+        <>
+          <div
+            className="fixed inset-0 z-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${logoUrl})` }}
           />
-        )}
-      </div>
-
-      {pushHinweis && (
-        <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">{pushHinweis}</p>
+          <div className="fixed inset-0 z-0 bg-black/[0.58]" />
+        </>
       )}
+      {dunkelmodus && !dashboardDunkel && (
+        <div className="fixed inset-0 z-0 bg-slate-950" />
+      )}
+      <div className="relative z-10 mx-auto flex max-w-md flex-col gap-6 px-4 pt-8 pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
+        {dashboardDunkel ? (
+          <div>
+            <h1 className="text-center text-2xl font-semibold text-white">{bandName}</h1>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-sm text-slate-200">Hi {identitaet.name}!</p>
+              <button
+                type="button"
+                onClick={toggleDunkelmodus}
+                aria-label="Dunkelmodus umschalten"
+                className="rounded-md border border-white/25 p-1.5 text-white hover:bg-white/10"
+              >
+                {dunkelmodus ? <SonneIcon /> : <MondIcon />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                {bandName}
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Hi {identitaet.name}!
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleDunkelmodus}
+                aria-label="Dunkelmodus umschalten"
+                className="rounded-md border border-slate-300 p-1.5 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                {dunkelmodus ? <SonneIcon /> : <MondIcon />}
+              </button>
+              {logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={bandName}
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {pushHinweis && (
+          <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">{pushHinweis}</p>
+        )}
 
       {aktiverTab === "dashboard" && (
         <>
           <div>
-            <h2 className="mb-2 text-sm font-semibold text-slate-900">Offene Anfragen</h2>
+            <h2
+              className={clsx(
+                "mb-2 text-sm font-semibold",
+                dashboardDunkel ? "text-white" : "text-slate-900"
+              )}
+            >
+              Offene Anfragen
+            </h2>
             {offeneAnfragen.length === 0 ? (
-              <p className="text-sm text-slate-500">Aktuell nichts zu bestätigen.</p>
+              <p className={clsx("text-sm", dashboardDunkel ? "text-slate-200" : "text-slate-500")}>
+                Aktuell nichts zu bestätigen.
+              </p>
             ) : (
               <ul className="flex flex-col gap-3">
                 {offeneAnfragen.map((anfrage) => (
                   <li
                     key={anfrage.id}
-                    className="rounded-lg border border-slate-200 bg-white p-3"
+                    className={clsx(
+                      "rounded-lg border p-3",
+                      dashboardDunkel
+                        ? "border-white/15 bg-white/10 backdrop-blur-sm"
+                        : "border-slate-200 bg-white"
+                    )}
                   >
-                    <p className="font-medium text-slate-900">{anfrage.venue.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p
+                      className={clsx(
+                        "font-medium",
+                        dashboardDunkel ? "text-white" : "text-slate-900"
+                      )}
+                    >
+                      {anfrage.venue.name}
+                    </p>
+                    <p
+                      className={clsx(
+                        "text-xs",
+                        dashboardDunkel ? "text-slate-300" : "text-slate-500"
+                      )}
+                    >
                       {anfrage.venue.veranstaltungsdatum
                         ? anfrage.venue.veranstaltungsdatum.split("-").reverse().join(".")
                         : "Termin noch offen"}
@@ -368,7 +488,12 @@ export function TeamApp({
                         type="button"
                         disabled={antwortLaeuft[anfrage.id]}
                         onClick={() => handleAntwort(anfrage.id, "kann_nicht")}
-                        className="flex-1 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        className={clsx(
+                          "flex-1 rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50",
+                          dashboardDunkel
+                            ? "bg-white/90 text-red-600 hover:bg-white"
+                            : "border border-red-300 text-red-600 hover:bg-red-50"
+                        )}
                       >
                         Ich kann nicht
                       </button>
@@ -380,9 +505,18 @@ export function TeamApp({
           </div>
 
           <div>
-            <h2 className="mb-2 text-sm font-semibold text-slate-900">Nächste Termine</h2>
+            <h2
+              className={clsx(
+                "mb-2 text-sm font-semibold",
+                dashboardDunkel ? "text-white" : "text-slate-900"
+              )}
+            >
+              Nächste Termine
+            </h2>
             {naechsteGebuchteTermine.length === 0 ? (
-              <p className="text-sm text-slate-500">Aktuell keine gebuchten Termine.</p>
+              <p className={clsx("text-sm", dashboardDunkel ? "text-slate-200" : "text-slate-500")}>
+                Aktuell keine gebuchten Termine.
+              </p>
             ) : (
               <ul className="flex flex-col gap-1.5">
                 {naechsteGebuchteTermine.map((eintrag) => (
@@ -403,7 +537,10 @@ export function TeamApp({
             )}
             <Link
               href={tabLink("kalender")}
-              className="mt-3 inline-block text-xs font-medium text-slate-600 underline"
+              className={clsx(
+                "mt-3 inline-block text-xs font-medium underline",
+                dashboardDunkel ? "text-slate-200" : "text-slate-600"
+              )}
             >
               Alle Termine im Kalender ansehen
             </Link>
@@ -413,14 +550,14 @@ export function TeamApp({
 
       {aktiverTab === "kalender" && (
         <div>
-          <div className="mb-4 inline-flex rounded-md border border-slate-300 text-sm font-medium">
+          <div className="mb-4 inline-flex rounded-md border border-slate-300 text-sm font-medium dark:border-slate-600">
             <Link
               href={`?tab=kalender&ansicht=monat${monatParam ? `&monat=${monatParam}` : ""}`}
               className={clsx(
                 "w-20 rounded-l-md py-1.5 text-center",
                 kalenderAnsicht === "monat"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
+                  ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
+                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
               )}
             >
               Monat
@@ -428,10 +565,10 @@ export function TeamApp({
             <Link
               href={`?tab=kalender&ansicht=jahr${jahrParam ? `&jahr=${jahrParam}` : ""}`}
               className={clsx(
-                "w-20 rounded-r-md border-l border-slate-300 py-1.5 text-center",
+                "w-20 rounded-r-md border-l border-slate-300 py-1.5 text-center dark:border-slate-600",
                 kalenderAnsicht === "jahr"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
+                  ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
+                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
               )}
             >
               Jahr
@@ -476,7 +613,7 @@ export function TeamApp({
           )}
           <a
             href={`/api/kalender/${bandId}`}
-            className="mt-4 inline-block text-xs font-medium text-slate-600 underline"
+            className="mt-4 inline-block text-xs font-medium text-slate-600 underline dark:text-slate-300"
           >
             Kalender abonnieren (für privaten Kalender) ↗
           </a>
@@ -489,7 +626,7 @@ export function TeamApp({
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-md">
           {(
             [
@@ -503,7 +640,9 @@ export function TeamApp({
               href={tabLink(item.tab)}
               className={clsx(
                 "relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium",
-                aktiverTab === item.tab ? "text-slate-900" : "text-slate-400"
+                aktiverTab === item.tab
+                  ? "text-slate-900 dark:text-slate-100"
+                  : "text-slate-400 dark:text-slate-500"
               )}
             >
               {item.icon}
@@ -517,6 +656,7 @@ export function TeamApp({
           ))}
         </div>
       </nav>
+      </div>
     </div>
   );
 }

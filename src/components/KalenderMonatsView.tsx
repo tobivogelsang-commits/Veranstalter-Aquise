@@ -100,17 +100,17 @@ export function KalenderMonatsView({
           <Link
             href={monatLink(subMonths(monat, 1), bandFilter, tabParam)}
             aria-label="Vorheriger Monat"
-            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             ←
           </Link>
-          <h2 className="text-base font-semibold capitalize text-slate-900">
+          <h2 className="text-base font-semibold capitalize text-slate-900 dark:text-slate-100">
             {format(monat, "MMMM yyyy", { locale: de })}
           </h2>
           <Link
             href={monatLink(addMonths(monat, 1), bandFilter, tabParam)}
             aria-label="Nächster Monat"
-            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             →
           </Link>
@@ -137,11 +137,11 @@ export function KalenderMonatsView({
 
       {vorGitter}
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 text-xs">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 text-xs dark:border-slate-700 dark:bg-slate-700">
         {WOCHENTAGE.map((tag) => (
           <div
             key={tag}
-            className="bg-slate-50 px-2 py-1.5 text-center font-medium text-slate-500"
+            className="bg-slate-50 px-2 py-1.5 text-center font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
           >
             {tag}
           </div>
@@ -156,18 +156,21 @@ export function KalenderMonatsView({
           return (
             <div
               key={key}
-              className={clsx("min-h-[96px] bg-white p-1.5", !imMonat && "bg-slate-50")}
+              className={clsx(
+                "min-h-[96px] bg-white p-1.5 dark:bg-slate-900",
+                !imMonat && "bg-slate-50 dark:bg-slate-800"
+              )}
             >
               <div
                 className={clsx(
                   "mb-1 text-right text-xs",
-                  imMonat ? "text-slate-500" : "text-slate-300"
+                  imMonat ? "text-slate-500 dark:text-slate-400" : "text-slate-300 dark:text-slate-600"
                 )}
               >
                 <span
                   className={clsx(
                     "inline-block rounded px-1",
-                    isToday(tag) && "bg-slate-900 text-white"
+                    isToday(tag) && "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
                   )}
                 >
                   {format(tag, "d")}
@@ -224,7 +227,7 @@ export function KalenderMonatsView({
                   <button
                     type="button"
                     onClick={() => setOffeneProberaumTermine(tagesProberaum)}
-                    className="block w-full truncate rounded bg-slate-200 px-1.5 py-0.5 text-left text-xs font-medium text-slate-600 hover:bg-slate-300"
+                    className="block w-full truncate rounded bg-slate-200 px-1.5 py-0.5 text-left text-xs font-medium text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
                     Proberaum belegt
                   </button>
@@ -241,11 +244,11 @@ export function KalenderMonatsView({
           onClick={() => setOffeneProberaumTermine(null)}
         >
           <div
-            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg"
+            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-start justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">Proberaum belegt</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Proberaum belegt</h3>
               <button
                 type="button"
                 onClick={() => setOffeneProberaumTermine(null)}
@@ -258,7 +261,7 @@ export function KalenderMonatsView({
             <ul className="flex flex-col gap-3">
               {offeneProberaumTermine.map((termin) => (
                 <li key={termin.id} className="text-sm">
-                  <p className="font-medium text-slate-900">{termin.titel}</p>
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{termin.titel}</p>
                   <p className="text-xs text-slate-500">
                     Ab {formatDatum(termin.datum)}
                     {termin.datumBis !== termin.datum &&
@@ -277,7 +280,7 @@ export function KalenderMonatsView({
           onClick={() => setOffenerTermin(null)}
         >
           <div
-            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg"
+            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2 flex items-start justify-between gap-2">
@@ -298,7 +301,7 @@ export function KalenderMonatsView({
                 ×
               </button>
             </div>
-            <p className="text-sm font-medium text-slate-900">{offenerTermin.termin.titel}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{offenerTermin.termin.titel}</p>
             <p className="mt-0.5 text-xs text-slate-500">
               {formatDatum(offenerTermin.datum)}
               {offenerTermin.datumBis &&

@@ -82,10 +82,10 @@ function MiniMonat({
   const tage = eachDayOfInterval({ start: gitterStart, end: gitterEnde });
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
+    <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
       <Link
         href={monatDetailLink(monat, bandFilter, tabParam)}
-        className="mb-2 block text-sm font-semibold capitalize text-slate-900 hover:underline"
+        className="mb-2 block text-sm font-semibold capitalize text-slate-900 hover:underline dark:text-slate-100"
       >
         {format(monat, "MMMM", { locale: de })}
       </Link>
@@ -93,7 +93,7 @@ function MiniMonat({
         {WOCHENTAGE.map((tag, i) => (
           <div
             key={i}
-            className="text-center text-[10px] font-medium text-slate-400"
+            className="text-center text-[10px] font-medium text-slate-400 dark:text-slate-500"
           >
             {tag}
           </div>
@@ -120,8 +120,8 @@ function MiniMonat({
             <span
               className={clsx(
                 "flex h-5 w-5 items-center justify-center rounded text-[10px]",
-                imMonat ? "text-slate-500" : "text-slate-300",
-                isToday(tag) && "bg-slate-900 text-white"
+                imMonat ? "text-slate-500 dark:text-slate-400" : "text-slate-300 dark:text-slate-600",
+                isToday(tag) && "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
               )}
             >
               {format(tag, "d")}
@@ -195,7 +195,7 @@ export function KalenderJahresView({
   const monate = Array.from({ length: 12 }, (_, i) => new Date(jahr, i, 1));
 
   const navBtnKlasse = kompakt
-    ? "rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100"
+    ? "rounded-md border border-slate-200 px-2.5 py-1 text-lg font-semibold text-green-600 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
     : "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100";
 
   return (
@@ -208,7 +208,12 @@ export function KalenderJahresView({
         >
           {kompakt ? "←" : `← ${jahr - 1}`}
         </Link>
-        <h2 className={kompakt ? "text-base font-semibold text-slate-900" : "text-lg font-semibold text-slate-900"}>
+        <h2
+          className={clsx(
+            "font-semibold text-slate-900 dark:text-slate-100",
+            kompakt ? "text-base" : "text-lg"
+          )}
+        >
           {jahr}
         </h2>
         <Link

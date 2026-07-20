@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Klassenbasierter Dark-Modus: dark:-Utilities greifen nur, wenn ein Vorfahre
+   die Klasse "dark" trägt (statt automatisch über prefers-color-scheme). So
+   lässt sich der Dark-Modus der Team-App gezielt per Umschalter steuern, ohne
+   den Desktop-Bereich zu beeinflussen. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

@@ -22,7 +22,7 @@ import type { TerminTyp, TerminWiederholung } from "@/lib/database.types";
 type BandOption = { id: string; name: string };
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
+  "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 
 function formatDatum(datum: string): string {
   return datum.split("-").reverse().join(".");
@@ -165,9 +165,9 @@ export function TermineManager({
     .sort((a, b) => a.datum.localeCompare(b.datum));
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
           Eigene Termine ({sichtbareTermine.length})
         </h2>
         {!offen && (
@@ -182,7 +182,7 @@ export function TermineManager({
       </div>
 
       {offen && (
-        <div className="mt-3 flex flex-col gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+        <div className="mt-3 flex flex-col gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {bandFilter === ALLE_BANDS_PARAM && (
               <select
@@ -300,7 +300,7 @@ export function TermineManager({
             <button
               type="button"
               onClick={schliessen}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Abbrechen
             </button>
@@ -313,7 +313,7 @@ export function TermineManager({
           {sichtbareTermine.map((termin) => (
             <li
               key={termin.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-1.5 text-sm"
+              className="flex items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-1.5 text-sm dark:border-slate-700"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span
@@ -324,7 +324,7 @@ export function TermineManager({
                 >
                   {TERMIN_TYP_LABEL[termin.typ]}
                 </span>
-                <span className="truncate text-slate-900">{termin.titel}</span>
+                <span className="truncate text-slate-900 dark:text-slate-100">{termin.titel}</span>
                 <span className="shrink-0 text-xs text-slate-400">
                   {termin.wiederholung === "einmalig"
                     ? formatDatum(termin.datum)

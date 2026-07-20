@@ -28,7 +28,7 @@ import type { BandSong } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-500 focus:outline-none";
+  "w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 
 function SongZeile({
   song,
@@ -50,7 +50,7 @@ function SongZeile({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={`flex items-center gap-2 border-t border-slate-100 py-1.5 first:border-t-0 ${
+      className={`flex items-center gap-2 border-t border-slate-100 py-1.5 first:border-t-0 dark:border-slate-700 ${
         isDragging ? "opacity-40" : ""
       }`}
     >
@@ -64,8 +64,8 @@ function SongZeile({
         ⠿⠿
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-slate-900">{song.titel}</p>
-        {song.interpret && <p className="truncate text-xs text-slate-500">{song.interpret}</p>}
+        <p className="truncate text-sm text-slate-900 dark:text-slate-100">{song.titel}</p>
+        {song.interpret && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{song.interpret}</p>}
       </div>
       <span className="shrink-0 text-xs text-slate-400">{formatDauer(song.dauer_sekunden)}</span>
       <button
@@ -107,7 +107,7 @@ function SetlistZeile({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-2 border-t border-slate-100 py-1.5 first:border-t-0 ${
+      className={`flex items-center gap-2 border-t border-slate-100 py-1.5 first:border-t-0 dark:border-slate-700 ${
         isDragging ? "opacity-40" : ""
       }`}
     >
@@ -121,8 +121,8 @@ function SetlistZeile({
       </span>
       <span className="w-5 shrink-0 text-xs text-slate-400">{position + 1}</span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-slate-900">{song.titel}</p>
-        {song.interpret && <p className="truncate text-xs text-slate-500">{song.interpret}</p>}
+        <p className="truncate text-sm text-slate-900 dark:text-slate-100">{song.titel}</p>
+        {song.interpret && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{song.interpret}</p>}
       </div>
       <span className="shrink-0 text-xs text-slate-400">{formatDauer(song.dauer_sekunden)}</span>
       <button
@@ -334,8 +334,8 @@ export function SetlisteBuilder({
       onDragEnd={handleDragEnd}
     >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <h2 className="mb-2 text-sm font-medium text-slate-900">Songs ({songs.length})</h2>
+        <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+          <h2 className="mb-2 text-sm font-medium text-slate-900 dark:text-slate-100">Songs ({songs.length})</h2>
           <div className="mb-2 flex flex-col gap-2 sm:flex-row">
             <input
               value={neuerSong.titel}
@@ -358,7 +358,7 @@ export function SetlisteBuilder({
             <button
               type="button"
               onClick={handleSongHinzufuegen}
-              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               + Song
             </button>
@@ -366,7 +366,7 @@ export function SetlisteBuilder({
           {songFehler && <p className="mb-2 text-xs text-red-600">{songFehler}</p>}
           <div className="flex flex-col">
             {songs.length === 0 ? (
-              <p className="text-sm text-slate-500">Noch keine Songs angelegt.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Noch keine Songs angelegt.</p>
             ) : (
               songs.map((song) => (
                 <SongZeile
@@ -381,10 +381,10 @@ export function SetlisteBuilder({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
           {setlisten.length === 0 ? (
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-slate-500">Noch keine Setliste angelegt.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Noch keine Setliste angelegt.</p>
               <div className="flex gap-2">
                 <input
                   value={neueSetlisteName}
@@ -395,7 +395,7 @@ export function SetlisteBuilder({
                 <button
                   type="button"
                   onClick={handleNeueSetliste}
-                  className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   Anlegen
                 </button>
@@ -426,7 +426,7 @@ export function SetlisteBuilder({
                     <button
                       type="button"
                       onClick={handleNeueSetliste}
-                      className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       Anlegen
                     </button>
@@ -435,7 +435,7 @@ export function SetlisteBuilder({
                   <button
                     type="button"
                     onClick={() => setZeigeNeueSetliste(true)}
-                    className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                    className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
                     + Neu
                   </button>
@@ -452,7 +452,7 @@ export function SetlisteBuilder({
                   <button
                     type="button"
                     onClick={handleUmbenennen}
-                    className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                    className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
                     Speichern
                   </button>
@@ -466,14 +466,14 @@ export function SetlisteBuilder({
                         setUmbenennenText(setlisten.find((s) => s.id === aktiveSetlisteId)?.name ?? "");
                         setUmbenennenAktiv(true);
                       }}
-                      className="text-xs text-slate-600 underline hover:text-slate-900"
+                      className="text-xs text-slate-600 underline hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                     >
                       umbenennen
                     </button>
                     <button
                       type="button"
                       onClick={handleDuplizieren}
-                      className="text-xs text-slate-600 underline hover:text-slate-900"
+                      className="text-xs text-slate-600 underline hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                     >
                       duplizieren
                     </button>
@@ -488,7 +488,7 @@ export function SetlisteBuilder({
                       <Link
                         href={`/druckansicht/${aktiveSetlisteId}`}
                         target="_blank"
-                        className="text-xs text-slate-600 underline hover:text-slate-900"
+                        className="text-xs text-slate-600 underline hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                       >
                         drucken
                       </Link>
