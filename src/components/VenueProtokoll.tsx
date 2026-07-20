@@ -3,13 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import clsx from "clsx";
 import { fuegeProtokollEintragHinzu } from "@/lib/protokollActions";
-import { TYP_LABELS } from "@/lib/protokollTypen";
+import {
+  TELEFONAT_ZUSENDUNG,
+  TYPEN_OHNE_TEXTPFLICHT,
+  TYP_LABELS,
+} from "@/lib/protokollTypen";
 import type { VenueBandProtokoll } from "@/lib/types";
 
 const MANUELLE_TYPEN = [
   "notiz",
   "anruf",
+  TELEFONAT_ZUSENDUNG,
   "instagram",
   "facebook",
   "tiktok",
@@ -37,8 +43,10 @@ export function VenueProtokoll({
   const [wirdGespeichert, setWirdGespeichert] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
+  const textOptional = TYPEN_OHNE_TEXTPFLICHT.has(typ);
+
   async function handleHinzufuegen() {
-    if (!text.trim()) return;
+    if (!text.trim() && !textOptional) return;
     setWirdGespeichert(true);
     setFehler(null);
     const ergebnis = await fuegeProtokollEintragHinzu(venueId, bandId, typ, text);
@@ -58,7 +66,7 @@ export function VenueProtokoll({
         <select
           value={typ}
           onChange={(e) => setTyp(e.target.value)}
-          className="w-32 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+          className="w-48 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
         >
           {MANUELLE_TYPEN.map((t) => (
             <option key={t} value={t}>
@@ -69,7 +77,11 @@ export function VenueProtokoll({
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="z. B. niemand erreicht, morgen nochmal versuchen"
+          placeholder={
+            textOptional
+              ? "optional: Gesprächspartner / Notiz"
+              : "z. B. niemand erreicht, morgen nochmal versuchen"
+          }
           className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
         />
         <button
@@ -81,6 +93,12 @@ export function VenueProtokoll({
           + Eintrag
         </button>
       </div>
+      {textOptional && (
+        <p className="text-xs text-emerald-700">
+          Hält fest, dass die Zusendung der Unterlagen telefonisch vereinbart
+          wurde – als Nachweis für die spätere E-Mail. Ein Text ist optional.
+        </p>
+      )}
       {fehler && <p className="text-xs text-red-600">{fehler}</p>}
       {eintraege.length === 0 ? (
         <p className="text-xs text-slate-500">Noch keine Einträge.</p>
@@ -92,7 +110,14 @@ export function VenueProtokoll({
               className="flex items-start justify-between gap-2 border-t border-slate-100 py-1.5 first:border-t-0"
             >
               <div className="min-w-0">
-                <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                <span
+                  className={clsx(
+                    "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+                    eintrag.typ === TELEFONAT_ZUSENDUNG
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                  )}
+                >
                   {TYP_LABELS[eintrag.typ] ?? eintrag.typ}
                 </span>
                 {eintrag.text && (
