@@ -98,6 +98,7 @@ export function VenueEmailThread({
   dokumentTypen,
   materialien,
   setlisten,
+  hatTelefonatNachweis,
 }: {
   bandId: string;
   bandName: string;
@@ -112,6 +113,10 @@ export function VenueEmailThread({
   dokumentTypen: BandDokumentTypMitUrl[];
   materialien: BandMaterial[];
   setlisten: SetlisteMitSongs[];
+  // Ob es für diese Band<->Veranstalter-Kombi bereits einen Protokolleintrag
+  // "Telefonat – Zusendung vereinbart" gibt. Ist er nicht da, erinnert eine
+  // Warnung an den vereinbarten Ablauf (Telefonat vor der Mail).
+  hatTelefonatNachweis: boolean;
 }) {
   const router = useRouter();
 
@@ -275,6 +280,14 @@ export function VenueEmailThread({
           Hydrieren abstürzen. Versand läuft daher über einen Button-Klick
           statt onSubmit, "required" wird manuell in handleSenden geprüft. */}
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3">
+        {!hatTelefonatNachweis && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Für {venueName} ist noch kein Telefonat mit vereinbarter Zusendung
+            protokolliert. Laut eurem Ablauf sollte der Mail ein Anruf
+            vorausgehen – halte ihn oben im Protokoll unter{" "}
+            {"„Telefonat – Zusendung vereinbart"} fest.
+          </div>
+        )}
         {vorlagen.length > 0 && (
           <Field label="Vorlage verwenden">
             <select

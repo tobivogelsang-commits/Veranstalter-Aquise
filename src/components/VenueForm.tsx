@@ -10,6 +10,7 @@ import {
   updateStatus,
 } from "@/lib/actions";
 import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
+import { TELEFONAT_ZUSENDUNG } from "@/lib/protokollTypen";
 import type { Status } from "@/lib/database.types";
 import type {
   Band,
@@ -709,6 +710,11 @@ export function VenueForm({
                         dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
                         materialien={materialienProBand?.[band.id] ?? []}
                         setlisten={setlistenProBand?.[band.id] ?? []}
+                        hatTelefonatNachweis={(protokoll ?? []).some(
+                          (p) =>
+                            p.band_id === band.id &&
+                            p.typ === TELEFONAT_ZUSENDUNG
+                        )}
                       />
                     </div>
                   )}
