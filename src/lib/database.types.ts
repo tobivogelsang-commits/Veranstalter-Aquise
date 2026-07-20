@@ -24,6 +24,13 @@ export type VenueTyp =
 export type GigAnfrageStatus = "offen" | "bestaetigt" | "abgesagt";
 export type GigAntwort = "kann" | "kann_nicht";
 
+export type TerminTyp = "probe" | "konzertmoeglichkeit" | "event";
+export type TerminWiederholung =
+  | "einmalig"
+  | "woechentlich"
+  | "zweiwoechentlich"
+  | "monatlich";
+
 // So in band_emails.anhaenge (jsonb) und beim Versand genutzt - url ist die
 // öffentliche Supabase-Storage-URL, direkt als nodemailer-Attachment-Pfad
 // und (bei Bildern) als <img src> in der HTML-Mail verwendbar.
@@ -503,6 +510,75 @@ export interface Database {
             columns: ["song_id"];
             isOneToOne: false;
             referencedRelation: "band_songs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      kalender_termine: {
+        Row: {
+          id: string;
+          band_id: string;
+          typ: TerminTyp;
+          titel: string;
+          datum: string;
+          datum_bis: string | null;
+          uhrzeit: string | null;
+          ort: string | null;
+          notiz: string | null;
+          wiederholung: TerminWiederholung;
+          wiederholung_bis: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["kalender_termine"]["Row"]
+        > & {
+          band_id: string;
+          typ: TerminTyp;
+          titel: string;
+          datum: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["kalender_termine"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "kalender_termine_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      termin_antworten: {
+        Row: {
+          id: string;
+          termin_id: string;
+          mitglied_id: string;
+          vorkommen_datum: string;
+          antwort: GigAntwort;
+          beantwortet_am: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["termin_antworten"]["Row"]
+        > & {
+          termin_id: string;
+          mitglied_id: string;
+          vorkommen_datum: string;
+          antwort: GigAntwort;
+        };
+        Update: Partial<Database["public"]["Tables"]["termin_antworten"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "termin_antworten_termin_id_fkey";
+            columns: ["termin_id"];
+            isOneToOne: false;
+            referencedRelation: "kalender_termine";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "termin_antworten_mitglied_id_fkey";
+            columns: ["mitglied_id"];
+            isOneToOne: false;
+            referencedRelation: "band_mitglieder";
             referencedColumns: ["id"];
           },
         ];

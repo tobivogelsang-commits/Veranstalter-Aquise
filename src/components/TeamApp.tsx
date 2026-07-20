@@ -15,7 +15,8 @@ import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
-import type { BandSong, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
+import { TermineManager } from "@/components/TermineManager";
+import type { BandSong, KalenderTermin, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
@@ -173,6 +174,7 @@ export function TeamApp({
   monatParam,
   jahrParam,
   proberaumTermine,
+  termine,
 }: {
   bandId: string;
   bandName: string;
@@ -184,6 +186,7 @@ export function TeamApp({
   monatParam?: string;
   jahrParam?: string;
   proberaumTermine: ProberaumTermin[];
+  termine: KalenderTermin[];
 }) {
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
     ladeIdentitaet(bandId)
@@ -431,6 +434,7 @@ export function TeamApp({
               zeigeBandName={false}
               venueLinkErlaubt={false}
               proberaumTermine={proberaumTermine}
+              termine={termine}
             />
           ) : (
             <KalenderJahresView
@@ -439,6 +443,7 @@ export function TeamApp({
               bandFilter={ALLE_BANDS_PARAM}
               tabParam="kalender"
               proberaumTermine={proberaumTermine}
+              termine={termine}
             />
           )}
           <a
@@ -447,6 +452,14 @@ export function TeamApp({
           >
             Kalender abonnieren (für privaten Kalender) ↗
           </a>
+
+          <div className="mt-6">
+            <TermineManager
+              bands={[{ id: bandId, name: bandName }]}
+              bandFilter={bandId}
+              initialTermine={termine}
+            />
+          </div>
         </div>
       )}
 

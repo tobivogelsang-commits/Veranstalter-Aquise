@@ -11,9 +11,15 @@ import {
   startOfWeek,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { gruppiereEintraegeProTag, gruppiereProberaumProTag, kalenderPunktFarbe } from "@/lib/kalenderHelpers";
-import type { PipelineEntry } from "@/lib/types";
+import { ALLE_BANDS_PARAM, TERMIN_TYP_FARBE } from "@/lib/constants";
+import {
+  gruppiereEintraegeProTag,
+  gruppiereProberaumProTag,
+  gruppiereTermineProTag,
+  kalenderPunktFarbe,
+  type TerminVorkommen,
+} from "@/lib/kalenderHelpers";
+import type { KalenderTermin, PipelineEntry } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["M", "D", "M", "D", "F", "S", "S"];
@@ -58,12 +64,14 @@ function MiniMonat({
   monat,
   eintraegeProTag,
   proberaumProTag,
+  termineProTag,
   bandFilter,
   tabParam,
 }: {
   monat: Date;
   eintraegeProTag: Map<string, PipelineEntry[]>;
   proberaumProTag: Map<string, ProberaumTermin[]>;
+  termineProTag: Map<string, TerminVorkommen[]>;
   bandFilter: string;
   tabParam?: string;
 }) {
@@ -94,11 +102,16 @@ function MiniMonat({
           const key = format(tag, "yyyy-MM-dd");
           const tagesEintraege = eintraegeProTag.get(key) ?? [];
           const tagesProberaum = proberaumProTag.get(key) ?? [];
+          const tagesTermine = termineProTag.get(key) ?? [];
           const imMonat = isSameMonth(tag, monat);
           const farben = eindeutigeFarben(tagesEintraege);
+          const terminFarben = Array.from(
+            new Set(tagesTermine.map((v) => v.termin.typ))
+          ).map((typ) => TERMIN_TYP_FARBE[typ].punkt);
 
           const titelTeile = [
             ...tagesEintraege.map((e) => `${e.venue.name} (${e.band.name})`),
+            ...tagesTermine.map((v) => v.termin.titel),
             ...tagesProberaum.map((t) => t.titel),
           ];
           const titel = titelTeile.join(", ");
@@ -120,6 +133,9 @@ function MiniMonat({
               {farben.map((farbe, i) => (
                 <span key={i} className={clsx("h-1.5 w-1.5 rounded-full", farbe)} />
               ))}
+              {terminFarben.map((farbe, i) => (
+                <span key={`t${i}`} className={clsx("h-1.5 w-1.5 rounded-full", farbe)} />
+              ))}
               {tagesProberaum.length > 0 && (
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
               )}
@@ -128,7 +144,9 @@ function MiniMonat({
 
           return (
             <div key={key} className="flex flex-col items-center gap-0.5 py-0.5">
-              {tagesEintraege.length > 0 || tagesProberaum.length > 0 ? (
+              {tagesEintraege.length > 0 ||
+              tagesProberaum.length > 0 ||
+              tagesTermine.length > 0 ? (
                 <Link
                   href={monatDetailLink(monat, bandFilter, tabParam)}
                   title={titel}
@@ -157,16 +175,19 @@ export function KalenderJahresView({
   bandFilter,
   tabParam,
   proberaumTermine = [],
+  termine = [],
 }: {
   eintraege: PipelineEntry[];
   jahrParam?: string;
   bandFilter: string;
   tabParam?: string;
   proberaumTermine?: ProberaumTermin[];
+  termine?: KalenderTermin[];
 }) {
   const jahr = parseJahrParam(jahrParam);
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
   const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
+  const termineProTag = gruppiereTermineProTag(termine, `${jahr}-01-01`, `${jahr}-12-31`);
   const monate = Array.from({ length: 12 }, (_, i) => new Date(jahr, i, 1));
 
   return (
@@ -194,6 +215,7 @@ export function KalenderJahresView({
             monat={monat}
             eintraegeProTag={eintraegeProTag}
             proberaumProTag={proberaumProTag}
+            termineProTag={termineProTag}
             bandFilter={bandFilter}
             tabParam={tabParam}
           />

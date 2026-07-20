@@ -18,6 +18,7 @@ import type {
   BandWithMaterialien,
   EmailVorlage,
   GigAnfrageMitAntworten,
+  KalenderTermin,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
   Setliste,
@@ -34,6 +35,17 @@ export async function getBands(): Promise<Band[]> {
     .select("*")
     .order("name");
 
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Selbst angelegte Kalender-Termine (Probe/Konzertmöglichkeit/Event) für die
+// Kalenderanzeige. Bei bandFilter === "alle" alle Bands, sonst nur die eine.
+export async function getTermine(bandFilter: string): Promise<KalenderTermin[]> {
+  let query = supabase.from("kalender_termine").select("*");
+  if (bandFilter !== ALLE_BANDS_PARAM) query = query.eq("band_id", bandFilter);
+
+  const { data, error } = await query.order("datum");
   if (error) throw new Error(error.message);
   return data ?? [];
 }

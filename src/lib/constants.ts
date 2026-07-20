@@ -1,4 +1,4 @@
-import type { Status, VenueTyp } from "@/lib/database.types";
+import type { Status, TerminTyp, TerminWiederholung, VenueTyp } from "@/lib/database.types";
 
 export const STATUS_ORDER: Status[] = [
   "neu",
@@ -80,3 +80,45 @@ export const TEAM_ICON_PFADE: Record<string, { klein: string; gross: string }> =
 export function getTeamIconPfade(bandId: string): { klein: string; gross: string } | null {
   return TEAM_ICON_PFADE[bandId] ?? null;
 }
+
+// Selbst angelegte Kalender-Termine (siehe Migration 0018). Alle drei Typen
+// sind von Team-Mitgliedern bestätigbar (Zu-/Absage der eigenen Teilnahme).
+export const TERMIN_TYPEN: TerminTyp[] = ["probe", "konzertmoeglichkeit", "event"];
+
+export const TERMIN_TYP_LABEL: Record<TerminTyp, string> = {
+  probe: "Probe",
+  konzertmoeglichkeit: "Konzertmöglichkeit",
+  event: "Event",
+};
+
+export const TERMIN_WIEDERHOLUNGEN: TerminWiederholung[] = [
+  "einmalig",
+  "woechentlich",
+  "zweiwoechentlich",
+  "monatlich",
+];
+
+export const TERMIN_WIEDERHOLUNG_LABEL: Record<TerminWiederholung, string> = {
+  einmalig: "Einmalig",
+  woechentlich: "Wöchentlich",
+  zweiwoechentlich: "Alle 2 Wochen",
+  monatlich: "Monatlich",
+};
+
+// Farbklassen je Termin-Typ für die Kalenderdarstellung - bewusst andere
+// Farbfamilien als die Band-Gig-Farben (grün/rot) und der Proberaum (grau),
+// damit die drei Quellen auf einen Blick unterscheidbar bleiben.
+export const TERMIN_TYP_FARBE: Record<TerminTyp, { pill: string; punkt: string }> = {
+  probe: {
+    pill: "bg-indigo-100 text-indigo-800 hover:bg-indigo-200",
+    punkt: "bg-indigo-500",
+  },
+  konzertmoeglichkeit: {
+    pill: "bg-amber-100 text-amber-800 hover:bg-amber-200",
+    punkt: "bg-amber-500",
+  },
+  event: {
+    pill: "bg-sky-100 text-sky-800 hover:bg-sky-200",
+    punkt: "bg-sky-500",
+  },
+};

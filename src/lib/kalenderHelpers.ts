@@ -1,4 +1,4 @@
-import type { PipelineEntry } from "@/lib/types";
+import type { KalenderTermin, PipelineEntry } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 // venue.veranstaltungsdatum kommt aus Postgres bereits als "yyyy-MM-dd"
@@ -41,6 +41,89 @@ export function gruppiereProberaumProTag(
       tag = naechsterTagIso(tag);
     }
   }
+  return map;
+}
+
+// Ein einzelnes Vorkommen eines (ggf. wiederkehrenden) Termins. `datum` ist
+// das konkrete Datum dieses Vorkommens - bei einmaligen Terminen == termin.datum,
+// bei Serien der jeweilige Wiederholungstag. `datumBis` nur bei einmaligen,
+// mehrtägigen Terminen gesetzt.
+export type TerminVorkommen = {
+  termin: KalenderTermin;
+  datum: string;
+  datumBis: string | null;
+};
+
+function addMonateIso(datum: string, n: number): string {
+  const [jj, mm, tt] = datum.split("-").map(Number);
+  const d = new Date(jj, mm - 1 + n, tt);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function naechstesVorkommen(datum: string, wiederholung: KalenderTermin["wiederholung"]): string | null {
+  switch (wiederholung) {
+    case "woechentlich":
+      return addTageIso(datum, 7);
+    case "zweiwoechentlich":
+      return addTageIso(datum, 14);
+    case "monatlich":
+      return addMonateIso(datum, 1);
+    default:
+      return null;
+  }
+}
+
+function addTageIso(datum: string, n: number): string {
+  const [jj, mm, tt] = datum.split("-").map(Number);
+  const d = new Date(jj, mm - 1, tt + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Löst selbst angelegte Termine (inkl. Wiederholungen) in einzelne Vorkommen
+// im sichtbaren Zeitraum [vonIso, bisIso] auf und gruppiert sie pro Tag.
+// Wiederkehrende Termine werden NICHT als Zeilen gespeichert, sondern hier
+// jeweils bis zum Rand des sichtbaren Bereichs (bzw. wiederholung_bis) erzeugt.
+export function gruppiereTermineProTag(
+  termine: KalenderTermin[],
+  vonIso: string,
+  bisIso: string
+): Map<string, TerminVorkommen[]> {
+  const map = new Map<string, TerminVorkommen[]>();
+  const hinzufuegen = (tag: string, vorkommen: TerminVorkommen) => {
+    const liste = map.get(tag) ?? [];
+    liste.push(vorkommen);
+    map.set(tag, liste);
+  };
+
+  for (const termin of termine) {
+    if (termin.wiederholung === "einmalig") {
+      const ende = termin.datum_bis ?? termin.datum;
+      let tag = termin.datum > vonIso ? termin.datum : vonIso;
+      const letzterTag = ende < bisIso ? ende : bisIso;
+      while (tag <= letzterTag) {
+        hinzufuegen(tag, { termin, datum: termin.datum, datumBis: termin.datum_bis });
+        tag = naechsterTagIso(tag);
+      }
+      continue;
+    }
+
+    // Serie: Startdatum in Schritten weiterrücken, bis Serienende oder Rand des
+    // sichtbaren Bereichs erreicht ist. guard verhindert Endlosschleifen.
+    const serienEnde =
+      termin.wiederholung_bis && termin.wiederholung_bis < bisIso
+        ? termin.wiederholung_bis
+        : bisIso;
+    let start: string | null = termin.datum;
+    let guard = 0;
+    while (start && start <= serienEnde && guard < 1000) {
+      if (start >= vonIso) {
+        hinzufuegen(start, { termin, datum: start, datumBis: null });
+      }
+      start = naechstesVorkommen(start, termin.wiederholung);
+      guard += 1;
+    }
+  }
+
   return map;
 }
 

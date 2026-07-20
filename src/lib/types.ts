@@ -21,6 +21,9 @@ export type GigAntwortRow = Database["public"]["Tables"]["gig_antworten"]["Row"]
 export type BandSong = Database["public"]["Tables"]["band_songs"]["Row"];
 export type Setliste = Database["public"]["Tables"]["setlisten"]["Row"];
 export type SetlistEintrag = Database["public"]["Tables"]["setlist_eintraege"]["Row"];
+export type KalenderTermin = Database["public"]["Tables"]["kalender_termine"]["Row"];
+export type TerminAntwortRow =
+  Database["public"]["Tables"]["termin_antworten"]["Row"];
 
 export type BandWithMaterialien = Band & {
   band_materialien: BandMaterial[];

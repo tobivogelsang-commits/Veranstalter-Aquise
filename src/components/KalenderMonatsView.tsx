@@ -16,9 +16,15 @@ import {
   subMonths,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { gruppiereEintraegeProTag, gruppiereProberaumProTag, kalenderPillFarbe } from "@/lib/kalenderHelpers";
-import type { PipelineEntry } from "@/lib/types";
+import { ALLE_BANDS_PARAM, TERMIN_TYP_FARBE, TERMIN_TYP_LABEL } from "@/lib/constants";
+import {
+  gruppiereEintraegeProTag,
+  gruppiereProberaumProTag,
+  gruppiereTermineProTag,
+  kalenderPillFarbe,
+  type TerminVorkommen,
+} from "@/lib/kalenderHelpers";
+import type { KalenderTermin, PipelineEntry } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -52,6 +58,7 @@ export function KalenderMonatsView({
   zeigeBandName,
   venueLinkErlaubt = true,
   proberaumTermine = [],
+  termine = [],
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
@@ -60,6 +67,7 @@ export function KalenderMonatsView({
   zeigeBandName?: boolean;
   venueLinkErlaubt?: boolean;
   proberaumTermine?: ProberaumTermin[];
+  termine?: KalenderTermin[];
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -71,9 +79,15 @@ export function KalenderMonatsView({
   const zeigeBand = zeigeBandName ?? bandFilter === ALLE_BANDS_PARAM;
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
   const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
+  const termineProTag = gruppiereTermineProTag(
+    termine,
+    format(gitterStart, "yyyy-MM-dd"),
+    format(gitterEnde, "yyyy-MM-dd")
+  );
   const [offeneProberaumTermine, setOffeneProberaumTermine] = useState<ProberaumTermin[] | null>(
     null
   );
+  const [offenerTermin, setOffenerTermin] = useState<TerminVorkommen | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,6 +122,7 @@ export function KalenderMonatsView({
           const key = format(tag, "yyyy-MM-dd");
           const tagesEintraege = eintraegeProTag.get(key) ?? [];
           const tagesProberaum = proberaumProTag.get(key) ?? [];
+          const tagesTermine = termineProTag.get(key) ?? [];
           const imMonat = isSameMonth(tag, monat);
 
           return (
@@ -163,6 +178,20 @@ export function KalenderMonatsView({
                     </span>
                   );
                 })}
+                {tagesTermine.map((vorkommen) => (
+                  <button
+                    key={`${vorkommen.termin.id}-${vorkommen.datum}`}
+                    type="button"
+                    onClick={() => setOffenerTermin(vorkommen)}
+                    title={`${TERMIN_TYP_LABEL[vorkommen.termin.typ]}: ${vorkommen.termin.titel}`}
+                    className={clsx(
+                      "block w-full truncate rounded px-1.5 py-0.5 text-left text-xs font-medium",
+                      TERMIN_TYP_FARBE[vorkommen.termin.typ].pill
+                    )}
+                  >
+                    {vorkommen.termin.titel}
+                  </button>
+                ))}
                 {tagesProberaum.length > 0 && (
                   <button
                     type="button"
@@ -210,6 +239,53 @@ export function KalenderMonatsView({
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {offenerTermin && (
+        <div
+          className="fixed inset-0 z-20 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setOffenerTermin(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <span
+                className={clsx(
+                  "rounded px-1.5 py-0.5 text-xs font-medium",
+                  TERMIN_TYP_FARBE[offenerTermin.termin.typ].pill
+                )}
+              >
+                {TERMIN_TYP_LABEL[offenerTermin.termin.typ]}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOffenerTermin(null)}
+                className="text-slate-400 hover:text-slate-700"
+                aria-label="Schließen"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm font-medium text-slate-900">{offenerTermin.termin.titel}</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {formatDatum(offenerTermin.datum)}
+              {offenerTermin.datumBis &&
+                offenerTermin.datumBis !== offenerTermin.datum &&
+                ` bis ${formatDatum(offenerTermin.datumBis)}`}
+              {offenerTermin.termin.uhrzeit
+                ? ` · ${offenerTermin.termin.uhrzeit.slice(0, 5)} Uhr`
+                : ""}
+              {offenerTermin.termin.ort ? ` · ${offenerTermin.termin.ort}` : ""}
+            </p>
+            {offenerTermin.termin.notiz && (
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                {offenerTermin.termin.notiz}
+              </p>
+            )}
           </div>
         </div>
       )}

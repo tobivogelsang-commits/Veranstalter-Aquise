@@ -1,12 +1,13 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { getBands, getKalenderEintraege, getVenuesWithRelations } from "@/lib/queries";
+import { getBands, getKalenderEintraege, getTermine, getVenuesWithRelations } from "@/lib/queries";
 import { kalenderPunktFarbe } from "@/lib/kalenderHelpers";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { BandSwitcher } from "@/components/BandSwitcher";
+import { TermineManager } from "@/components/TermineManager";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,11 @@ export default async function KalenderPage({
   const bandFilter = band ?? ALLE_BANDS_PARAM;
   const aktiveAnsicht = ansicht === "jahr" ? "jahr" : "monat";
 
-  const [bands, venues, proberaumTermine] = await Promise.all([
+  const [bands, venues, proberaumTermine, termine] = await Promise.all([
     getBands(),
     getVenuesWithRelations(),
     getProberaumTermine(),
+    getTermine(bandFilter),
   ]);
   const eintraege = getKalenderEintraege(venues, bandFilter);
 
@@ -102,12 +104,15 @@ export default async function KalenderPage({
         ))}
       </div>
 
+      <TermineManager bands={bands} bandFilter={bandFilter} initialTermine={termine} />
+
       {aktiveAnsicht === "jahr" ? (
         <KalenderJahresView
           eintraege={eintraege}
           jahrParam={jahr}
           bandFilter={bandFilter}
           proberaumTermine={proberaumTermine}
+          termine={termine}
         />
       ) : (
         <KalenderMonatsView
@@ -115,6 +120,7 @@ export default async function KalenderPage({
           monatParam={monat}
           bandFilter={bandFilter}
           proberaumTermine={proberaumTermine}
+          termine={termine}
         />
       )}
     </div>
