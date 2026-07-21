@@ -22,6 +22,8 @@ import type {
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
   Setliste,
+  TerminAntwortMitName,
+  TerminTeilnahme,
   Venue,
   VenueBandDokument,
   VenueBandProtokoll,
@@ -48,6 +50,50 @@ export async function getTermine(bandFilter: string): Promise<KalenderTermin[]> 
   const { data, error } = await query.order("datum");
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+// Teilnahme-Übersicht für Termine (B4): Roster pro Band (für "wer hat noch
+// nicht geantwortet") plus alle Antworten je Vorkommen mit Mitgliedsname.
+export async function getTerminTeilnahme(bandFilter: string): Promise<TerminTeilnahme> {
+  let mitgliedQuery = supabase.from("band_mitglieder").select("id, name, band_id");
+  if (bandFilter !== ALLE_BANDS_PARAM) mitgliedQuery = mitgliedQuery.eq("band_id", bandFilter);
+  const { data: mitglieder, error: mFehler } = await mitgliedQuery.order("name");
+  if (mFehler) throw new Error(mFehler.message);
+
+  const mitgliederProBand: Record<string, { id: string; name: string }[]> = {};
+  for (const m of mitglieder ?? []) {
+    (mitgliederProBand[m.band_id] ??= []).push({ id: m.id, name: m.name });
+  }
+
+  // Antworten inkl. Band (zum Filtern) und Mitgliedsname (zum Anzeigen).
+  let antwortQuery = supabase
+    .from("termin_antworten")
+    .select(
+      "termin_id, vorkommen_datum, mitglied_id, antwort, kalender_termine!inner(band_id), band_mitglieder(name)"
+    );
+  if (bandFilter !== ALLE_BANDS_PARAM) {
+    antwortQuery = antwortQuery.eq("kalender_termine.band_id", bandFilter);
+  }
+  const { data: antworten, error: aFehler } = await antwortQuery;
+  if (aFehler) throw new Error(aFehler.message);
+
+  const antwortenProVorkommen: Record<string, TerminAntwortMitName[]> = {};
+  for (const a of (antworten ?? []) as unknown as {
+    termin_id: string;
+    vorkommen_datum: string;
+    mitglied_id: string;
+    antwort: "kann" | "kann_nicht";
+    band_mitglieder: { name: string } | null;
+  }[]) {
+    const key = `${a.termin_id}__${a.vorkommen_datum}`;
+    (antwortenProVorkommen[key] ??= []).push({
+      mitgliedId: a.mitglied_id,
+      name: a.band_mitglieder?.name ?? "?",
+      antwort: a.antwort,
+    });
+  }
+
+  return { mitgliederProBand, antwortenProVorkommen };
 }
 
 export async function getBandWithMaterialien(

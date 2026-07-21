@@ -18,13 +18,15 @@ import {
 import { de } from "date-fns/locale";
 import { ALLE_BANDS_PARAM, TERMIN_TYP_FARBE, TERMIN_TYP_LABEL } from "@/lib/constants";
 import {
+  berechneTeilnahme,
   gruppiereEintraegeProTag,
   gruppiereProberaumProTag,
   gruppiereTermineProTag,
   kalenderPillFarbe,
   type TerminVorkommen,
 } from "@/lib/kalenderHelpers";
-import type { KalenderTermin, PipelineEntry } from "@/lib/types";
+import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
+import type { KalenderTermin, PipelineEntry, TerminTeilnahme } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -61,6 +63,7 @@ export function KalenderMonatsView({
   termine = [],
   kompakt = false,
   vorGitter,
+  terminTeilnahme,
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
@@ -72,6 +75,7 @@ export function KalenderMonatsView({
   termine?: KalenderTermin[];
   kompakt?: boolean;
   vorGitter?: React.ReactNode;
+  terminTeilnahme?: TerminTeilnahme;
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -313,9 +317,21 @@ export function KalenderMonatsView({
               {offenerTermin.termin.ort ? ` · ${offenerTermin.termin.ort}` : ""}
             </p>
             {offenerTermin.termin.notiz && (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
                 {offenerTermin.termin.notiz}
               </p>
+            )}
+            {terminTeilnahme && (
+              <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-700">
+                <TerminTeilnahmeUebersicht
+                  stand={berechneTeilnahme(
+                    terminTeilnahme,
+                    offenerTermin.termin.id,
+                    offenerTermin.datum,
+                    offenerTermin.termin.band_id
+                  )}
+                />
+              </div>
             )}
           </div>
         </div>

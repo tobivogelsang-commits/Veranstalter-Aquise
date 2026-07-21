@@ -12,13 +12,20 @@ import {
   holeTerminAntworten,
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
-import { kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
+import { berechneTeilnahme, kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
-import type { BandSong, KalenderTermin, OffeneAnfrageFuerMitglied, PipelineEntry } from "@/lib/types";
+import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
+import type {
+  BandSong,
+  KalenderTermin,
+  OffeneAnfrageFuerMitglied,
+  PipelineEntry,
+  TerminTeilnahme,
+} from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
@@ -205,6 +212,7 @@ export function TeamApp({
   jahrParam,
   proberaumTermine,
   termine,
+  terminTeilnahme,
 }: {
   bandId: string;
   bandName: string;
@@ -218,6 +226,7 @@ export function TeamApp({
   jahrParam?: string;
   proberaumTermine: ProberaumTermin[];
   termine: KalenderTermin[];
+  terminTeilnahme: TerminTeilnahme;
 }) {
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
     ladeIdentitaet(bandId)
@@ -233,6 +242,9 @@ export function TeamApp({
     {}
   );
   const [terminAntwortLaeuft, setTerminAntwortLaeuft] = useState<Record<string, boolean>>({});
+  // Teilnahme-Übersicht aller Mitglieder (für "X/Y dabei"). Startwert vom
+  // Server; die eigene Antwort wird beim Klick optimistisch eingepflegt.
+  const [teilnahme, setTeilnahme] = useState<TerminTeilnahme>(terminTeilnahme);
   // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
   const [dunkelmodus, setDunkelmodus] = useState(false);
@@ -290,6 +302,22 @@ export function TeamApp({
     );
     if (ergebnis.ok) {
       setTerminAntworten((prev) => ({ ...prev, [key]: antwort }));
+      // Eigenen Eintrag in der Übersicht ersetzen/hinzufügen, damit "X/Y dabei"
+      // sofort stimmt (ohne Neuladen).
+      setTeilnahme((prev) => {
+        const bestehende = prev.antwortenProVorkommen[key] ?? [];
+        const ohneEigene = bestehende.filter((a) => a.mitgliedId !== identitaet.mitgliedId);
+        return {
+          ...prev,
+          antwortenProVorkommen: {
+            ...prev.antwortenProVorkommen,
+            [key]: [
+              ...ohneEigene,
+              { mitgliedId: identitaet.mitgliedId, name: identitaet.name, antwort },
+            ],
+          },
+        };
+      });
     }
     setTerminAntwortLaeuft((prev) => ({ ...prev, [key]: false }));
   }
@@ -587,6 +615,23 @@ export function TeamApp({
                     Ich kann nicht
                   </button>
                 </div>
+
+                <div
+                  className={clsx(
+                    "mt-3 border-t pt-2",
+                    dashboardDunkel ? "border-white/15" : "border-slate-200 dark:border-slate-700"
+                  )}
+                >
+                  <TerminTeilnahmeUebersicht
+                    stand={berechneTeilnahme(
+                      teilnahme,
+                      naechsteProbe.termin.id,
+                      naechsteProbe.datum,
+                      bandId
+                    )}
+                    aufDunkel={dashboardDunkel}
+                  />
+                </div>
               </div>
             ) : (
               <p className={clsx("text-sm", dashboardDunkel ? "text-slate-200" : "text-slate-500 dark:text-slate-400")}>
@@ -748,6 +793,7 @@ export function TeamApp({
               venueLinkErlaubt={false}
               proberaumTermine={proberaumTermine}
               termine={termine}
+              terminTeilnahme={teilnahme}
               kompakt
               vorGitter={
                 <TermineManager

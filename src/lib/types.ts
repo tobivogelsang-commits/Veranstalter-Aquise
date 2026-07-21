@@ -25,6 +25,26 @@ export type KalenderTermin = Database["public"]["Tables"]["kalender_termine"]["R
 export type TerminAntwortRow =
   Database["public"]["Tables"]["termin_antworten"]["Row"];
 
+// Teilnahme-Übersicht für Termine (B4).
+export type TerminAntwortMitName = {
+  mitgliedId: string;
+  name: string;
+  antwort: "kann" | "kann_nicht";
+};
+
+export type TerminTeilnahme = {
+  mitgliederProBand: Record<string, { id: string; name: string }[]>;
+  // Schlüssel: `${terminId}__${vorkommenDatum}`
+  antwortenProVorkommen: Record<string, TerminAntwortMitName[]>;
+};
+
+export type TeilnahmeStand = {
+  dabei: string[];
+  abgesagt: string[];
+  offen: string[];
+  gesamt: number;
+};
+
 export type BandWithMaterialien = Band & {
   band_materialien: BandMaterial[];
 };

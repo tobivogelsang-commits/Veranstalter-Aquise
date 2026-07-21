@@ -1,7 +1,13 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
-import { getBands, getKalenderEintraege, getTermine, getVenuesWithRelations } from "@/lib/queries";
+import {
+  getBands,
+  getKalenderEintraege,
+  getTermine,
+  getTerminTeilnahme,
+  getVenuesWithRelations,
+} from "@/lib/queries";
 import { kalenderPunktFarbe } from "@/lib/kalenderHelpers";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
@@ -32,11 +38,12 @@ export default async function KalenderPage({
   const bandFilter = band ?? ALLE_BANDS_PARAM;
   const aktiveAnsicht = ansicht === "jahr" ? "jahr" : "monat";
 
-  const [bands, venues, proberaumTermine, termine] = await Promise.all([
+  const [bands, venues, proberaumTermine, termine, terminTeilnahme] = await Promise.all([
     getBands(),
     getVenuesWithRelations(),
     getProberaumTermine(),
     getTermine(bandFilter),
+    getTerminTeilnahme(bandFilter),
   ]);
   const eintraege = getKalenderEintraege(venues, bandFilter);
 
@@ -121,6 +128,7 @@ export default async function KalenderPage({
           bandFilter={bandFilter}
           proberaumTermine={proberaumTermine}
           termine={termine}
+          terminTeilnahme={terminTeilnahme}
         />
       )}
     </div>

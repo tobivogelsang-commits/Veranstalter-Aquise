@@ -1,5 +1,29 @@
-import type { KalenderTermin, PipelineEntry } from "@/lib/types";
+import type {
+  KalenderTermin,
+  PipelineEntry,
+  TeilnahmeStand,
+  TerminTeilnahme,
+} from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
+
+// Teilnahme-Stand (dabei/abgesagt/offen + Gesamtzahl) für EIN Vorkommen aus
+// der Übersicht ableiten. "offen" = Mitglieder der Band ohne Antwort.
+export function berechneTeilnahme(
+  teilnahme: TerminTeilnahme | undefined,
+  terminId: string,
+  vorkommenDatum: string,
+  bandId: string
+): TeilnahmeStand {
+  const roster = teilnahme?.mitgliederProBand[bandId] ?? [];
+  const antworten = teilnahme?.antwortenProVorkommen[`${terminId}__${vorkommenDatum}`] ?? [];
+  const beantwortetIds = new Set(antworten.map((a) => a.mitgliedId));
+  return {
+    dabei: antworten.filter((a) => a.antwort === "kann").map((a) => a.name),
+    abgesagt: antworten.filter((a) => a.antwort === "kann_nicht").map((a) => a.name),
+    offen: roster.filter((m) => !beantwortetIds.has(m.id)).map((m) => m.name),
+    gesamt: roster.length,
+  };
+}
 
 // venue.veranstaltungsdatum kommt aus Postgres bereits als "yyyy-MM-dd"
 // (Postgres date-Spalte) - hier direkt als Schlüssel nutzen statt über

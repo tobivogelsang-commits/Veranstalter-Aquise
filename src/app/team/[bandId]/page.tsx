@@ -6,6 +6,7 @@ import {
   getKalenderEintraege,
   getSetlistenMitSongs,
   getTermine,
+  getTerminTeilnahme,
   getVenuesWithRelations,
 } from "@/lib/queries";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
@@ -47,14 +48,16 @@ export default async function TeamPage({
   const { bandId } = await params;
   const { tab, ansicht, monat, jahr } = await searchParams;
 
-  const [bandName, venues, songs, setlisten, proberaumTermine, termine] = await Promise.all([
-    getBandName(bandId),
-    getVenuesWithRelations(),
-    getBandSongs(bandId),
-    getSetlistenMitSongs(bandId),
-    getProberaumTermine(),
-    getTermine(bandId),
-  ]);
+  const [bandName, venues, songs, setlisten, proberaumTermine, termine, terminTeilnahme] =
+    await Promise.all([
+      getBandName(bandId),
+      getVenuesWithRelations(),
+      getBandSongs(bandId),
+      getSetlistenMitSongs(bandId),
+      getProberaumTermine(),
+      getTermine(bandId),
+      getTerminTeilnahme(bandId),
+    ]);
 
   if (!bandName) notFound();
 
@@ -76,6 +79,7 @@ export default async function TeamPage({
       jahrParam={jahr}
       proberaumTermine={proberaumTermine}
       termine={termine}
+      terminTeilnahme={terminTeilnahme}
     />
   );
 }
