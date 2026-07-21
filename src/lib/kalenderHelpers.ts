@@ -127,6 +127,56 @@ export function gruppiereTermineProTag(
   return map;
 }
 
+// Kommende Vorkommen ab `abIso` (inkl.), über alle Termine hinweg und über
+// Wiederholungen expandiert, nach Datum + Uhrzeit sortiert und auf `limit`
+// begrenzt. Mit `filter` z. B. nur Proben. Ein fester Horizont begrenzt die
+// Expansion offener Serien (sonst würde eine unbegrenzt wiederkehrende Probe
+// endlos laufen).
+export function kommendeVorkommen(
+  termine: KalenderTermin[],
+  abIso: string,
+  filter?: (termin: KalenderTermin) => boolean,
+  limit = 20
+): TerminVorkommen[] {
+  const bisIso = addTageIso(abIso, 550); // ~1,5 Jahre voraus
+  const alle: TerminVorkommen[] = [];
+
+  for (const termin of termine) {
+    if (filter && !filter(termin)) continue;
+
+    if (termin.wiederholung === "einmalig") {
+      const ende = termin.datum_bis ?? termin.datum;
+      // Auch noch laufende mehrtägige Termine (Start < heute, Ende >= heute)
+      // gelten als "kommend".
+      if (ende >= abIso && termin.datum <= bisIso) {
+        alle.push({ termin, datum: termin.datum, datumBis: termin.datum_bis });
+      }
+      continue;
+    }
+
+    const serienEnde =
+      termin.wiederholung_bis && termin.wiederholung_bis < bisIso
+        ? termin.wiederholung_bis
+        : bisIso;
+    let start: string | null = termin.datum;
+    let guard = 0;
+    while (start && start <= serienEnde && guard < 1000) {
+      if (start >= abIso) {
+        alle.push({ termin, datum: start, datumBis: null });
+      }
+      start = naechstesVorkommen(start, termin.wiederholung);
+      guard += 1;
+    }
+  }
+
+  alle.sort((a, b) =>
+    a.datum === b.datum
+      ? (a.termin.uhrzeit ?? "").localeCompare(b.termin.uhrzeit ?? "")
+      : a.datum.localeCompare(b.datum)
+  );
+  return alle.slice(0, limit);
+}
+
 export type KalenderStatus = "gebucht" | "interessiert";
 
 type BandFarben = {

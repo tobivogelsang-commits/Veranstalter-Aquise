@@ -10,7 +10,7 @@ import {
   beantworteAnfrage,
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
-import { kalenderPillFarbe } from "@/lib/kalenderHelpers";
+import { kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
@@ -32,6 +32,15 @@ function heuteAlsIsoDatum(): string {
 
 function tabLink(tab: TeamTab) {
   return `?tab=${tab}`;
+}
+
+const WOCHENTAGE_KURZ = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+// "Di, 15.07.2026" aus "2026-07-15" (lokale Datumsfelder, kein UTC-Parsing).
+function formatTerminDatum(datum: string): string {
+  const [jj, mm, tt] = datum.split("-").map(Number);
+  const wochentag = WOCHENTAGE_KURZ[new Date(jj, mm - 1, tt).getDay()];
+  return `${wochentag}, ${String(tt).padStart(2, "0")}.${String(mm).padStart(2, "0")}.${jj}`;
 }
 
 function HomeIcon() {
@@ -364,6 +373,10 @@ export function TeamApp({
     )
     .slice(0, 3);
 
+  // Nächstes Proben-Vorkommen ab heute (über Wiederholungen expandiert).
+  const naechsteProbe =
+    kommendeVorkommen(termine, heute, (t) => t.typ === "probe", 1)[0] ?? null;
+
   return (
     <div className={clsx(dunkelmodus && "dark")}>
       {dashboardDunkel && (
@@ -431,6 +444,52 @@ export function TeamApp({
 
       {aktiverTab === "dashboard" && (
         <>
+          <div>
+            <h2
+              className={clsx(
+                "mb-2 text-sm font-semibold",
+                dashboardDunkel ? "text-white" : "text-slate-900"
+              )}
+            >
+              Nächste Probe
+            </h2>
+            {naechsteProbe ? (
+              <div
+                className={clsx(
+                  "rounded-lg border p-3",
+                  dashboardDunkel
+                    ? "border-white/15 bg-white/10 backdrop-blur-sm"
+                    : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                )}
+              >
+                <p
+                  className={clsx(
+                    "font-medium",
+                    dashboardDunkel ? "text-white" : "text-slate-900 dark:text-slate-100"
+                  )}
+                >
+                  {naechsteProbe.termin.titel}
+                </p>
+                <p
+                  className={clsx(
+                    "mt-0.5 text-sm",
+                    dashboardDunkel ? "text-slate-200" : "text-slate-600 dark:text-slate-300"
+                  )}
+                >
+                  {formatTerminDatum(naechsteProbe.datum)}
+                  {naechsteProbe.termin.uhrzeit
+                    ? ` · ${naechsteProbe.termin.uhrzeit.slice(0, 5)} Uhr`
+                    : ""}
+                  {naechsteProbe.termin.ort ? ` · ${naechsteProbe.termin.ort}` : ""}
+                </p>
+              </div>
+            ) : (
+              <p className={clsx("text-sm", dashboardDunkel ? "text-slate-200" : "text-slate-500 dark:text-slate-400")}>
+                Keine Probe geplant.
+              </p>
+            )}
+          </div>
+
           <div>
             <h2
               className={clsx(
