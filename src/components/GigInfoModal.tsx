@@ -45,16 +45,16 @@ export function GigInfoModal({
   const setZeiten = setliste
     ? berechneSetZeiten(venue.gig_beginn, setliste.songs, setliste.pausen ?? [])
     : null;
-  const zeiten = [
-    venue.gig_treffen_proberaum &&
-      `Treffen Proberaum ${formatZeit(venue.gig_treffen_proberaum)}`,
-    venue.gig_soundcheck && `Soundcheck ${formatZeit(venue.gig_soundcheck)}`,
-    venue.gig_einlass && `Einlass ${formatZeit(venue.gig_einlass)}`,
-    venue.gig_beginn && `Beginn ${formatZeit(venue.gig_beginn)}`,
-    venue.gig_ende && `Ende ${formatZeit(venue.gig_ende)}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Alle gesetzten Zeiten in fester Reihenfolge, jede als eigene Zeile.
+  const zeitenListe = (
+    [
+      ["Treffen Proberaum", venue.gig_treffen_proberaum],
+      ["Soundcheck", venue.gig_soundcheck],
+      ["Einlass", venue.gig_einlass],
+      ["Auftrittsbeginn", venue.gig_beginn],
+      ["Ende Auftritt", venue.gig_ende],
+    ] as const
+  ).filter(([, wert]) => Boolean(wert)) as [string, string][];
 
   // Bevorzugt die Liste (mehrere Ansprechpartner); fällt auf die Alt-
   // Einzelfelder (Migration 0021) zurück, solange die noch nicht migriert sind.
@@ -158,7 +158,23 @@ export function GigInfoModal({
               </div>
             </div>
           )}
-          {zeiten && <Zeile label="Zeiten" wert={zeiten} />}
+          {zeitenListe.length > 0 && (
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Zeiten
+              </span>
+              <div className="mt-1 flex flex-col gap-0.5">
+                {zeitenListe.map(([label, wert]) => (
+                  <div key={label} className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-300">{label}</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">
+                      {formatZeit(wert)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {venue.gig_zeiten_notiz && (
             <Zeile label="Weitere Zeiten" wert={venue.gig_zeiten_notiz} />
           )}
@@ -216,7 +232,7 @@ export function GigInfoModal({
             </div>
           )}
           {!adresse &&
-            !zeiten &&
+            zeitenListe.length === 0 &&
             !venue.gig_zeiten_notiz &&
             !venue.gig_logistik &&
             !setliste &&
