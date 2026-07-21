@@ -24,6 +24,16 @@ export type VenueTyp =
 export type GigAnfrageStatus = "offen" | "bestaetigt" | "abgesagt";
 export type GigAntwort = "kann" | "kann_nicht";
 
+export type ProduktionStep =
+  | "Jam"
+  | "Strukturiert"
+  | "Aufnahmen"
+  | "Mixen"
+  | "Mastern"
+  | "Bearbeiten"
+  | "Veröffentlichen";
+export type ProduktionRecording = "Vox" | "Keys" | "Gitarre" | "Drums" | "Sample";
+
 // Ein Ansprechpartner vor Ort bei einem gebuchten Auftritt (venues.gig_ansprechpartner, jsonb-Liste).
 export type GigAnsprechpartner = {
   rolle: string;
@@ -536,6 +546,30 @@ export interface Database {
             columns: ["song_id"];
             isOneToOne: false;
             referencedRelation: "band_songs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      produktionen: {
+        Row: {
+          id: string;
+          band_id: string;
+          name: string;
+          datum: string;
+          step: string | null;
+          recordings: string[];
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["produktionen"]["Row"]> & {
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["produktionen"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "produktionen_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
             referencedColumns: ["id"];
           },
         ];

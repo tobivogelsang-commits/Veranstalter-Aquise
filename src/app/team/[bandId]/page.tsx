@@ -4,6 +4,7 @@ import { getBandName } from "@/lib/teamActions";
 import {
   getBandSongs,
   getKalenderEintraege,
+  getProduktionen,
   getSetlistenMitSongs,
   getTermine,
   getTerminTeilnahme,
@@ -48,21 +49,31 @@ export default async function TeamPage({
   const { bandId } = await params;
   const { tab, ansicht, monat, jahr } = await searchParams;
 
-  const [bandName, venues, songs, setlisten, proberaumTermine, termine, terminTeilnahme] =
-    await Promise.all([
-      getBandName(bandId),
-      getVenuesWithRelations(),
-      getBandSongs(bandId),
-      getSetlistenMitSongs(bandId),
-      getProberaumTermine(),
-      getTermine(bandId),
-      getTerminTeilnahme(bandId),
-    ]);
+  const [
+    bandName,
+    venues,
+    songs,
+    setlisten,
+    produktionen,
+    proberaumTermine,
+    termine,
+    terminTeilnahme,
+  ] = await Promise.all([
+    getBandName(bandId),
+    getVenuesWithRelations(),
+    getBandSongs(bandId),
+    getSetlistenMitSongs(bandId),
+    getProduktionen(bandId),
+    getProberaumTermine(),
+    getTermine(bandId),
+    getTerminTeilnahme(bandId),
+  ]);
 
   if (!bandName) notFound();
 
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
-  const aktiverTab = tab === "kalender" || tab === "setliste" ? tab : "dashboard";
+  const aktiverTab =
+    tab === "kalender" || tab === "setliste" || tab === "produktion" ? tab : "dashboard";
   const logoUrl = getTeamIconPfade(bandId)?.klein ?? null;
 
   return (
@@ -73,6 +84,7 @@ export default async function TeamPage({
       kalenderEintraege={kalenderEintraege}
       songs={songs}
       setlisten={setlisten}
+      produktionen={produktionen}
       aktiverTab={aktiverTab}
       kalenderAnsicht={ansicht === "jahr" ? "jahr" : "monat"}
       monatParam={monat}

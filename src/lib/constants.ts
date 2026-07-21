@@ -1,4 +1,11 @@
-import type { Status, TerminTyp, TerminWiederholung, VenueTyp } from "@/lib/database.types";
+import type {
+  ProduktionRecording,
+  ProduktionStep,
+  Status,
+  TerminTyp,
+  TerminWiederholung,
+  VenueTyp,
+} from "@/lib/database.types";
 
 export const STATUS_ORDER: Status[] = [
   "neu",
@@ -64,6 +71,27 @@ export const BAND_MATERIAL_TYPEN = [
   "Facebook",
   "YouTube",
   "EPK",
+];
+
+// Prozessschritte (Einfachauswahl) und Aufnahme-Spuren (Mehrfachauswahl) für
+// den Produktion-Tab. In der DB als Text/Text-Array gespeichert; diese Listen
+// sind die erlaubten Werte und zugleich die Reihenfolge der Chips im UI.
+export const PRODUKTION_STEPS: ProduktionStep[] = [
+  "Jam",
+  "Strukturiert",
+  "Aufnahmen",
+  "Mixen",
+  "Mastern",
+  "Bearbeiten",
+  "Veröffentlichen",
+];
+
+export const PRODUKTION_RECORDINGS: ProduktionRecording[] = [
+  "Vox",
+  "Keys",
+  "Gitarre",
+  "Drums",
+  "Sample",
 ];
 
 // Rollen für Ansprechpartner vor Ort bei einem gebuchten Auftritt
