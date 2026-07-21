@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Venue } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import { berechneSetZeiten } from "@/lib/setzeiten";
@@ -68,6 +69,27 @@ export function GigInfoModal({
           ]
         : [];
 
+  const adresse = [venue.strasse, venue.ort]
+    .map((t) => t?.trim())
+    .filter(Boolean)
+    .join(", ");
+  // Für die Navigation zusätzlich den Namen mitgeben - hilft, wenn keine
+  // Straße hinterlegt ist oder die Adresse ungenau ist.
+  const naviZiel = encodeURIComponent(
+    [venue.name, venue.strasse, venue.ort].map((t) => t?.trim()).filter(Boolean).join(", ")
+  );
+  const [kopiert, setKopiert] = useState(false);
+  async function kopiereAdresse() {
+    try {
+      await navigator.clipboard.writeText(adresse);
+      setKopiert(true);
+      setTimeout(() => setKopiert(false), 1500);
+    } catch {
+      // Clipboard nicht verfügbar (z. B. ohne HTTPS) - dann bleibt der Text
+      // wenigstens sichtbar zum manuellen Markieren.
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-30 flex items-center justify-center bg-black/30 p-4"
@@ -82,11 +104,9 @@ export function GigInfoModal({
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {venue.name}
             </h3>
-            {(venue.veranstaltungsdatum || venue.ort) && (
+            {venue.veranstaltungsdatum && (
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {formatDatum(venue.veranstaltungsdatum)}
-                {venue.veranstaltungsdatum && venue.ort ? " · " : ""}
-                {venue.ort ?? ""}
               </p>
             )}
           </div>
@@ -101,6 +121,41 @@ export function GigInfoModal({
         </div>
 
         <div className="flex flex-col gap-3">
+          {adresse && (
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Adresse
+              </span>
+              <span className="text-sm text-slate-900 dark:text-slate-100">
+                {adresse}
+              </span>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium">
+                <button
+                  type="button"
+                  onClick={kopiereAdresse}
+                  className="text-slate-600 underline dark:text-slate-300"
+                >
+                  {kopiert ? "Kopiert ✓" : "Kopieren"}
+                </button>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${naviZiel}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-600 underline dark:text-slate-300"
+                >
+                  Google Maps ↗
+                </a>
+                <a
+                  href={`https://maps.apple.com/?daddr=${naviZiel}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-600 underline dark:text-slate-300"
+                >
+                  Apple Karten ↗
+                </a>
+              </div>
+            </div>
+          )}
           {zeiten && <Zeile label="Zeiten" wert={zeiten} />}
           {venue.gig_zeiten_notiz && (
             <Zeile label="Weitere Zeiten" wert={venue.gig_zeiten_notiz} />
@@ -158,7 +213,8 @@ export function GigInfoModal({
               </div>
             </div>
           )}
-          {!zeiten &&
+          {!adresse &&
+            !zeiten &&
             !venue.gig_zeiten_notiz &&
             !venue.gig_logistik &&
             !setliste &&
