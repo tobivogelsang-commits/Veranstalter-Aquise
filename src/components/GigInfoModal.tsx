@@ -177,7 +177,7 @@ export function GigInfoModal({
             </div>
           )}
           {venue.gig_zeiten_notiz && (
-            <Zeile label="Weitere Zeiten" wert={venue.gig_zeiten_notiz} />
+            <Zeile label="Notizen" wert={venue.gig_zeiten_notiz} />
           )}
           {venue.gig_logistik && (
             <Zeile label="Logistik vor Ort" wert={venue.gig_logistik} />
@@ -190,15 +190,12 @@ export function GigInfoModal({
               <span className="text-sm text-slate-900 dark:text-slate-100">
                 {setliste.name}
               </span>
-              {setZeiten && (
-                <ul className="mt-1 flex flex-col gap-0.5 text-sm text-slate-700 dark:text-slate-300">
-                  {setZeiten.sets.map((s) => (
-                    <li key={s.nummer}>
-                      Set {s.nummer}: {s.start}–{s.ende}
-                      {s.pauseDanachMin ? ` · Pause ${s.pauseDanachMin} min` : ""}
-                    </li>
+              {setliste.songs.length > 0 && (
+                <ol className="mt-1 list-decimal pl-5 text-sm text-slate-700 dark:text-slate-300">
+                  {setliste.songs.map((song) => (
+                    <li key={song.id}>{song.titel}</li>
                   ))}
-                </ul>
+                </ol>
               )}
               {setZeiten && (
                 <div className="mt-2 flex justify-between text-sm">

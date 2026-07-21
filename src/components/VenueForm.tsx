@@ -766,7 +766,7 @@ export function VenueForm({
           </div>
 
           <div className="mt-4 flex flex-col gap-4">
-            <Field label="Weitere Zeiten (Set-Zeiten, …)">
+            <Field label="Notizen zum Auftritt">
               <textarea
                 name="gig_zeiten_notiz"
                 rows={2}
