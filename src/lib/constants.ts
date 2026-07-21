@@ -66,6 +66,15 @@ export const BAND_MATERIAL_TYPEN = [
   "EPK",
 ];
 
+// Rollen für Ansprechpartner vor Ort bei einem gebuchten Auftritt
+// (venues.gig_ansprechpartner).
+export const GIG_ANSPRECHPARTNER_ROLLEN = [
+  "Techniker",
+  "Veranstalter",
+  "Crew",
+  "Sonstiges",
+] as const;
+
 // Home-Bildschirm-Icon der Team-App pro Band (statische Datei unter
 // public/team-icons/, keine Datenbank-Spalte) - fehlt ein Eintrag, greift in
 // getTeamIconPfade() der Standard-favicon als Fallback. Provisorisch als

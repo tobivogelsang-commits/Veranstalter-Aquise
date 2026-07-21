@@ -21,10 +21,12 @@ import {
   erstelleSetliste,
   fuegeSongHinzu,
   loescheSetliste,
+  speicherePausen,
   speichereSetlistReihenfolge,
 } from "@/lib/setlistActions";
 import { formatDauer, parseDauerEingabe, summeDauer } from "@/lib/dauer";
 import type { BandSong } from "@/lib/types";
+import type { SetlistPause } from "@/lib/database.types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 
 const inputClass =
@@ -156,6 +158,10 @@ export function SetlisteBuilder({
   const [songIdsProSetliste, setSongIdsProSetliste] = useState<Record<string, string[]>>(
     Object.fromEntries(initialSetlisten.map((s) => [s.id, s.songs.map((sg) => sg.id)]))
   );
+  // Pausen je Setliste (nach_index bezieht sich auf die Song-Position).
+  const [pausenProSetliste, setPausenProSetliste] = useState<Record<string, SetlistPause[]>>(
+    Object.fromEntries(initialSetlisten.map((s) => [s.id, s.pausen ?? []]))
+  );
 
   const [neuerSong, setNeuerSong] = useState({ titel: "", interpret: "", dauer: "" });
   const [songFehler, setSongFehler] = useState<string | null>(null);
@@ -176,7 +182,26 @@ export function SetlisteBuilder({
   const aktiveSongIds = aktiveSetlisteId ? songIdsProSetliste[aktiveSetlisteId] ?? [] : [];
   const aktiveSongs = aktiveSongIds.map((id) => songById[id]).filter(Boolean);
   const gesamtDauer = summeDauer(aktiveSongs.map((s) => s.dauer_sekunden));
+  const aktivePausen = aktiveSetlisteId ? pausenProSetliste[aktiveSetlisteId] ?? [] : [];
+  const pauseMinutenNach = (index: number): number | null =>
+    aktivePausen.find((p) => p.nach_index === index)?.minuten ?? null;
   const { setNodeRef: setDropRef } = useDroppable({ id: "setlist-container" });
+
+  function speicherePausenListe(setlistId: string, pausen: SetlistPause[]) {
+    speicherePausen(setlistId, bandId, pausen).catch((err) => {
+      console.error("Pausen speichern fehlgeschlagen", err);
+    });
+  }
+
+  function setzePauseNach(index: number, minuten: number) {
+    if (!aktiveSetlisteId) return;
+    const rest = aktivePausen.filter((p) => p.nach_index !== index);
+    const next =
+      minuten > 0 ? [...rest, { nach_index: index, minuten }] : rest;
+    next.sort((a, b) => a.nach_index - b.nach_index);
+    setPausenProSetliste((prev) => ({ ...prev, [aktiveSetlisteId]: next }));
+    speicherePausenListe(aktiveSetlisteId, next);
+  }
 
   async function handleSongHinzufuegen() {
     if (!neuerSong.titel.trim()) return;
@@ -228,9 +253,19 @@ export function SetlisteBuilder({
 
   function entferneAusSetliste(songId: string) {
     if (!aktiveSetlisteId) return;
+    const entferntIndex = aktiveSongIds.indexOf(songId);
     const next = aktiveSongIds.filter((id) => id !== songId);
     setSongIdsProSetliste((prev) => ({ ...prev, [aktiveSetlisteId]: next }));
     speichern(aktiveSetlisteId, next);
+    // Pausen hängen an Song-Positionen: alles hinter dem entfernten Song rutscht
+    // eine Position nach vorn, die Pause genau an dieser Stelle entfällt.
+    if (entferntIndex !== -1 && aktivePausen.length > 0) {
+      const verschoben = aktivePausen
+        .filter((p) => p.nach_index !== entferntIndex)
+        .map((p) => (p.nach_index > entferntIndex ? { ...p, nach_index: p.nach_index - 1 } : p));
+      setPausenProSetliste((prev) => ({ ...prev, [aktiveSetlisteId]: verschoben }));
+      speicherePausenListe(aktiveSetlisteId, verschoben);
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -271,6 +306,7 @@ export function SetlisteBuilder({
     }
     setSetlisten((prev) => [...prev, { id: ergebnis.setliste.id, name: ergebnis.setliste.name }]);
     setSongIdsProSetliste((prev) => ({ ...prev, [ergebnis.setliste.id]: [] }));
+    setPausenProSetliste((prev) => ({ ...prev, [ergebnis.setliste.id]: [] }));
     setAktiveSetlisteId(ergebnis.setliste.id);
     setNeueSetlisteName("");
     setZeigeNeueSetliste(false);
@@ -308,6 +344,12 @@ export function SetlisteBuilder({
       ...prev,
       [ergebnis.setliste.id]: [...(prev[aktiveSetlisteId] ?? [])],
     }));
+    // Pausen mitkopieren (die Server-Action dupliziert nur die Songs).
+    const kopiertePausen = (pausenProSetliste[aktiveSetlisteId] ?? []).map((p) => ({ ...p }));
+    setPausenProSetliste((prev) => ({ ...prev, [ergebnis.setliste.id]: kopiertePausen }));
+    if (kopiertePausen.length > 0) {
+      speicherePausenListe(ergebnis.setliste.id, kopiertePausen);
+    }
     setAktiveSetlisteId(ergebnis.setliste.id);
   }
 
@@ -319,6 +361,11 @@ export function SetlisteBuilder({
     const rest = setlisten.filter((s) => s.id !== aktiveSetlisteId);
     setSetlisten(rest);
     setSongIdsProSetliste((prev) => {
+      const next = { ...prev };
+      delete next[aktiveSetlisteId];
+      return next;
+    });
+    setPausenProSetliste((prev) => {
       const next = { ...prev };
       delete next[aktiveSetlisteId];
       return next;
@@ -509,14 +556,50 @@ export function SetlisteBuilder({
                     items={aktiveSongs.map((s) => `setlist-${s.id}`)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {aktiveSongs.map((song, index) => (
-                      <SetlistZeile
-                        key={song.id}
-                        song={song}
-                        position={index}
-                        onEntfernen={() => entferneAusSetliste(song.id)}
-                      />
-                    ))}
+                    {aktiveSongs.map((song, index) => {
+                      const pauseMin = pauseMinutenNach(index);
+                      const istLetzter = index === aktiveSongs.length - 1;
+                      return (
+                        <div key={song.id}>
+                          <SetlistZeile
+                            song={song}
+                            position={index}
+                            onEntfernen={() => entferneAusSetliste(song.id)}
+                          />
+                          {!istLetzter &&
+                            (pauseMin !== null ? (
+                              <div className="my-1 flex items-center gap-2 border-y border-dashed border-amber-300 bg-amber-50 py-1 pl-2 text-xs text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300">
+                                <span>⏸ Pause</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={pauseMin}
+                                  onChange={(e) =>
+                                    setzePauseNach(index, Math.max(0, Number(e.target.value)))
+                                  }
+                                  className="w-14 rounded border border-amber-300 px-1 py-0.5 text-xs dark:border-amber-700 dark:bg-slate-800"
+                                />
+                                <span>min</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setzePauseNach(index, 0)}
+                                  className="ml-auto pr-2 underline hover:text-amber-950 dark:hover:text-amber-100"
+                                >
+                                  entfernen
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setzePauseNach(index, 20)}
+                                className="my-0.5 block pl-2 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              >
+                                + Pause danach
+                              </button>
+                            ))}
+                        </div>
+                      );
+                    })}
                   </SortableContext>
                 )}
               </div>

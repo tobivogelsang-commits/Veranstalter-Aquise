@@ -9,9 +9,15 @@ import {
   rechercheKontakt,
   updateStatus,
 } from "@/lib/actions";
-import { STATUS_LABELS, STATUS_ORDER, VENUE_TYPEN } from "@/lib/constants";
+import {
+  GIG_ANSPRECHPARTNER_ROLLEN,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  VENUE_TYPEN,
+} from "@/lib/constants";
 import { TELEFONAT_ZUSENDUNG } from "@/lib/protokollTypen";
-import type { Status } from "@/lib/database.types";
+import { berechneSetZeiten, ueberschreitetEnde } from "@/lib/setzeiten";
+import type { GigAnsprechpartner, Status } from "@/lib/database.types";
 import type {
   Band,
   BandDokumentTypMitUrl,
@@ -72,6 +78,13 @@ type FelderState = {
   quelle: string;
   notizen: string;
   veranstaltungsdatum: string;
+  gig_einlass: string;
+  gig_soundcheck: string;
+  gig_beginn: string;
+  gig_zeiten_notiz: string;
+  gig_logistik: string;
+  gig_ende: string;
+  gig_setliste_id: string;
 };
 
 export function VenueForm({
@@ -134,10 +147,54 @@ export function VenueForm({
     quelle: venue?.quelle ?? "",
     notizen: venue?.notizen ?? "",
     veranstaltungsdatum: venue?.veranstaltungsdatum ?? "",
+    gig_einlass: venue?.gig_einlass?.slice(0, 5) ?? "",
+    gig_soundcheck: venue?.gig_soundcheck?.slice(0, 5) ?? "",
+    gig_beginn: venue?.gig_beginn?.slice(0, 5) ?? "",
+    gig_zeiten_notiz: venue?.gig_zeiten_notiz ?? "",
+    gig_logistik: venue?.gig_logistik ?? "",
+    gig_ende: venue?.gig_ende?.slice(0, 5) ?? "",
+    gig_setliste_id: venue?.gig_setliste_id ?? "",
   });
 
   function setFeld<K extends keyof FelderState>(key: K, value: FelderState[K]) {
     setFelder((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Ansprechpartner vor Ort (mehrere, je mit Rolle). Eigener State, weil
+  // dynamische Liste - wird als JSON in ein Hidden-Input geschrieben, das der
+  // Autosave mitliest. Seed aus den Alt-Einzelfeldern (Migration 0021), falls
+  // die Liste noch leer ist, damit ein evtl. getesteter Kontakt nicht verloren geht.
+  const [ansprechpartner, setAnsprechpartner] = useState<GigAnsprechpartner[]>(
+    () => {
+      const liste = venue?.gig_ansprechpartner ?? [];
+      if (liste.length > 0) return liste;
+      if (venue?.gig_kontakt_name || venue?.gig_kontakt_telefon) {
+        return [
+          {
+            rolle: "",
+            name: venue.gig_kontakt_name ?? "",
+            telefon: venue.gig_kontakt_telefon ?? "",
+          },
+        ];
+      }
+      return [];
+    }
+  );
+
+  // Autosave erst nach dem DOM-Commit (Hidden-Input muss den neuen Wert tragen).
+  function setAnsprechpartnerUndSpeichere(next: GigAnsprechpartner[]) {
+    setAnsprechpartner(next);
+    setTimeout(autosave, 0);
+  }
+
+  function aendereAnsprechpartner(
+    index: number,
+    feld: keyof GigAnsprechpartner,
+    wert: string
+  ) {
+    setAnsprechpartner((prev) =>
+      prev.map((e, i) => (i === index ? { ...e, [feld]: wert } : e))
+    );
   }
 
   const [linked, setLinked] = useState<Record<string, boolean>>(() => {
@@ -313,6 +370,33 @@ export function VenueForm({
       kiWarnung: daten.kiWarnung,
     });
   }
+
+  // Setlisten der aktuell gebuchten Band(s) für die Gig-Setlisten-Auswahl; bei
+  // mehreren gebuchten Bands mit Bandname präfixiert.
+  const gebuchteBandIds = bands
+    .filter((b) => bandStatus[b.id] === "gebucht")
+    .map((b) => b.id);
+  const setlistenOptionen = gebuchteBandIds.flatMap((bid) =>
+    (setlistenProBand?.[bid] ?? []).map((sl) => ({
+      id: sl.id,
+      label:
+        gebuchteBandIds.length > 1
+          ? `${bands.find((b) => b.id === bid)?.name ?? ""}: ${sl.name}`
+          : sl.name,
+      setliste: sl,
+    }))
+  );
+  const gewaehlteSetliste =
+    setlistenOptionen.find((o) => o.id === felder.gig_setliste_id)?.setliste ?? null;
+  const setZeiten = gewaehlteSetliste
+    ? berechneSetZeiten(
+        felder.gig_beginn,
+        gewaehlteSetliste.songs,
+        gewaehlteSetliste.pausen ?? []
+      )
+    : null;
+  const endeUeberschritten =
+    setZeiten !== null && ueberschreitetEnde(setZeiten.ende, felder.gig_ende);
 
   return (
     <>
@@ -576,6 +660,221 @@ export function VenueForm({
           className={inputClass}
         />
       </Field>
+
+      {Object.values(bandStatus).includes("gebucht") && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+          <h2 className="mb-1 text-base font-medium text-slate-900">
+            Gebuchter Auftritt
+          </h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Diese Infos sehen die Bandmitglieder in der Team-App (ohne Gage).
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Field label="Einlass / Load-in">
+              <input
+                type="time"
+                name="gig_einlass"
+                value={felder.gig_einlass}
+                onChange={(e) => setFeld("gig_einlass", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Soundcheck">
+              <input
+                type="time"
+                name="gig_soundcheck"
+                value={felder.gig_soundcheck}
+                onChange={(e) => setFeld("gig_soundcheck", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Auftrittsbeginn">
+              <input
+                type="time"
+                name="gig_beginn"
+                value={felder.gig_beginn}
+                onChange={(e) => setFeld("gig_beginn", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Ende (Live-Musik bis)">
+              <input
+                type="time"
+                name="gig_ende"
+                value={felder.gig_ende}
+                onChange={(e) => setFeld("gig_ende", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+
+          <div className="mt-4">
+            <Field label="Setliste für den Auftritt">
+              <select
+                name="gig_setliste_id"
+                value={felder.gig_setliste_id}
+                onChange={(e) => {
+                  setFeld("gig_setliste_id", e.target.value);
+                  autosave();
+                }}
+                className={inputClass}
+              >
+                <option value="">- keine -</option>
+                {setlistenOptionen.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {felder.gig_setliste_id && setlistenOptionen.length === 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                Die gewählte Setliste gehört nicht zur gebuchten Band.
+              </p>
+            )}
+            {gewaehlteSetliste && !felder.gig_beginn && (
+              <p className="mt-1 text-xs text-slate-500">
+                Auftrittsbeginn eintragen, um die Set-Zeiten zu berechnen.
+              </p>
+            )}
+            {setZeiten && (
+              <div className="mt-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-medium text-slate-900">Berechnete Set-Zeiten</span>
+                  <span className={endeUeberschritten ? "text-red-600 font-medium" : "text-slate-500"}>
+                    Ende {setZeiten.ende}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-0.5 text-slate-700">
+                  {setZeiten.sets.map((s) => (
+                    <li key={s.nummer}>
+                      Set {s.nummer}: {s.start}–{s.ende} ({s.songAnzahl} Songs)
+                      {s.pauseDanachMin ? ` · Pause ${s.pauseDanachMin} min` : ""}
+                    </li>
+                  ))}
+                </ul>
+                {setZeiten.fehlendeDauern && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Nicht alle Songs haben eine Dauer – die Zeiten sind eine Untergrenze.
+                  </p>
+                )}
+                {endeUeberschritten && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Achtung: Das berechnete Ende liegt nach „Ende (Live-Musik bis)“ ({felder.gig_ende}).
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-slate-400">
+                  Pausen werden in der Setliste festgelegt (Setliste-Bereich).
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-4">
+            <Field label="Weitere Zeiten (Set-Zeiten, …)">
+              <textarea
+                name="gig_zeiten_notiz"
+                rows={2}
+                value={felder.gig_zeiten_notiz}
+                onChange={(e) => setFeld("gig_zeiten_notiz", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Logistik vor Ort (Parken, Backstage, Strom/Bühne, Dresscode, Anfahrt)">
+              <textarea
+                name="gig_logistik"
+                rows={4}
+                value={felder.gig_logistik}
+                onChange={(e) => setFeld("gig_logistik", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <span className="text-xs font-medium text-slate-600">
+              Ansprechpartner vor Ort
+            </span>
+            {/* Serialisiert die Liste für den Autosave (liest das Formular per FormData aus). */}
+            <input
+              type="hidden"
+              name="gig_ansprechpartner"
+              value={JSON.stringify(ansprechpartner)}
+            />
+            <div className="mt-1 flex flex-col gap-2">
+              {ansprechpartner.map((partner, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr_1fr_auto]"
+                >
+                  <select
+                    value={partner.rolle}
+                    onChange={(e) =>
+                      aendereAnsprechpartner(index, "rolle", e.target.value)
+                    }
+                    onBlur={autosave}
+                    className={inputClass}
+                  >
+                    <option value="">- Rolle -</option>
+                    {GIG_ANSPRECHPARTNER_ROLLEN.map((rolle) => (
+                      <option key={rolle} value={rolle}>
+                        {rolle}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder="Name"
+                    value={partner.name}
+                    onChange={(e) =>
+                      aendereAnsprechpartner(index, "name", e.target.value)
+                    }
+                    onBlur={autosave}
+                    className={inputClass}
+                  />
+                  <input
+                    placeholder="Telefon"
+                    value={partner.telefon}
+                    onChange={(e) =>
+                      aendereAnsprechpartner(index, "telefon", e.target.value)
+                    }
+                    onBlur={autosave}
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAnsprechpartnerUndSpeichere(
+                        ansprechpartner.filter((_, i) => i !== index)
+                      )
+                    }
+                    className="justify-self-start rounded-md border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100"
+                    aria-label="Ansprechpartner entfernen"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setAnsprechpartner((prev) => [
+                  ...prev,
+                  { rolle: "", name: "", telefon: "" },
+                ])
+              }
+              className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              + Ansprechpartner hinzufügen
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 className="mb-2 text-base font-medium text-slate-900">

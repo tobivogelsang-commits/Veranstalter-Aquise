@@ -64,6 +64,7 @@ export function KalenderMonatsView({
   kompakt = false,
   vorGitter,
   terminTeilnahme,
+  onEintragTap,
 }: {
   eintraege: PipelineEntry[];
   monatParam?: string;
@@ -76,6 +77,9 @@ export function KalenderMonatsView({
   kompakt?: boolean;
   vorGitter?: React.ReactNode;
   terminTeilnahme?: TerminTeilnahme;
+  // Wird statt eines /venues-Links verwendet (z. B. in der Team-App, die keine
+  // Detailseite hat): Tipp auf einen gebuchten Eintrag öffnet ein Detail-Modal.
+  onEintragTap?: (eintrag: PipelineEntry) => void;
 }) {
   const monat = parseMonatParam(monatParam);
   const monatsStart = startOfMonth(monat);
@@ -198,15 +202,28 @@ export function KalenderMonatsView({
                       {zeigeBand ? ` · ${eintrag.band.name}` : ""}
                     </>
                   );
-                  return venueLinkErlaubt ? (
-                    <Link
+                  if (venueLinkErlaubt) {
+                    return (
+                      <Link
+                        key={eintrag.relation.id}
+                        href={`/venues/${eintrag.venue.id}`}
+                        title={titel}
+                        className={klassen}
+                      >
+                        {inhalt}
+                      </Link>
+                    );
+                  }
+                  return onEintragTap ? (
+                    <button
                       key={eintrag.relation.id}
-                      href={`/venues/${eintrag.venue.id}`}
+                      type="button"
+                      onClick={() => onEintragTap(eintrag)}
                       title={titel}
-                      className={klassen}
+                      className={clsx(klassen, "text-left")}
                     >
                       {inhalt}
-                    </Link>
+                    </button>
                   ) : (
                     <span key={eintrag.relation.id} title={titel} className={klassen}>
                       {inhalt}

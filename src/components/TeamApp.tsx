@@ -19,6 +19,7 @@ import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
 import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
+import { GigInfoModal } from "@/components/GigInfoModal";
 import type {
   BandSong,
   KalenderTermin,
@@ -242,6 +243,9 @@ export function TeamApp({
     {}
   );
   const [terminAntwortLaeuft, setTerminAntwortLaeuft] = useState<Record<string, boolean>>({});
+  // Gebuchter Auftritt, dessen Detail-Modal gerade offen ist (Tipp auf einen
+  // Termin unter "Nächste Termine" oder im Kalender).
+  const [offenerGig, setOffenerGig] = useState<PipelineEntry | null>(null);
   // Teilnahme-Übersicht aller Mitglieder (für "X/Y dabei"). Startwert vom
   // Server; die eigene Antwort wird beim Klick optimistisch eingepflegt.
   const [teilnahme, setTeilnahme] = useState<TerminTeilnahme>(terminTeilnahme);
@@ -729,17 +733,20 @@ export function TeamApp({
             ) : (
               <ul className="flex flex-col gap-1.5">
                 {naechsteGebuchteTermine.map((eintrag) => (
-                  <li
-                    key={eintrag.relation.id}
-                    className={clsx(
-                      "flex items-center justify-between rounded-md px-3 py-2 text-sm",
-                      kalenderPillFarbe(bandName, "gebucht")
-                    )}
-                  >
-                    <span className="font-medium">{eintrag.venue.name}</span>
-                    <span>
-                      {eintrag.venue.veranstaltungsdatum?.split("-").reverse().join(".")}
-                    </span>
+                  <li key={eintrag.relation.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOffenerGig(eintrag)}
+                      className={clsx(
+                        "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm",
+                        kalenderPillFarbe(bandName, "gebucht")
+                      )}
+                    >
+                      <span className="font-medium">{eintrag.venue.name}</span>
+                      <span>
+                        {eintrag.venue.veranstaltungsdatum?.split("-").reverse().join(".")}
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -791,6 +798,7 @@ export function TeamApp({
               tabParam="kalender"
               zeigeBandName={false}
               venueLinkErlaubt={false}
+              onEintragTap={setOffenerGig}
               proberaumTermine={proberaumTermine}
               termine={termine}
               terminTeilnahme={teilnahme}
@@ -866,6 +874,16 @@ export function TeamApp({
           ))}
         </div>
       </nav>
+
+      {offenerGig && (
+        <GigInfoModal
+          venue={offenerGig.venue}
+          setliste={
+            setlisten.find((s) => s.id === offenerGig.venue.gig_setliste_id) ?? null
+          }
+          onClose={() => setOffenerGig(null)}
+        />
+      )}
       </div>
     </div>
   );
