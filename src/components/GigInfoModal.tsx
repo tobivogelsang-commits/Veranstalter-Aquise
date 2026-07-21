@@ -45,14 +45,16 @@ export function GigInfoModal({
   const setZeiten = setliste
     ? berechneSetZeiten(venue.gig_beginn, setliste.songs, setliste.pausen ?? [])
     : null;
-  // Alle gesetzten Zeiten in fester Reihenfolge, jede als eigene Zeile.
+  // Alle gesetzten Zeiten in fester Reihenfolge, jede als eigene Zeile. "Ende
+  // Auftritt" wird nicht eingetragen, sondern automatisch aus den berechneten
+  // Set-Zeiten übernommen (Beginn + Songdauern + Pausen).
   const zeitenListe = (
     [
       ["Treffen Proberaum", venue.gig_treffen_proberaum],
       ["Soundcheck", venue.gig_soundcheck],
       ["Einlass", venue.gig_einlass],
       ["Auftrittsbeginn", venue.gig_beginn],
-      ["Ende Auftritt", venue.gig_ende],
+      ["Ende Auftritt", setZeiten ? setZeiten.ende : null],
     ] as const
   ).filter(([, wert]) => Boolean(wert)) as [string, string][];
 
@@ -197,7 +199,6 @@ export function GigInfoModal({
                       {s.pauseDanachMin ? ` · Pause ${s.pauseDanachMin} min` : ""}
                     </li>
                   ))}
-                  <li className="font-medium">Ende {setZeiten.ende}</li>
                 </ul>
               )}
             </div>

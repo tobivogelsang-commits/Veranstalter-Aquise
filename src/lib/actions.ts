@@ -63,7 +63,6 @@ function venueFieldsFromForm(formData: FormData) {
     gig_treffen_proberaum: str(formData, "gig_treffen_proberaum"),
     gig_zeiten_notiz: str(formData, "gig_zeiten_notiz"),
     gig_logistik: str(formData, "gig_logistik"),
-    gig_ende: str(formData, "gig_ende"),
     gig_ansprechpartner: ansprechpartnerFromForm(formData),
     gig_setliste_id: str(formData, "gig_setliste_id"),
   };

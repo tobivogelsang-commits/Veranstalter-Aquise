@@ -16,7 +16,7 @@ import {
   VENUE_TYPEN,
 } from "@/lib/constants";
 import { TELEFONAT_ZUSENDUNG } from "@/lib/protokollTypen";
-import { berechneSetZeiten, ueberschreitetEnde } from "@/lib/setzeiten";
+import { berechneSetZeiten } from "@/lib/setzeiten";
 import type { GigAnsprechpartner, Status } from "@/lib/database.types";
 import type {
   Band,
@@ -84,7 +84,6 @@ type FelderState = {
   gig_treffen_proberaum: string;
   gig_zeiten_notiz: string;
   gig_logistik: string;
-  gig_ende: string;
   gig_setliste_id: string;
 };
 
@@ -154,7 +153,6 @@ export function VenueForm({
     gig_treffen_proberaum: venue?.gig_treffen_proberaum?.slice(0, 5) ?? "",
     gig_zeiten_notiz: venue?.gig_zeiten_notiz ?? "",
     gig_logistik: venue?.gig_logistik ?? "",
-    gig_ende: venue?.gig_ende?.slice(0, 5) ?? "",
     gig_setliste_id: venue?.gig_setliste_id ?? "",
   });
 
@@ -397,8 +395,6 @@ export function VenueForm({
         gewaehlteSetliste.pausen ?? []
       )
     : null;
-  const endeUeberschritten =
-    setZeiten !== null && ueberschreitetEnde(setZeiten.ende, felder.gig_ende);
 
   return (
     <>
@@ -671,7 +667,7 @@ export function VenueForm({
           <p className="mb-3 text-xs text-slate-500">
             Diese Infos sehen die Bandmitglieder in der Team-App (ohne Gage).
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field label="Treffen Proberaum">
               <input
                 type="time"
@@ -712,16 +708,6 @@ export function VenueForm({
                 className={inputClass}
               />
             </Field>
-            <Field label="Ende Auftritt">
-              <input
-                type="time"
-                name="gig_ende"
-                value={felder.gig_ende}
-                onChange={(e) => setFeld("gig_ende", e.target.value)}
-                onBlur={autosave}
-                className={inputClass}
-              />
-            </Field>
           </div>
 
           <div className="mt-4">
@@ -757,9 +743,7 @@ export function VenueForm({
               <div className="mt-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
                 <div className="mb-1 flex items-center justify-between">
                   <span className="font-medium text-slate-900">Berechnete Set-Zeiten</span>
-                  <span className={endeUeberschritten ? "text-red-600 font-medium" : "text-slate-500"}>
-                    Ende {setZeiten.ende}
-                  </span>
+                  <span className="text-slate-500">Ende {setZeiten.ende}</span>
                 </div>
                 <ul className="flex flex-col gap-0.5 text-slate-700">
                   {setZeiten.sets.map((s) => (
@@ -772,11 +756,6 @@ export function VenueForm({
                 {setZeiten.fehlendeDauern && (
                   <p className="mt-1 text-xs text-amber-600">
                     Nicht alle Songs haben eine Dauer – die Zeiten sind eine Untergrenze.
-                  </p>
-                )}
-                {endeUeberschritten && (
-                  <p className="mt-1 text-xs text-red-600">
-                    Achtung: Das berechnete Ende liegt nach „Ende Auftritt“ ({felder.gig_ende}).
                   </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">
