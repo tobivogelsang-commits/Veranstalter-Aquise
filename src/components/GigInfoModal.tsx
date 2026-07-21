@@ -46,8 +46,10 @@ export function GigInfoModal({
     ? berechneSetZeiten(venue.gig_beginn, setliste.songs, setliste.pausen ?? [])
     : null;
   const zeiten = [
-    venue.gig_einlass && `Einlass ${formatZeit(venue.gig_einlass)}`,
+    venue.gig_treffen_proberaum &&
+      `Treffen Proberaum ${formatZeit(venue.gig_treffen_proberaum)}`,
     venue.gig_soundcheck && `Soundcheck ${formatZeit(venue.gig_soundcheck)}`,
+    venue.gig_einlass && `Einlass ${formatZeit(venue.gig_einlass)}`,
     venue.gig_beginn && `Beginn ${formatZeit(venue.gig_beginn)}`,
     venue.gig_ende && `Ende ${formatZeit(venue.gig_ende)}`,
   ]

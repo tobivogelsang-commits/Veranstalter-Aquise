@@ -81,6 +81,7 @@ type FelderState = {
   gig_einlass: string;
   gig_soundcheck: string;
   gig_beginn: string;
+  gig_treffen_proberaum: string;
   gig_zeiten_notiz: string;
   gig_logistik: string;
   gig_ende: string;
@@ -150,6 +151,7 @@ export function VenueForm({
     gig_einlass: venue?.gig_einlass?.slice(0, 5) ?? "",
     gig_soundcheck: venue?.gig_soundcheck?.slice(0, 5) ?? "",
     gig_beginn: venue?.gig_beginn?.slice(0, 5) ?? "",
+    gig_treffen_proberaum: venue?.gig_treffen_proberaum?.slice(0, 5) ?? "",
     gig_zeiten_notiz: venue?.gig_zeiten_notiz ?? "",
     gig_logistik: venue?.gig_logistik ?? "",
     gig_ende: venue?.gig_ende?.slice(0, 5) ?? "",
@@ -669,13 +671,13 @@ export function VenueForm({
           <p className="mb-3 text-xs text-slate-500">
             Diese Infos sehen die Bandmitglieder in der Team-App (ohne Gage).
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Field label="Einlass / Load-in">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <Field label="Treffen Proberaum">
               <input
                 type="time"
-                name="gig_einlass"
-                value={felder.gig_einlass}
-                onChange={(e) => setFeld("gig_einlass", e.target.value)}
+                name="gig_treffen_proberaum"
+                value={felder.gig_treffen_proberaum}
+                onChange={(e) => setFeld("gig_treffen_proberaum", e.target.value)}
                 onBlur={autosave}
                 className={inputClass}
               />
@@ -686,6 +688,16 @@ export function VenueForm({
                 name="gig_soundcheck"
                 value={felder.gig_soundcheck}
                 onChange={(e) => setFeld("gig_soundcheck", e.target.value)}
+                onBlur={autosave}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Einlass / Load-in">
+              <input
+                type="time"
+                name="gig_einlass"
+                value={felder.gig_einlass}
+                onChange={(e) => setFeld("gig_einlass", e.target.value)}
                 onBlur={autosave}
                 className={inputClass}
               />

@@ -60,6 +60,7 @@ function venueFieldsFromForm(formData: FormData) {
     gig_einlass: str(formData, "gig_einlass"),
     gig_soundcheck: str(formData, "gig_soundcheck"),
     gig_beginn: str(formData, "gig_beginn"),
+    gig_treffen_proberaum: str(formData, "gig_treffen_proberaum"),
     gig_zeiten_notiz: str(formData, "gig_zeiten_notiz"),
     gig_logistik: str(formData, "gig_logistik"),
     gig_ende: str(formData, "gig_ende"),

@@ -103,6 +103,7 @@ export interface Database {
           gig_einlass: string | null;
           gig_soundcheck: string | null;
           gig_beginn: string | null;
+          gig_treffen_proberaum: string | null;
           gig_zeiten_notiz: string | null;
           gig_logistik: string | null;
           gig_kontakt_name: string | null;
