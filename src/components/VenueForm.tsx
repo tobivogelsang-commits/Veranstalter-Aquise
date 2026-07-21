@@ -17,6 +17,7 @@ import {
 } from "@/lib/constants";
 import { TELEFONAT_ZUSENDUNG } from "@/lib/protokollTypen";
 import { berechneSetZeiten } from "@/lib/setzeiten";
+import { formatDauer, summeDauer } from "@/lib/dauer";
 import type { GigAnsprechpartner, Status } from "@/lib/database.types";
 import type {
   Band,
@@ -741,13 +742,26 @@ export function VenueForm({
             )}
             {gewaehlteSetliste && gewaehlteSetliste.songs.length > 0 && (
               <div className="mt-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
-                <ol className="list-decimal pl-5 text-slate-700">
-                  {gewaehlteSetliste.songs.map((song) => (
-                    <li key={song.id}>{song.titel}</li>
+                <div className="flex flex-col gap-0.5 text-slate-700">
+                  {gewaehlteSetliste.songs.map((song, i) => (
+                    <div key={song.id} className="flex justify-between gap-3">
+                      <span>
+                        {i + 1}. {song.titel}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-slate-500">
+                        {formatDauer(song.dauer_sekunden)}
+                      </span>
+                    </div>
                   ))}
-                </ol>
+                </div>
+                <div className="mt-1 flex justify-between gap-3 border-t border-slate-200 pt-1 font-medium text-slate-900">
+                  <span>Gesamtlaufzeit</span>
+                  <span className="shrink-0 tabular-nums">
+                    {formatDauer(summeDauer(gewaehlteSetliste.songs.map((s) => s.dauer_sekunden)))}
+                  </span>
+                </div>
                 {setZeiten && (
-                  <div className="mt-2 flex justify-between">
+                  <div className="mt-1 flex justify-between">
                     <span className="text-slate-600">Ende Auftritt</span>
                     <span className="font-medium text-slate-900">{setZeiten.ende}</span>
                   </div>

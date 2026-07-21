@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Venue } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import { berechneSetZeiten } from "@/lib/setzeiten";
+import { formatDauer, summeDauer } from "@/lib/dauer";
 
 function normalizeTelefon(telefon: string) {
   return telefon.replace(/[^+\d]/g, "");
@@ -191,14 +192,29 @@ export function GigInfoModal({
                 {setliste.name}
               </span>
               {setliste.songs.length > 0 && (
-                <ol className="mt-1 list-decimal pl-5 text-sm text-slate-700 dark:text-slate-300">
-                  {setliste.songs.map((song) => (
-                    <li key={song.id}>{song.titel}</li>
-                  ))}
-                </ol>
+                <>
+                  <div className="mt-1 flex flex-col gap-0.5 text-sm text-slate-700 dark:text-slate-300">
+                    {setliste.songs.map((song, i) => (
+                      <div key={song.id} className="flex justify-between gap-3">
+                        <span>
+                          {i + 1}. {song.titel}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-slate-500 dark:text-slate-400">
+                          {formatDauer(song.dauer_sekunden)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3 border-t border-slate-200 pt-1 text-sm font-medium text-slate-900 dark:border-slate-700 dark:text-slate-100">
+                    <span>Gesamtlaufzeit</span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatDauer(summeDauer(setliste.songs.map((s) => s.dauer_sekunden)))}
+                    </span>
+                  </div>
+                </>
               )}
               {setZeiten && (
-                <div className="mt-2 flex justify-between text-sm">
+                <div className="mt-1 flex justify-between text-sm">
                   <span className="text-slate-600 dark:text-slate-300">Ende Auftritt</span>
                   <span className="font-medium text-slate-900 dark:text-slate-100">
                     {setZeiten.ende}
