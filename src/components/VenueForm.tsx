@@ -736,31 +736,27 @@ export function VenueForm({
             )}
             {gewaehlteSetliste && !felder.gig_beginn && (
               <p className="mt-1 text-xs text-slate-500">
-                Auftrittsbeginn eintragen, um die Set-Zeiten zu berechnen.
+                Auftrittsbeginn eintragen, um das Ende zu berechnen.
               </p>
             )}
-            {setZeiten && (
+            {gewaehlteSetliste && gewaehlteSetliste.songs.length > 0 && (
               <div className="mt-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="font-medium text-slate-900">Berechnete Set-Zeiten</span>
-                  <span className="text-slate-500">Ende {setZeiten.ende}</span>
-                </div>
-                <ul className="flex flex-col gap-0.5 text-slate-700">
-                  {setZeiten.sets.map((s) => (
-                    <li key={s.nummer}>
-                      Set {s.nummer}: {s.start}–{s.ende} ({s.songAnzahl} Songs)
-                      {s.pauseDanachMin ? ` · Pause ${s.pauseDanachMin} min` : ""}
-                    </li>
+                <ol className="list-decimal pl-5 text-slate-700">
+                  {gewaehlteSetliste.songs.map((song) => (
+                    <li key={song.id}>{song.titel}</li>
                   ))}
-                </ul>
-                {setZeiten.fehlendeDauern && (
+                </ol>
+                {setZeiten && (
+                  <div className="mt-2 flex justify-between">
+                    <span className="text-slate-600">Ende Auftritt</span>
+                    <span className="font-medium text-slate-900">{setZeiten.ende}</span>
+                  </div>
+                )}
+                {setZeiten?.fehlendeDauern && (
                   <p className="mt-1 text-xs text-amber-600">
-                    Nicht alle Songs haben eine Dauer – die Zeiten sind eine Untergrenze.
+                    Nicht alle Songs haben eine Dauer – das Ende ist eine Untergrenze.
                   </p>
                 )}
-                <p className="mt-1 text-xs text-slate-400">
-                  Pausen werden in der Setliste festgelegt (Setliste-Bereich).
-                </p>
               </div>
             )}
           </div>
