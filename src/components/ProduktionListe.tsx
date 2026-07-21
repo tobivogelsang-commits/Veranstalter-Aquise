@@ -7,6 +7,8 @@ import {
   erstelleProduktion,
   loescheProduktion,
 } from "@/lib/produktionActions";
+import { fuegeSongHinzu } from "@/lib/setlistActions";
+import { parseDauerEingabe } from "@/lib/dauer";
 import { PRODUKTION_RECORDINGS, PRODUKTION_STEPS } from "@/lib/constants";
 import type { Produktion } from "@/lib/types";
 
@@ -42,12 +44,14 @@ function ChevronIcon({ offen }: { offen: boolean }) {
 }
 
 function ProduktionKarte({
+  bandId,
   produktion,
   offen,
   onToggle,
   onChange,
   onLoeschen,
 }: {
+  bandId: string;
   produktion: Produktion;
   offen: boolean;
   onToggle: () => void;
@@ -57,12 +61,39 @@ function ProduktionKarte({
   const titel = produktion.name.trim() || "Ohne Titel";
   const recordingsText = produktion.recordings.join(" · ");
 
+  // Eigener Formular-State pro Karte, um einen fertigen Song in den Band-Katalog
+  // ("Songs" im Setliste-Tab) zu übernehmen - nutzt dieselbe Action wie dort.
+  const [songForm, setSongForm] = useState({ titel: "", interpret: "", dauer: "" });
+  const [songFehler, setSongFehler] = useState<string | null>(null);
+  const [songGespeichert, setSongGespeichert] = useState<string | null>(null);
+  const [songLaeuft, setSongLaeuft] = useState(false);
+
   function toggleRecording(recording: string) {
     const aktiv = produktion.recordings.includes(recording);
     const next = aktiv
       ? produktion.recordings.filter((r) => r !== recording)
       : [...produktion.recordings, recording];
     onChange({ recordings: next });
+  }
+
+  async function handleSongHinzufuegen() {
+    if (!songForm.titel.trim() || songLaeuft) return;
+    setSongLaeuft(true);
+    setSongFehler(null);
+    setSongGespeichert(null);
+    const ergebnis = await fuegeSongHinzu(
+      bandId,
+      songForm.titel,
+      songForm.interpret || null,
+      songForm.dauer ? parseDauerEingabe(songForm.dauer) : null
+    );
+    setSongLaeuft(false);
+    if (!ergebnis.ok) {
+      setSongFehler(ergebnis.fehler);
+      return;
+    }
+    setSongGespeichert(`„${ergebnis.song.titel}" zum Katalog hinzugefügt`);
+    setSongForm({ titel: "", interpret: "", dauer: "" });
   }
 
   return (
@@ -110,6 +141,44 @@ function ProduktionKarte({
 
       {offen && (
         <div className="flex flex-col gap-4 border-t border-slate-100 p-3 dark:border-slate-700">
+          <div className="flex flex-col gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Fertigen Song zum Katalog hinzufügen
+            </span>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                value={songForm.titel}
+                onChange={(e) => setSongForm((prev) => ({ ...prev, titel: e.target.value }))}
+                placeholder="Titel"
+                className={inputClass}
+              />
+              <input
+                value={songForm.interpret}
+                onChange={(e) => setSongForm((prev) => ({ ...prev, interpret: e.target.value }))}
+                placeholder="Interpret"
+                className={inputClass}
+              />
+              <input
+                value={songForm.dauer}
+                onChange={(e) => setSongForm((prev) => ({ ...prev, dauer: e.target.value }))}
+                placeholder="3:42"
+                className={`${inputClass} sm:w-20`}
+              />
+              <button
+                type="button"
+                onClick={handleSongHinzufuegen}
+                disabled={songLaeuft}
+                className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                + Song
+              </button>
+            </div>
+            {songFehler && <p className="text-xs text-red-600">{songFehler}</p>}
+            {songGespeichert && (
+              <p className="text-xs text-green-600 dark:text-green-400">{songGespeichert}</p>
+            )}
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Speichername
@@ -260,6 +329,7 @@ export function ProduktionListe({
         produktionen.map((produktion) => (
           <ProduktionKarte
             key={produktion.id}
+            bandId={bandId}
             produktion={produktion}
             offen={offeneIds.has(produktion.id)}
             onToggle={() => toggleOffen(produktion.id)}
