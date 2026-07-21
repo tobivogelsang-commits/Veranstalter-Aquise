@@ -712,7 +712,7 @@ export function VenueForm({
                 className={inputClass}
               />
             </Field>
-            <Field label="Ende (Live-Musik bis)">
+            <Field label="Ende Auftritt">
               <input
                 type="time"
                 name="gig_ende"
@@ -776,7 +776,7 @@ export function VenueForm({
                 )}
                 {endeUeberschritten && (
                   <p className="mt-1 text-xs text-red-600">
-                    Achtung: Das berechnete Ende liegt nach „Ende (Live-Musik bis)“ ({felder.gig_ende}).
+                    Achtung: Das berechnete Ende liegt nach „Ende Auftritt“ ({felder.gig_ende}).
                   </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">
