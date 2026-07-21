@@ -189,7 +189,7 @@ export function GigInfoModal({
               <span className="text-sm text-slate-900 dark:text-slate-100">
                 {setliste.name}
               </span>
-              {setZeiten ? (
+              {setZeiten && (
                 <ul className="mt-1 flex flex-col gap-0.5 text-sm text-slate-700 dark:text-slate-300">
                   {setZeiten.sets.map((s) => (
                     <li key={s.nummer}>
@@ -199,10 +199,6 @@ export function GigInfoModal({
                   ))}
                   <li className="font-medium">Ende {setZeiten.ende}</li>
                 </ul>
-              ) : (
-                <span className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-                  {setliste.songs.length} Songs
-                </span>
               )}
             </div>
           )}
