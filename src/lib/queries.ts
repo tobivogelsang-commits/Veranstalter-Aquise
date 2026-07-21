@@ -21,6 +21,7 @@ import type {
   KalenderTermin,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
+  Produktion,
   Setliste,
   TerminAntwortMitName,
   TerminTeilnahme,
@@ -362,6 +363,19 @@ export async function getSetlistenMitSongs(bandId: string): Promise<SetlisteMitS
     setlisten.map((s) => getSetlistSongs(s.id))
   );
   return setlisten.map((s, i) => ({ ...s, songs: songsProSetliste[i] }));
+}
+
+// Produktions-Einträge einer Band, neuester zuerst (erstellt_am absteigend) -
+// so steht die zuletzt angelegte Karte oben in der Liste.
+export async function getProduktionen(bandId: string): Promise<Produktion[]> {
+  const { data, error } = await supabase
+    .from("produktionen")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("erstellt_am", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 export async function getVenuesWithRelations(): Promise<

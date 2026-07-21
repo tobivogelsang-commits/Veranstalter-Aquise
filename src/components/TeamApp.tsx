@@ -15,6 +15,7 @@ import {
 import { berechneTeilnahme, kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
+import { ProduktionListe } from "@/components/ProduktionListe";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
@@ -24,12 +25,13 @@ import type {
   KalenderTermin,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
+  Produktion,
   TerminTeilnahme,
 } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
-type TeamTab = "dashboard" | "kalender" | "setliste";
+type TeamTab = "dashboard" | "kalender" | "setliste" | "produktion";
 
 function heuteAlsIsoDatum(): string {
   const heute = new Date();
@@ -76,6 +78,16 @@ function SetlisteIcon() {
       <path d="M9 17V5l10-2v12" />
       <circle cx="6" cy="17" r="2.5" />
       <circle cx="16" cy="15" r="2.5" />
+    </svg>
+  );
+}
+
+function ProduktionIcon() {
+  // Schieberegler/Fader - Anspielung auf Mixing/Produktion.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="M6 3v6M6 15v6M12 3v10M12 19v2M18 3v2M18 11v10" />
+      <path d="M4 11h4M10 15h4M16 7h4" />
     </svg>
   );
 }
@@ -206,6 +218,7 @@ export function TeamApp({
   kalenderEintraege,
   songs,
   setlisten,
+  produktionen,
   aktiverTab,
   kalenderAnsicht,
   monatParam,
@@ -220,6 +233,7 @@ export function TeamApp({
   kalenderEintraege: PipelineEntry[];
   songs: BandSong[];
   setlisten: SetlisteMitSongs[];
+  produktionen: Produktion[];
   aktiverTab: TeamTab;
   kalenderAnsicht: "monat" | "jahr";
   monatParam?: string;
@@ -836,6 +850,12 @@ export function TeamApp({
         </div>
       )}
 
+      {aktiverTab === "produktion" && (
+        <div>
+          <ProduktionListe bandId={bandId} initialProduktionen={produktionen} />
+        </div>
+      )}
+
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-md">
           {(
@@ -843,6 +863,7 @@ export function TeamApp({
               { tab: "dashboard" as const, label: "Dashboard", icon: <HomeIcon /> },
               { tab: "kalender" as const, label: "Kalender", icon: <CalendarIcon /> },
               { tab: "setliste" as const, label: "Setliste", icon: <SetlisteIcon /> },
+              { tab: "produktion" as const, label: "Prod.", icon: <ProduktionIcon /> },
             ]
           ).map((item) => (
             <Link
