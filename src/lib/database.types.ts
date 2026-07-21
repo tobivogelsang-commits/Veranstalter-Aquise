@@ -34,6 +34,20 @@ export type ProduktionStep =
   | "Veröffentlichen";
 export type ProduktionRecording = "Vox" | "Keys" | "Gitarre" | "Drums" | "Sample";
 
+// Ein Ansprechpartner vor Ort bei einem gebuchten Auftritt (venues.gig_ansprechpartner, jsonb-Liste).
+export type GigAnsprechpartner = {
+  rolle: string;
+  name: string;
+  telefon: string;
+};
+
+// Eine Pause innerhalb einer Setliste (setlisten.pausen, jsonb-Liste): X Minuten
+// nach dem Song mit 0-basiertem Index nach_index. Trennt die Setliste in "Sets".
+export type SetlistPause = {
+  nach_index: number;
+  minuten: number;
+};
+
 export type TerminTyp = "probe" | "konzertmoeglichkeit" | "event";
 export type TerminWiederholung =
   | "einmalig"
@@ -96,6 +110,17 @@ export interface Database {
           quelle: string | null;
           notizen: string | null;
           veranstaltungsdatum: string | null;
+          gig_einlass: string | null;
+          gig_soundcheck: string | null;
+          gig_beginn: string | null;
+          gig_treffen_proberaum: string | null;
+          gig_zeiten_notiz: string | null;
+          gig_logistik: string | null;
+          gig_kontakt_name: string | null;
+          gig_kontakt_telefon: string | null;
+          gig_ende: string | null;
+          gig_ansprechpartner: GigAnsprechpartner[];
+          gig_setliste_id: string | null;
           created_at: string;
           updated_at: string;
           user_id: string | null;
@@ -475,6 +500,7 @@ export interface Database {
           id: string;
           band_id: string;
           name: string;
+          pausen: SetlistPause[];
           erstellt_am: string;
         };
         Insert: Partial<Database["public"]["Tables"]["setlisten"]["Row"]> & {

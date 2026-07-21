@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 // öffentlichen Team-App (SetlisteBuilder) genutzt - daher KEIN requireOwner();
 // Schutz ist die nicht erratbare Band-UUID, wie beim übrigen Team-Bereich.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import type { SetlistPause } from "@/lib/database.types";
 import type { BandSong, Setliste } from "@/lib/types";
 
 export async function fuegeSongHinzu(
@@ -125,6 +126,31 @@ export async function loescheSetliste(setlistId: string, bandId: string) {
 
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
+}
+
+// Speichert die Pausen einer Setliste (ersetzt die komplette Liste). Bereinigt
+// ungültige Einträge, damit die Berechnung der Set-Zeiten robust bleibt.
+export async function speicherePausen(
+  setlistId: string,
+  bandId: string,
+  pausen: SetlistPause[]
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const bereinigt = (Array.isArray(pausen) ? pausen : [])
+    .map((p) => ({
+      nach_index: Math.trunc(Number(p?.nach_index)),
+      minuten: Math.trunc(Number(p?.minuten)),
+    }))
+    .filter((p) => Number.isFinite(p.nach_index) && p.nach_index >= 0 && p.minuten > 0);
+
+  const { error } = await supabase
+    .from("setlisten")
+    .update({ pausen: bereinigt })
+    .eq("id", setlistId);
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true };
 }
 
 // Ersetzt die komplette Song-Reihenfolge einer Setliste - einfacher als

@@ -12,12 +12,32 @@ import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
-import type { Status, VenueTyp } from "@/lib/database.types";
+import type { GigAnsprechpartner, Status, VenueTyp } from "@/lib/database.types";
 
 function str(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   if (typeof value !== "string" || value.trim() === "") return null;
   return value.trim();
+}
+
+// Ansprechpartner vor Ort kommen als JSON-String aus einem Hidden-Input. Robust
+// gegen Müll: nur Einträge mit mindestens Name oder Telefon werden übernommen.
+function ansprechpartnerFromForm(formData: FormData): GigAnsprechpartner[] {
+  const roh = formData.get("gig_ansprechpartner");
+  if (typeof roh !== "string" || roh.trim() === "") return [];
+  try {
+    const geparst = JSON.parse(roh);
+    if (!Array.isArray(geparst)) return [];
+    return geparst
+      .map((e) => ({
+        rolle: typeof e?.rolle === "string" ? e.rolle : "",
+        name: typeof e?.name === "string" ? e.name.trim() : "",
+        telefon: typeof e?.telefon === "string" ? e.telefon.trim() : "",
+      }))
+      .filter((e) => e.name !== "" || e.telefon !== "");
+  } catch {
+    return [];
+  }
 }
 
 function venueFieldsFromForm(formData: FormData) {
@@ -37,6 +57,15 @@ function venueFieldsFromForm(formData: FormData) {
     quelle: str(formData, "quelle"),
     notizen: str(formData, "notizen"),
     veranstaltungsdatum: str(formData, "veranstaltungsdatum"),
+    gig_einlass: str(formData, "gig_einlass"),
+    gig_soundcheck: str(formData, "gig_soundcheck"),
+    gig_beginn: str(formData, "gig_beginn"),
+    gig_treffen_proberaum: str(formData, "gig_treffen_proberaum"),
+    gig_zeiten_notiz: str(formData, "gig_zeiten_notiz"),
+    gig_logistik: str(formData, "gig_logistik"),
+    gig_ende: str(formData, "gig_ende"),
+    gig_ansprechpartner: ansprechpartnerFromForm(formData),
+    gig_setliste_id: str(formData, "gig_setliste_id"),
   };
 }
 
