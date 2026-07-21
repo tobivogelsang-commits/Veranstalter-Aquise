@@ -8,6 +8,8 @@ import {
   aktualisierePushSubscription,
   holeOffeneAnfragen,
   beantworteAnfrage,
+  beantworteTermin,
+  holeTerminAntworten,
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
 import { kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
@@ -226,6 +228,11 @@ export function TeamApp({
   const [pushHinweis, setPushHinweis] = useState<string | null>(null);
   const [offeneAnfragen, setOffeneAnfragen] = useState<OffeneAnfrageFuerMitglied[]>([]);
   const [antwortLaeuft, setAntwortLaeuft] = useState<Record<string, boolean>>({});
+  // Eigene Termin-Antworten, Schlüssel: `${terminId}__${vorkommenDatum}`.
+  const [terminAntworten, setTerminAntworten] = useState<Record<string, "kann" | "kann_nicht">>(
+    {}
+  );
+  const [terminAntwortLaeuft, setTerminAntwortLaeuft] = useState<Record<string, boolean>>({});
   // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
   const [dunkelmodus, setDunkelmodus] = useState(false);
@@ -259,11 +266,46 @@ export function TeamApp({
     setOffeneAnfragen(anfragen);
   }
 
+  async function ladeTerminAntworten(mitgliedId: string) {
+    const eintraege = await holeTerminAntworten(mitgliedId, bandId);
+    setTerminAntworten(
+      Object.fromEntries(eintraege.map((e) => [`${e.terminId}__${e.vorkommenDatum}`, e.antwort]))
+    );
+  }
+
+  async function handleTerminAntwort(
+    terminId: string,
+    vorkommenDatum: string,
+    antwort: "kann" | "kann_nicht"
+  ) {
+    if (!identitaet) return;
+    const key = `${terminId}__${vorkommenDatum}`;
+    setTerminAntwortLaeuft((prev) => ({ ...prev, [key]: true }));
+    const ergebnis = await beantworteTermin(
+      terminId,
+      vorkommenDatum,
+      identitaet.mitgliedId,
+      bandId,
+      antwort
+    );
+    if (ergebnis.ok) {
+      setTerminAntworten((prev) => ({ ...prev, [key]: antwort }));
+    }
+    setTerminAntwortLaeuft((prev) => ({ ...prev, [key]: false }));
+  }
+
   useEffect(() => {
     if (!identitaet) return;
     const mitgliedId = identitaet.mitgliedId;
 
     holeOffeneAnfragen(mitgliedId, bandId).then(setOffeneAnfragen);
+    holeTerminAntworten(mitgliedId, bandId).then((eintraege) =>
+      setTerminAntworten(
+        Object.fromEntries(
+          eintraege.map((e) => [`${e.terminId}__${e.vorkommenDatum}`, e.antwort])
+        )
+      )
+    );
     versuchePushSubscription().then(({ subscription, hinweis }) => {
       if (hinweis) setPushHinweis(hinweis);
       if (subscription) {
@@ -278,6 +320,7 @@ export function TeamApp({
     function handleSichtbarkeitswechsel() {
       if (document.visibilityState === "visible") {
         holeOffeneAnfragen(mitgliedId, bandId).then(setOffeneAnfragen);
+        ladeTerminAntworten(mitgliedId);
       }
     }
     document.addEventListener("visibilitychange", handleSichtbarkeitswechsel);
@@ -376,6 +419,13 @@ export function TeamApp({
   // Nächstes Proben-Vorkommen ab heute (über Wiederholungen expandiert).
   const naechsteProbe =
     kommendeVorkommen(termine, heute, (t) => t.typ === "probe", 1)[0] ?? null;
+  const probeKey = naechsteProbe
+    ? `${naechsteProbe.termin.id}__${naechsteProbe.datum}`
+    : null;
+  const probeAntwort = probeKey ? terminAntworten[probeKey] : undefined;
+  const probeBtnUnselected = dashboardDunkel
+    ? "border border-white/30 text-white hover:bg-white/10"
+    : "border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800";
 
   return (
     <div className={clsx(dunkelmodus && "dark")}>
@@ -482,6 +532,61 @@ export function TeamApp({
                     : ""}
                   {naechsteProbe.termin.ort ? ` · ${naechsteProbe.termin.ort}` : ""}
                 </p>
+
+                <p
+                  className={clsx(
+                    "mt-2 text-xs font-medium",
+                    probeAntwort === "kann"
+                      ? "text-green-400"
+                      : probeAntwort === "kann_nicht"
+                        ? "text-red-400"
+                        : dashboardDunkel
+                          ? "text-slate-300"
+                          : "text-slate-500 dark:text-slate-400"
+                  )}
+                >
+                  {probeAntwort === "kann"
+                    ? "✓ Du bist dabei"
+                    : probeAntwort === "kann_nicht"
+                      ? "✗ Du hast abgesagt"
+                      : "Bist du dabei?"}
+                </p>
+                <div className="mt-1.5 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={probeKey ? terminAntwortLaeuft[probeKey] : false}
+                    onClick={() =>
+                      handleTerminAntwort(naechsteProbe.termin.id, naechsteProbe.datum, "kann")
+                    }
+                    className={clsx(
+                      "flex-1 rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50",
+                      probeAntwort === "kann"
+                        ? "bg-green-600 text-white"
+                        : probeBtnUnselected
+                    )}
+                  >
+                    Ich bin dabei
+                  </button>
+                  <button
+                    type="button"
+                    disabled={probeKey ? terminAntwortLaeuft[probeKey] : false}
+                    onClick={() =>
+                      handleTerminAntwort(
+                        naechsteProbe.termin.id,
+                        naechsteProbe.datum,
+                        "kann_nicht"
+                      )
+                    }
+                    className={clsx(
+                      "flex-1 rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50",
+                      probeAntwort === "kann_nicht"
+                        ? "bg-red-600 text-white"
+                        : probeBtnUnselected
+                    )}
+                  >
+                    Ich kann nicht
+                  </button>
+                </div>
               </div>
             ) : (
               <p className={clsx("text-sm", dashboardDunkel ? "text-slate-200" : "text-slate-500 dark:text-slate-400")}>

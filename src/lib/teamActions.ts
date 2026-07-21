@@ -378,3 +378,73 @@ export async function holeOffeneAnfragen(
   if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) return [];
   return getOffeneAnfragenFuerMitglied(mitgliedId, bandId);
 }
+
+// --- Termin-Teilnahme (B3): Zu-/Absage pro einzelnem Vorkommen ---
+
+export type TerminAntwortEintrag = {
+  terminId: string;
+  vorkommenDatum: string;
+  antwort: GigAntwort;
+};
+
+// Speichert die Zu-/Absage eines Mitglieds für EIN Vorkommen eines Termins
+// (Termin + Datum). Öffentlich (Team-App ohne Login), aber gegen gefälschte
+// UUIDs abgesichert: Termin und Mitglied müssen zur angegebenen Band gehören.
+export async function beantworteTermin(
+  terminId: string,
+  vorkommenDatum: string,
+  mitgliedId: string,
+  bandId: string,
+  antwort: GigAntwort
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (antwort !== "kann" && antwort !== "kann_nicht") {
+    return { ok: false, fehler: "Ungültige Antwort." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(vorkommenDatum)) {
+    return { ok: false, fehler: "Ungültiges Datum." };
+  }
+
+  const { data: termin } = await supabaseAdmin
+    .from("kalender_termine")
+    .select("band_id")
+    .eq("id", terminId)
+    .maybeSingle();
+  const abweisung = { ok: false as const, fehler: "Termin nicht gefunden." };
+  if (!termin || termin.band_id !== bandId) return abweisung;
+  if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) return abweisung;
+
+  const { error } = await supabaseAdmin.from("termin_antworten").upsert(
+    {
+      termin_id: terminId,
+      mitglied_id: mitgliedId,
+      vorkommen_datum: vorkommenDatum,
+      antwort,
+      beantwortet_am: new Date().toISOString(),
+    },
+    { onConflict: "termin_id,vorkommen_datum,mitglied_id" }
+  );
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/team/${bandId}`);
+  revalidatePath("/kalender");
+  return { ok: true };
+}
+
+// Alle bisherigen Termin-Antworten eines Mitglieds (für die Anzeige des
+// eigenen Status in der Team-App). Nur die eigene Band.
+export async function holeTerminAntworten(
+  mitgliedId: string,
+  bandId: string
+): Promise<TerminAntwortEintrag[]> {
+  if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) return [];
+  const { data, error } = await supabaseAdmin
+    .from("termin_antworten")
+    .select("termin_id, vorkommen_datum, antwort")
+    .eq("mitglied_id", mitgliedId);
+  if (error) return [];
+  return (data ?? []).map((r) => ({
+    terminId: r.termin_id,
+    vorkommenDatum: r.vorkommen_datum,
+    antwort: r.antwort as GigAntwort,
+  }));
+}
