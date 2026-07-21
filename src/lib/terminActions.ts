@@ -8,6 +8,7 @@
 // Desktop sitzt zusätzlich der Login-Proxy davor.
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { sendeTerminPush } from "@/lib/teamActions";
 import type { KalenderTermin } from "@/lib/types";
 import type { TerminTyp, TerminWiederholung } from "@/lib/database.types";
 
@@ -107,6 +108,10 @@ export async function erstelleTermin(
     .single();
 
   if (error) return { ok: false, fehler: error.message };
+
+  // Alle Band-Mitglieder über den neuen Termin benachrichtigen (best effort -
+  // ein Push-Fehler darf das Anlegen nicht scheitern lassen).
+  await sendeTerminPush(bandId, data);
 
   revalidiereKalender(bandId);
   return { ok: true, termin: data };

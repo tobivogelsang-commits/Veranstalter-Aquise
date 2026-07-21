@@ -11,7 +11,11 @@ import { requireOwner } from "@/lib/authServer";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
-import type { BandMitgliedOhnePush, OffeneAnfrageFuerMitglied } from "@/lib/types";
+import type {
+  BandMitgliedOhnePush,
+  KalenderTermin,
+  OffeneAnfrageFuerMitglied,
+} from "@/lib/types";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -177,6 +181,57 @@ async function sendePushAnAlleMitglieder(
           // Eine abgelaufene/ungültige Subscription (z. B. App deinstalliert)
           // darf den Push an die übrigen Mitglieder nicht blockieren.
           console.error(`Push an Mitglied ${m.id} fehlgeschlagen`, err);
+        }
+      })
+  );
+}
+
+const TERMIN_TYP_PUSH_LABEL: Record<KalenderTermin["typ"], string> = {
+  probe: "Probe",
+  konzertmoeglichkeit: "Konzertmöglichkeit",
+  event: "Event",
+};
+
+// Push an alle Band-Mitglieder, wenn ein neuer Termin angelegt wurde. Der
+// Payload enthält terminId + vorkommenDatum (erstes Vorkommen), damit die
+// Action-Buttons in der Mitteilung ("Ich kann"/"Ich kann nicht") direkt für
+// dieses Vorkommen antworten können (Service Worker -> /api/team-termin-antwort).
+export async function sendeTerminPush(bandId: string, termin: KalenderTermin) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+
+  const { data: mitglieder } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("id, push_endpoint, push_p256dh, push_auth")
+    .eq("band_id", bandId);
+  if (!mitglieder || mitglieder.length === 0) return;
+
+  const datumText = termin.datum.split("-").reverse().join(".");
+  const zeitText = termin.uhrzeit ? ` ${termin.uhrzeit.slice(0, 5)} Uhr` : "";
+  const titel = `Neue ${TERMIN_TYP_PUSH_LABEL[termin.typ]}: ${termin.titel}`;
+  const body = `${datumText}${zeitText}${termin.ort ? ` · ${termin.ort}` : ""}`;
+
+  await Promise.all(
+    mitglieder
+      .filter((m) => m.push_endpoint && m.push_p256dh && m.push_auth)
+      .map(async (m) => {
+        const payload = JSON.stringify({
+          title: titel,
+          body,
+          terminId: termin.id,
+          vorkommenDatum: termin.datum,
+          mitgliedId: m.id,
+          bandId,
+        });
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: m.push_endpoint!,
+              keys: { p256dh: m.push_p256dh!, auth: m.push_auth! },
+            },
+            payload
+          );
+        } catch (err) {
+          console.error(`Termin-Push an Mitglied ${m.id} fehlgeschlagen`, err);
         }
       })
   );

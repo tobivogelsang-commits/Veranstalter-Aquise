@@ -11,7 +11,11 @@ self.addEventListener("push", (event) => {
   const options = {
     body: payload.body,
     data: {
+      // Gig-Anfrage ODER Termin - der notificationclick-Handler unterscheidet
+      // anhand von terminId, an welchen Endpunkt die Antwort geht.
       anfrageId: payload.anfrageId,
+      terminId: payload.terminId,
+      vorkommenDatum: payload.vorkommenDatum,
       mitgliedId: payload.mitgliedId,
       bandId: payload.bandId,
     },
@@ -31,22 +35,38 @@ self.addEventListener("push", (event) => {
 // per fetch() an den Server schicken, ohne die App zu öffnen ("1-Klick").
 // Klick auf den Notification-Text selbst (keine Action): App öffnen/fokussieren.
 self.addEventListener("notificationclick", (event) => {
-  const { anfrageId, mitgliedId, bandId } = event.notification.data || {};
+  const { anfrageId, terminId, vorkommenDatum, mitgliedId, bandId } =
+    event.notification.data || {};
   event.notification.close();
 
   if (event.action === "kann" || event.action === "kann_nicht") {
+    // Termin-Push (terminId gesetzt) -> Vorkommen-genauer Endpunkt; sonst der
+    // Gig-Anfrage-Endpunkt.
+    const anfrage = terminId
+      ? fetch("/api/team-termin-antwort", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            terminId,
+            vorkommenDatum,
+            mitgliedId,
+            bandId,
+            antwort: event.action,
+          }),
+        })
+      : fetch("/api/team-antwort", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            anfrageId,
+            mitgliedId,
+            antwort: event.action,
+          }),
+        });
     event.waitUntil(
-      fetch("/api/team-antwort", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          anfrageId,
-          mitgliedId,
-          antwort: event.action,
-        }),
-      }).catch(() => {
-        // Offline o. Ä. - die Antwort geht verloren, die Person sieht die
-        // Anfrage beim nächsten App-Öffnen weiterhin als offen.
+      anfrage.catch(() => {
+        // Offline o. Ä. - die Antwort geht verloren, die Person sieht den
+        // Termin/die Anfrage beim nächsten App-Öffnen weiterhin als offen.
       })
     );
     return;
