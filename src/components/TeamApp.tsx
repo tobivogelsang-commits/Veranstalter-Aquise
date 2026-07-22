@@ -243,9 +243,13 @@ export function TeamApp({
   termine: KalenderTermin[];
   terminTeilnahme: TerminTeilnahme;
 }) {
-  const [identitaet, setIdentitaet] = useState<Identitaet | null>(() =>
-    ladeIdentitaet(bandId)
-  );
+  // Start immer null (Server kennt localStorage nicht -> sonst Hydration-
+  // Mismatch); die echte Identität wird nach dem Mount aus localStorage
+  // geladen. identitaetGeladen unterscheidet "noch nicht geladen" (nichts
+  // rendern) von "geladen, aber nicht registriert" (Formular zeigen), damit
+  // registrierten Mitgliedern das Formular nicht kurz aufblitzt.
+  const [identitaet, setIdentitaet] = useState<Identitaet | null>(null);
+  const [identitaetGeladen, setIdentitaetGeladen] = useState(false);
   const [nameEingabe, setNameEingabe] = useState("");
   const [registrierungLaeuft, setRegistrierungLaeuft] = useState(false);
   const [registrierungFehler, setRegistrierungFehler] = useState<string | null>(null);
@@ -266,6 +270,15 @@ export function TeamApp({
   // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
   const [dunkelmodus, setDunkelmodus] = useState(false);
+
+  useEffect(() => {
+    // Bewusst erst nach dem Mount aus localStorage lesen (nicht im useState-
+    // Initializer), sonst würde der Server-Render (immer "nicht registriert")
+    // vom Client abweichen -> Hydration-Mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIdentitaet(ladeIdentitaet(bandId));
+    setIdentitaetGeladen(true);
+  }, [bandId]);
 
   useEffect(() => {
     try {
@@ -415,6 +428,13 @@ export function TeamApp({
     await beantworteAnfrage(anfrageId, identitaet.mitgliedId, antwort);
     await ladeOffeneAnfragen(identitaet.mitgliedId);
     setAntwortLaeuft((prev) => ({ ...prev, [anfrageId]: false }));
+  }
+
+  // Bis localStorage gelesen ist, nichts rendern (Server und Client rendern
+  // dann identisch leer). Verhindert, dass registrierten Mitgliedern kurz das
+  // Registrierungs-Formular aufblitzt.
+  if (!identitaetGeladen) {
+    return null;
   }
 
   if (!identitaet) {
