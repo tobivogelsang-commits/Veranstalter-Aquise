@@ -15,6 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  bearbeiteSong,
   benenneSetlisteUm,
   dupliziereSetliste,
   entferneSong,
@@ -24,6 +25,7 @@ import {
   speicherePausen,
   speichereSetlistReihenfolge,
 } from "@/lib/setlistActions";
+import { SongTitelInput } from "@/components/SongTitelInput";
 import { formatDauer, parseDauerEingabe, summeDauer } from "@/lib/dauer";
 import type { BandSong } from "@/lib/types";
 import type { SetlistPause } from "@/lib/database.types";
@@ -34,19 +36,110 @@ const inputClass =
 
 function SongZeile({
   song,
+  bandId,
   bereitsInSetliste,
   onHinzufuegen,
   onLoeschen,
+  onBearbeitet,
 }: {
   song: BandSong;
+  bandId: string;
   bereitsInSetliste: boolean;
   onHinzufuegen: () => void;
   onLoeschen: () => void;
+  onBearbeitet: (song: BandSong) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `catalog-${song.id}`,
     data: { herkunft: "catalog", songId: song.id },
   });
+
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const [form, setForm] = useState({ titel: "", interpret: "", dauer: "" });
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  function starteBearbeiten() {
+    setForm({
+      titel: song.titel,
+      interpret: song.interpret ?? "",
+      dauer: song.dauer_sekunden !== null ? formatDauer(song.dauer_sekunden) : "",
+    });
+    setFehler(null);
+    setBearbeiten(true);
+  }
+
+  async function handleSpeichern() {
+    if (!form.titel.trim() || laeuft) return;
+    setLaeuft(true);
+    setFehler(null);
+    const ergebnis = await bearbeiteSong(
+      song.id,
+      bandId,
+      form.titel,
+      form.interpret || null,
+      form.dauer ? parseDauerEingabe(form.dauer) : null
+    );
+    setLaeuft(false);
+    if (!ergebnis.ok) {
+      setFehler(ergebnis.fehler);
+      return;
+    }
+    setBearbeiten(false);
+    onBearbeitet(ergebnis.song);
+  }
+
+  if (bearbeiten) {
+    return (
+      <div className="flex flex-col gap-1.5 border-t border-slate-100 py-1.5 first:border-t-0 dark:border-slate-700">
+        <SongTitelInput
+          value={form.titel}
+          onChange={(wert) => setForm((prev) => ({ ...prev, titel: wert }))}
+          onVorschlag={(v) =>
+            setForm({
+              titel: v.titel,
+              interpret: v.interpret,
+              dauer: v.dauerSekunden !== null ? formatDauer(v.dauerSekunden) : "",
+            })
+          }
+          className={inputClass}
+        />
+        <div className="flex items-center gap-2">
+          <input
+            value={form.interpret}
+            onChange={(e) => setForm((prev) => ({ ...prev, interpret: e.target.value }))}
+            placeholder="Interpret"
+            className={inputClass}
+          />
+          <input
+            value={form.dauer}
+            onChange={(e) => setForm((prev) => ({ ...prev, dauer: e.target.value }))}
+            placeholder="3:42"
+            // Bewusst ohne inputClass: dessen w-full würde das w-16 überstimmen
+            // (gleiche Spezifität, Reihenfolge im generierten CSS entscheidet).
+            className="w-16 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          />
+          <button
+            type="button"
+            onClick={handleSpeichern}
+            disabled={laeuft}
+            className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Speichern
+          </button>
+          <button
+            type="button"
+            onClick={() => setBearbeiten(false)}
+            className="shrink-0 text-slate-300 hover:text-slate-600 dark:hover:text-slate-100"
+            title="Abbrechen"
+          >
+            ×
+          </button>
+        </div>
+        {fehler && <p className="text-xs text-red-600">{fehler}</p>}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -78,6 +171,14 @@ function SongZeile({
         title="Zur Setliste hinzufügen"
       >
         +
+      </button>
+      <button
+        type="button"
+        onClick={starteBearbeiten}
+        className="shrink-0 text-slate-300 hover:text-slate-600 dark:hover:text-slate-100"
+        title="Song bearbeiten"
+      >
+        ✎
       </button>
       <button
         type="button"
@@ -218,6 +319,17 @@ export function SetlisteBuilder({
     }
     setSongs((prev) => [...prev, ergebnis.song].sort((a, b) => a.titel.localeCompare(b.titel)));
     setNeuerSong({ titel: "", interpret: "", dauer: "" });
+  }
+
+  // Bearbeiteter Song ersetzt seinen Katalog-Eintrag; neu sortieren, weil sich
+  // der Titel (= Sortierschlüssel der Liste) geändert haben kann. Setlisten
+  // rechts aktualisieren sich automatisch, da sie nur Song-IDs referenzieren.
+  function handleSongBearbeitet(song: BandSong) {
+    setSongs((prev) =>
+      prev
+        .map((s) => (s.id === song.id ? song : s))
+        .sort((a, b) => a.titel.localeCompare(b.titel))
+    );
   }
 
   async function handleSongLoeschen(songId: string) {
@@ -419,9 +531,11 @@ export function SetlisteBuilder({
                 <SongZeile
                   key={song.id}
                   song={song}
+                  bandId={bandId}
                   bereitsInSetliste={aktiveSongIds.includes(song.id)}
                   onHinzufuegen={() => fuegeZuSetlisteHinzu(song.id)}
                   onLoeschen={() => handleSongLoeschen(song.id)}
+                  onBearbeitet={handleSongBearbeitet}
                 />
               ))
             )}

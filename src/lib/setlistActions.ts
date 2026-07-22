@@ -35,6 +35,37 @@ export async function fuegeSongHinzu(
   return { ok: true, song: data };
 }
 
+// Nachträgliches Bearbeiten eines Katalog-Songs (Titel/Interpret/Dauer).
+// Wirkt überall, wo der Song referenziert wird (Setlisten, Laufzeiten,
+// Druckansicht), da diese nur auf band_songs verweisen.
+export async function bearbeiteSong(
+  songId: string,
+  bandId: string,
+  titel: string,
+  interpret: string | null,
+  dauerSekunden: number | null
+): Promise<{ ok: true; song: BandSong } | { ok: false; fehler: string }> {
+  const bereinigt = titel.trim();
+  if (!bereinigt) return { ok: false, fehler: "Titel fehlt." };
+
+  const { data, error } = await supabase
+    .from("band_songs")
+    .update({
+      titel: bereinigt,
+      interpret: interpret?.trim() || null,
+      dauer_sekunden: dauerSekunden,
+    })
+    .eq("id", songId)
+    .select("*")
+    .single();
+
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true, song: data };
+}
+
 export async function entferneSong(songId: string, bandId: string) {
   const { error } = await supabase.from("band_songs").delete().eq("id", songId);
   if (error) throw new Error(error.message);
