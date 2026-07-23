@@ -648,13 +648,16 @@ export interface Database {
           id: string;
           termin_id: string;
           vorkommen_datum: string;
-          song_id: string;
+          // Genau eine der drei Referenzen ist gesetzt (Check-Constraint):
+          // Katalog-Song, Produktion oder Setliste.
+          song_id: string | null;
+          produktion_id: string | null;
+          setliste_id: string | null;
           position: number;
         };
         Insert: Partial<Database["public"]["Tables"]["termin_songs"]["Row"]> & {
           termin_id: string;
           vorkommen_datum: string;
-          song_id: string;
           position: number;
         };
         Update: Partial<Database["public"]["Tables"]["termin_songs"]["Row"]>;
@@ -671,6 +674,20 @@ export interface Database {
             columns: ["song_id"];
             isOneToOne: false;
             referencedRelation: "band_songs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "termin_songs_produktion_id_fkey";
+            columns: ["produktion_id"];
+            isOneToOne: false;
+            referencedRelation: "produktionen";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "termin_songs_setliste_id_fkey";
+            columns: ["setliste_id"];
+            isOneToOne: false;
+            referencedRelation: "setlisten";
             referencedColumns: ["id"];
           },
         ];

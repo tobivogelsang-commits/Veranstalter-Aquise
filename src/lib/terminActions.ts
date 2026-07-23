@@ -149,14 +149,20 @@ export async function loescheTermin(
   return { ok: true };
 }
 
-// Ersetzt die komplette Songliste eines Proben-Vorkommens (wie bei
+// Ein zu speichernder Plan-Eintrag: Katalog-Song, Produktion oder Setliste.
+export type TerminPlanEintragEingabe = {
+  typ: "song" | "produktion" | "setliste";
+  id: string;
+};
+
+// Ersetzt den kompletten Proben-Plan eines Vorkommens (wie bei
 // speichereSetlistReihenfolge) - einfacher als Einzel-Updates, bei einer
-// Handvoll Songs pro Probe unbedenklich.
+// Handvoll Einträgen pro Probe unbedenklich.
 export async function speichereTerminSongs(
   terminId: string,
   bandId: string,
   vorkommenDatum: string,
-  songIds: string[]
+  eintraege: TerminPlanEintragEingabe[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   const { error: loeschFehler } = await supabase
     .from("termin_songs")
@@ -165,12 +171,18 @@ export async function speichereTerminSongs(
     .eq("vorkommen_datum", vorkommenDatum);
   if (loeschFehler) return { ok: false, fehler: loeschFehler.message };
 
-  if (songIds.length > 0) {
+  // Unbekannte Typen verwerfen (Aktion ist öffentlich erreichbar).
+  const gueltige = eintraege.filter((e) =>
+    ["song", "produktion", "setliste"].includes(e.typ)
+  );
+  if (gueltige.length > 0) {
     const { error: einfuegeFehler } = await supabase.from("termin_songs").insert(
-      songIds.map((songId, index) => ({
+      gueltige.map((eintrag, index) => ({
         termin_id: terminId,
         vorkommen_datum: vorkommenDatum,
-        song_id: songId,
+        song_id: eintrag.typ === "song" ? eintrag.id : null,
+        produktion_id: eintrag.typ === "produktion" ? eintrag.id : null,
+        setliste_id: eintrag.typ === "setliste" ? eintrag.id : null,
         position: index,
       }))
     );

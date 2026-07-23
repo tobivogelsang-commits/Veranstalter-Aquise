@@ -72,6 +72,8 @@ export function KalenderMonatsView({
   vorGitter,
   terminTeilnahme,
   songKataloge,
+  produktionsAuswahl,
+  setlistenAuswahl,
   terminSongs,
   onEintragTap,
 }: {
@@ -86,9 +88,12 @@ export function KalenderMonatsView({
   kompakt?: boolean;
   vorGitter?: React.ReactNode;
   terminTeilnahme?: TerminTeilnahme;
-  // Song-Katalog je Band + Songs je Proben-Vorkommen: aktiviert im Proben-Modal
-  // den "Songs zum Proben"-Abschnitt (Anzeigen + Bearbeiten).
+  // Auswahl-Kataloge je Band (Songs, Produktionen, Setlisten) + Plan je
+  // Proben-Vorkommen: aktiviert im Proben-Modal den "Songs zum
+  // Proben"-Abschnitt (Anzeigen + Bearbeiten).
   songKataloge?: Record<string, BandSong[]>;
+  produktionsAuswahl?: Record<string, { id: string; name: string }[]>;
+  setlistenAuswahl?: Record<string, { id: string; name: string }[]>;
   terminSongs?: TerminSongsProVorkommen;
   // Wird statt eines /venues-Links verwendet (z. B. in der Team-App, die keine
   // Detailseite hat): Tipp auf einen gebuchten Eintrag öffnet ein Detail-Modal.
@@ -366,7 +371,9 @@ export function KalenderMonatsView({
                     bandId={offenerTermin.termin.band_id}
                     vorkommenDatum={offenerTermin.datum}
                     katalog={songKataloge[offenerTermin.termin.band_id] ?? []}
-                    initialSongs={
+                    produktionen={produktionsAuswahl?.[offenerTermin.termin.band_id] ?? []}
+                    setlisten={setlistenAuswahl?.[offenerTermin.termin.band_id] ?? []}
+                    initialEintraege={
                       songsProVorkommen[`${offenerTermin.termin.id}__${offenerTermin.datum}`] ?? []
                     }
                     onChange={(songs) =>
