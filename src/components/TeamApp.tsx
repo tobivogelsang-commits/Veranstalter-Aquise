@@ -20,6 +20,7 @@ import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
 import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
+import { TerminSongsPanel } from "@/components/TerminSongsPanel";
 import { GigInfoModal } from "@/components/GigInfoModal";
 import type {
   BandSong,
@@ -27,6 +28,7 @@ import type {
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
   Produktion,
+  TerminSongsProVorkommen,
   TerminTeilnahme,
 } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
@@ -227,6 +229,7 @@ export function TeamApp({
   proberaumTermine,
   termine,
   terminTeilnahme,
+  terminSongs,
 }: {
   bandId: string;
   bandName: string;
@@ -242,6 +245,7 @@ export function TeamApp({
   proberaumTermine: ProberaumTermin[];
   termine: KalenderTermin[];
   terminTeilnahme: TerminTeilnahme;
+  terminSongs: TerminSongsProVorkommen;
 }) {
   // Start immer null (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); die echte Identität wird nach dem Mount aus localStorage
@@ -267,6 +271,9 @@ export function TeamApp({
   // Teilnahme-Übersicht aller Mitglieder (für "X/Y dabei"). Startwert vom
   // Server; die eigene Antwort wird beim Klick optimistisch eingepflegt.
   const [teilnahme, setTeilnahme] = useState<TerminTeilnahme>(terminTeilnahme);
+  // Songs zum Proben je Vorkommen; Änderungen aus dem Panel (Dashboard-Karte)
+  // werden hier eingepflegt, damit Karte und Kalender-Modal denselben Stand sehen.
+  const [probenSongs, setProbenSongs] = useState<TerminSongsProVorkommen>(terminSongs);
   // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
   const [dunkelmodus, setDunkelmodus] = useState(false);
@@ -660,6 +667,27 @@ export function TeamApp({
                     dashboardDunkel ? "border-white/15" : "border-slate-200 dark:border-slate-700"
                   )}
                 >
+                  <TerminSongsPanel
+                    key={probeKey ?? undefined}
+                    terminId={naechsteProbe.termin.id}
+                    bandId={bandId}
+                    vorkommenDatum={naechsteProbe.datum}
+                    katalog={songs}
+                    initialSongs={probeKey ? (probenSongs[probeKey] ?? []) : []}
+                    onChange={(neueSongs) => {
+                      if (!probeKey) return;
+                      setProbenSongs((prev) => ({ ...prev, [probeKey]: neueSongs }));
+                    }}
+                    aufDunkel={dashboardDunkel}
+                  />
+                </div>
+
+                <div
+                  className={clsx(
+                    "mt-3 border-t pt-2",
+                    dashboardDunkel ? "border-white/15" : "border-slate-200 dark:border-slate-700"
+                  )}
+                >
                   <TerminTeilnahmeUebersicht
                     stand={berechneTeilnahme(
                       teilnahme,
@@ -836,6 +864,8 @@ export function TeamApp({
               proberaumTermine={proberaumTermine}
               termine={termine}
               terminTeilnahme={teilnahme}
+              songKataloge={{ [bandId]: songs }}
+              terminSongs={probenSongs}
               kompakt
               vorGitter={
                 <TermineManager

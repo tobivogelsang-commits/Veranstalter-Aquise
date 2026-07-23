@@ -39,6 +39,10 @@ export type TerminTeilnahme = {
   antwortenProVorkommen: Record<string, TerminAntwortMitName[]>;
 };
 
+// Songs zum Proben je Vorkommen, Schlüssel: `${terminId}__${vorkommenDatum}`.
+// Werte sind die Katalog-Songs in gespeicherter Reihenfolge.
+export type TerminSongsProVorkommen = Record<string, BandSong[]>;
+
 export type TeilnahmeStand = {
   dabei: string[];
   abgesagt: string[];

@@ -4,7 +4,9 @@ import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import {
   getBands,
   getKalenderEintraege,
+  getSongKataloge,
   getTermine,
+  getTerminSongs,
   getTerminTeilnahme,
   getVenuesWithRelations,
 } from "@/lib/queries";
@@ -38,13 +40,16 @@ export default async function KalenderPage({
   const bandFilter = band ?? ALLE_BANDS_PARAM;
   const aktiveAnsicht = ansicht === "jahr" ? "jahr" : "monat";
 
-  const [bands, venues, proberaumTermine, termine, terminTeilnahme] = await Promise.all([
-    getBands(),
-    getVenuesWithRelations(),
-    getProberaumTermine(),
-    getTermine(bandFilter),
-    getTerminTeilnahme(bandFilter),
-  ]);
+  const [bands, venues, proberaumTermine, termine, terminTeilnahme, songKataloge, terminSongs] =
+    await Promise.all([
+      getBands(),
+      getVenuesWithRelations(),
+      getProberaumTermine(),
+      getTermine(bandFilter),
+      getTerminTeilnahme(bandFilter),
+      getSongKataloge(bandFilter),
+      getTerminSongs(bandFilter),
+    ]);
   const eintraege = getKalenderEintraege(venues, bandFilter);
 
   return (
@@ -129,6 +134,8 @@ export default async function KalenderPage({
           proberaumTermine={proberaumTermine}
           termine={termine}
           terminTeilnahme={terminTeilnahme}
+          songKataloge={songKataloge}
+          terminSongs={terminSongs}
         />
       )}
     </div>

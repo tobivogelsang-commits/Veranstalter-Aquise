@@ -643,6 +643,38 @@ export interface Database {
           },
         ];
       };
+      termin_songs: {
+        Row: {
+          id: string;
+          termin_id: string;
+          vorkommen_datum: string;
+          song_id: string;
+          position: number;
+        };
+        Insert: Partial<Database["public"]["Tables"]["termin_songs"]["Row"]> & {
+          termin_id: string;
+          vorkommen_datum: string;
+          song_id: string;
+          position: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["termin_songs"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "termin_songs_termin_id_fkey";
+            columns: ["termin_id"];
+            isOneToOne: false;
+            referencedRelation: "kalender_termine";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "termin_songs_song_id_fkey";
+            columns: ["song_id"];
+            isOneToOne: false;
+            referencedRelation: "band_songs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
