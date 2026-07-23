@@ -7,6 +7,7 @@ import {
   getProduktionen,
   getSetlistenMitSongs,
   getTermine,
+  getTerminSongs,
   getTerminTeilnahme,
   getVenuesWithRelations,
 } from "@/lib/queries";
@@ -58,6 +59,7 @@ export default async function TeamPage({
     proberaumTermine,
     termine,
     terminTeilnahme,
+    terminSongs,
   ] = await Promise.all([
     getBandName(bandId),
     getVenuesWithRelations(),
@@ -67,6 +69,7 @@ export default async function TeamPage({
     getProberaumTermine(),
     getTermine(bandId),
     getTerminTeilnahme(bandId),
+    getTerminSongs(bandId),
   ]);
 
   if (!bandName) notFound();
@@ -92,6 +95,7 @@ export default async function TeamPage({
       proberaumTermine={proberaumTermine}
       termine={termine}
       terminTeilnahme={terminTeilnahme}
+      terminSongs={terminSongs}
     />
   );
 }

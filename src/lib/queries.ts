@@ -24,6 +24,7 @@ import type {
   Produktion,
   Setliste,
   TerminAntwortMitName,
+  TerminSongsProVorkommen,
   TerminTeilnahme,
   Venue,
   VenueBandDokument,
@@ -95,6 +96,47 @@ export async function getTerminTeilnahme(bandFilter: string): Promise<TerminTeil
   }
 
   return { mitgliederProBand, antwortenProVorkommen };
+}
+
+// Songs zum Proben je Vorkommen (Schlüssel `${terminId}__${vorkommenDatum}`),
+// in gespeicherter Reihenfolge. Bei bandFilter === "alle" für alle Bands.
+export async function getTerminSongs(bandFilter: string): Promise<TerminSongsProVorkommen> {
+  let query = supabase
+    .from("termin_songs")
+    .select("termin_id, vorkommen_datum, position, kalender_termine!inner(band_id), song:band_songs(*)")
+    .order("position");
+  if (bandFilter !== ALLE_BANDS_PARAM) {
+    query = query.eq("kalender_termine.band_id", bandFilter);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const songsProVorkommen: TerminSongsProVorkommen = {};
+  for (const zeile of (data ?? []) as unknown as {
+    termin_id: string;
+    vorkommen_datum: string;
+    song: BandSong | null;
+  }[]) {
+    if (!zeile.song) continue;
+    const key = `${zeile.termin_id}__${zeile.vorkommen_datum}`;
+    (songsProVorkommen[key] ??= []).push(zeile.song);
+  }
+  return songsProVorkommen;
+}
+
+// Song-Katalog je Band (für die Song-Auswahl im Proben-Modal des Kalenders,
+// wo je nach Band-Filter mehrere Bands sichtbar sein können).
+export async function getSongKataloge(bandFilter: string): Promise<Record<string, BandSong[]>> {
+  let query = supabase.from("band_songs").select("*").order("titel");
+  if (bandFilter !== ALLE_BANDS_PARAM) query = query.eq("band_id", bandFilter);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const proBand: Record<string, BandSong[]> = {};
+  for (const song of data ?? []) {
+    (proBand[song.band_id] ??= []).push(song);
+  }
+  return proBand;
 }
 
 export async function getBandWithMaterialien(

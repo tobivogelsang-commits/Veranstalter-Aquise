@@ -26,7 +26,14 @@ import {
   type TerminVorkommen,
 } from "@/lib/kalenderHelpers";
 import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
-import type { KalenderTermin, PipelineEntry, TerminTeilnahme } from "@/lib/types";
+import { TerminSongsPanel } from "@/components/TerminSongsPanel";
+import type {
+  BandSong,
+  KalenderTermin,
+  PipelineEntry,
+  TerminSongsProVorkommen,
+  TerminTeilnahme,
+} from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -64,6 +71,8 @@ export function KalenderMonatsView({
   kompakt = false,
   vorGitter,
   terminTeilnahme,
+  songKataloge,
+  terminSongs,
   onEintragTap,
 }: {
   eintraege: PipelineEntry[];
@@ -77,6 +86,10 @@ export function KalenderMonatsView({
   kompakt?: boolean;
   vorGitter?: React.ReactNode;
   terminTeilnahme?: TerminTeilnahme;
+  // Song-Katalog je Band + Songs je Proben-Vorkommen: aktiviert im Proben-Modal
+  // den "Songs zum Proben"-Abschnitt (Anzeigen + Bearbeiten).
+  songKataloge?: Record<string, BandSong[]>;
+  terminSongs?: TerminSongsProVorkommen;
   // Wird statt eines /venues-Links verwendet (z. B. in der Team-App, die keine
   // Detailseite hat): Tipp auf einen gebuchten Eintrag öffnet ein Detail-Modal.
   onEintragTap?: (eintrag: PipelineEntry) => void;
@@ -100,6 +113,11 @@ export function KalenderMonatsView({
     null
   );
   const [offenerTermin, setOffenerTermin] = useState<TerminVorkommen | null>(null);
+  // Lokale Kopie der Proben-Songs, damit Änderungen im Modal nach dem
+  // Schließen/Wiederöffnen sichtbar bleiben (ohne Server-Roundtrip).
+  const [songsProVorkommen, setSongsProVorkommen] = useState<TerminSongsProVorkommen>(
+    terminSongs ?? {}
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -338,6 +356,28 @@ export function KalenderMonatsView({
                 {offenerTermin.termin.notiz}
               </p>
             )}
+            {offenerTermin.termin.typ === "probe" &&
+              songKataloge &&
+              offenerTermin.termin.band_id && (
+                <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-700">
+                  <TerminSongsPanel
+                    key={`${offenerTermin.termin.id}__${offenerTermin.datum}`}
+                    terminId={offenerTermin.termin.id}
+                    bandId={offenerTermin.termin.band_id}
+                    vorkommenDatum={offenerTermin.datum}
+                    katalog={songKataloge[offenerTermin.termin.band_id] ?? []}
+                    initialSongs={
+                      songsProVorkommen[`${offenerTermin.termin.id}__${offenerTermin.datum}`] ?? []
+                    }
+                    onChange={(songs) =>
+                      setSongsProVorkommen((prev) => ({
+                        ...prev,
+                        [`${offenerTermin.termin.id}__${offenerTermin.datum}`]: songs,
+                      }))
+                    }
+                  />
+                </div>
+              )}
             {terminTeilnahme && (
               <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-700">
                 <TerminTeilnahmeUebersicht

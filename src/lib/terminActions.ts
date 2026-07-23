@@ -148,3 +148,35 @@ export async function loescheTermin(
   revalidiereKalender(bandId);
   return { ok: true };
 }
+
+// Ersetzt die komplette Songliste eines Proben-Vorkommens (wie bei
+// speichereSetlistReihenfolge) - einfacher als Einzel-Updates, bei einer
+// Handvoll Songs pro Probe unbedenklich.
+export async function speichereTerminSongs(
+  terminId: string,
+  bandId: string,
+  vorkommenDatum: string,
+  songIds: string[]
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const { error: loeschFehler } = await supabase
+    .from("termin_songs")
+    .delete()
+    .eq("termin_id", terminId)
+    .eq("vorkommen_datum", vorkommenDatum);
+  if (loeschFehler) return { ok: false, fehler: loeschFehler.message };
+
+  if (songIds.length > 0) {
+    const { error: einfuegeFehler } = await supabase.from("termin_songs").insert(
+      songIds.map((songId, index) => ({
+        termin_id: terminId,
+        vorkommen_datum: vorkommenDatum,
+        song_id: songId,
+        position: index,
+      }))
+    );
+    if (einfuegeFehler) return { ok: false, fehler: einfuegeFehler.message };
+  }
+
+  revalidiereKalender(bandId);
+  return { ok: true };
+}
