@@ -50,6 +50,19 @@ export type TerminPlanEintrag =
 // Werte in gespeicherter Reihenfolge (gemischt über alle Eintrags-Typen).
 export type TerminSongsProVorkommen = Record<string, TerminPlanEintrag[]>;
 
+export type MitgliedUrlaub = Database["public"]["Tables"]["mitglied_urlaube"]["Row"];
+
+// Urlaub inkl. Mitgliedsname und Band (zum Filtern/Anzeigen in den Kalendern
+// und für den Buchungs-Hinweis "X ist im Urlaub").
+export type UrlaubMitName = {
+  id: string;
+  mitgliedId: string;
+  bandId: string;
+  name: string;
+  von: string;
+  bis: string;
+};
+
 export type TeilnahmeStand = {
   dabei: string[];
   abgesagt: string[];

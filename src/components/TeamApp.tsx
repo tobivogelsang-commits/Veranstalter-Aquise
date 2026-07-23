@@ -21,6 +21,7 @@ import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
 import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
 import { TerminSongsPanel } from "@/components/TerminSongsPanel";
+import { UrlaubManager } from "@/components/UrlaubManager";
 import { GigInfoModal } from "@/components/GigInfoModal";
 import type {
   BandSong,
@@ -30,6 +31,7 @@ import type {
   Produktion,
   TerminSongsProVorkommen,
   TerminTeilnahme,
+  UrlaubMitName,
 } from "@/lib/types";
 import type { SetlisteMitSongs } from "@/lib/queries";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
@@ -230,6 +232,7 @@ export function TeamApp({
   termine,
   terminTeilnahme,
   terminSongs,
+  urlaube,
 }: {
   bandId: string;
   bandName: string;
@@ -246,6 +249,7 @@ export function TeamApp({
   termine: KalenderTermin[];
   terminTeilnahme: TerminTeilnahme;
   terminSongs: TerminSongsProVorkommen;
+  urlaube: UrlaubMitName[];
 }) {
   // Start immer null (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); die echte Identität wird nach dem Mount aus localStorage
@@ -274,6 +278,9 @@ export function TeamApp({
   // Songs zum Proben je Vorkommen; Änderungen aus dem Panel (Dashboard-Karte)
   // werden hier eingepflegt, damit Karte und Kalender-Modal denselben Stand sehen.
   const [probenSongs, setProbenSongs] = useState<TerminSongsProVorkommen>(terminSongs);
+  // Urlaube; Änderungen aus dem UrlaubManager fließen hier ein, damit die
+  // Kalender-Pills sofort aktualisieren.
+  const [urlaubeState, setUrlaubeState] = useState<UrlaubMitName[]>(urlaube);
   // Auswahl-Optionen für den Proben-Plan (nur id + name).
   const produktionsAuswahl = produktionen.map((p) => ({ id: p.id, name: p.name }));
   const setlistenAuswahl = setlisten.map((s) => ({ id: s.id, name: s.name }));
@@ -873,13 +880,22 @@ export function TeamApp({
               produktionsAuswahl={{ [bandId]: produktionsAuswahl }}
               setlistenAuswahl={{ [bandId]: setlistenAuswahl }}
               terminSongs={probenSongs}
+              urlaube={urlaubeState}
               kompakt
               vorGitter={
-                <TermineManager
-                  bands={[{ id: bandId, name: bandName }]}
-                  bandFilter={bandId}
-                  initialTermine={termine}
-                />
+                <div className="flex flex-col gap-3">
+                  <TermineManager
+                    bands={[{ id: bandId, name: bandName }]}
+                    bandFilter={bandId}
+                    initialTermine={termine}
+                  />
+                  <UrlaubManager
+                    bandId={bandId}
+                    initialUrlaube={urlaubeState}
+                    eigeneMitglied={{ id: identitaet.mitgliedId, name: identitaet.name }}
+                    onChange={setUrlaubeState}
+                  />
+                </div>
               }
             />
           ) : (
@@ -890,13 +906,22 @@ export function TeamApp({
               tabParam="kalender"
               proberaumTermine={proberaumTermine}
               termine={termine}
+              urlaube={urlaubeState}
               kompakt
               vorGitter={
-                <TermineManager
-                  bands={[{ id: bandId, name: bandName }]}
-                  bandFilter={bandId}
-                  initialTermine={termine}
-                />
+                <div className="flex flex-col gap-3">
+                  <TermineManager
+                    bands={[{ id: bandId, name: bandName }]}
+                    bandFilter={bandId}
+                    initialTermine={termine}
+                  />
+                  <UrlaubManager
+                    bandId={bandId}
+                    initialUrlaube={urlaubeState}
+                    eigeneMitglied={{ id: identitaet.mitgliedId, name: identitaet.name }}
+                    onChange={setUrlaubeState}
+                  />
+                </div>
               }
             />
           )}

@@ -3,6 +3,7 @@ import type {
   PipelineEntry,
   TeilnahmeStand,
   TerminTeilnahme,
+  UrlaubMitName,
 } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
@@ -61,6 +62,28 @@ export function gruppiereProberaumProTag(
     while (tag <= termin.datumBis) {
       const liste = map.get(tag) ?? [];
       liste.push(termin);
+      map.set(tag, liste);
+      tag = naechsterTagIso(tag);
+    }
+  }
+  return map;
+}
+
+// Urlaube pro Tag (von bis inklusiv), begrenzt auf den sichtbaren Bereich -
+// offene/lange Zeiträume erzeugen so keine unnötigen Einträge außerhalb des
+// Kalenders.
+export function gruppiereUrlaubeProTag(
+  urlaube: UrlaubMitName[],
+  vonIso: string,
+  bisIso: string
+): Map<string, UrlaubMitName[]> {
+  const map = new Map<string, UrlaubMitName[]>();
+  for (const urlaub of urlaube) {
+    let tag = urlaub.von < vonIso ? vonIso : urlaub.von;
+    const ende = urlaub.bis > bisIso ? bisIso : urlaub.bis;
+    while (tag <= ende) {
+      const liste = map.get(tag) ?? [];
+      liste.push(urlaub);
       map.set(tag, liste);
       tag = naechsterTagIso(tag);
     }

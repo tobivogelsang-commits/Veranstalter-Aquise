@@ -9,6 +9,7 @@ import {
   getTermine,
   getTerminSongs,
   getTerminTeilnahme,
+  getUrlaube,
   getVenuesWithRelations,
 } from "@/lib/queries";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
@@ -60,6 +61,7 @@ export default async function TeamPage({
     termine,
     terminTeilnahme,
     terminSongs,
+    urlaube,
   ] = await Promise.all([
     getBandName(bandId),
     getVenuesWithRelations(),
@@ -70,6 +72,7 @@ export default async function TeamPage({
     getTermine(bandId),
     getTerminTeilnahme(bandId),
     getTerminSongs(bandId),
+    getUrlaube(bandId),
   ]);
 
   if (!bandName) notFound();
@@ -96,6 +99,7 @@ export default async function TeamPage({
       termine={termine}
       terminTeilnahme={terminTeilnahme}
       terminSongs={terminSongs}
+      urlaube={urlaube}
     />
   );
 }

@@ -692,6 +692,30 @@ export interface Database {
           },
         ];
       };
+      mitglied_urlaube: {
+        Row: {
+          id: string;
+          mitglied_id: string;
+          von: string;
+          bis: string;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["mitglied_urlaube"]["Row"]> & {
+          mitglied_id: string;
+          von: string;
+          bis: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["mitglied_urlaube"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "mitglied_urlaube_mitglied_id_fkey";
+            columns: ["mitglied_id"];
+            isOneToOne: false;
+            referencedRelation: "band_mitglieder";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
