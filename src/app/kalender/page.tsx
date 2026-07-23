@@ -10,6 +10,7 @@ import {
   getTermine,
   getTerminSongs,
   getTerminTeilnahme,
+  getUrlaube,
   getVenuesWithRelations,
 } from "@/lib/queries";
 import { kalenderPunktFarbe } from "@/lib/kalenderHelpers";
@@ -18,6 +19,7 @@ import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { BandSwitcher } from "@/components/BandSwitcher";
 import { TermineManager } from "@/components/TermineManager";
+import { UrlaubManager } from "@/components/UrlaubManager";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,7 @@ export default async function KalenderPage({
     produktionsAuswahl,
     setlistenAuswahl,
     terminSongs,
+    urlaube,
   ] = await Promise.all([
     getBands(),
     getVenuesWithRelations(),
@@ -62,8 +65,24 @@ export default async function KalenderPage({
     getProduktionsAuswahl(bandFilter),
     getSetlistenAuswahl(bandFilter),
     getTerminSongs(bandFilter),
+    getUrlaube(bandFilter),
   ]);
   const eintraege = getKalenderEintraege(venues, bandFilter);
+
+  // Mitglieder-Auswahl für den UrlaubManager; bei "alle" Bands den Bandnamen
+  // zur Unterscheidung anhängen (Namen können doppelt vorkommen).
+  const bandNameById = Object.fromEntries(bands.map((b) => [b.id, b.name]));
+  const urlaubMitglieder = Object.entries(terminTeilnahme.mitgliederProBand).flatMap(
+    ([bId, mitglieder]) =>
+      mitglieder.map((m) => ({
+        id: m.id,
+        bandId: bId,
+        name:
+          bandFilter === ALLE_BANDS_PARAM
+            ? `${m.name} (${bandNameById[bId] ?? "?"})`
+            : m.name,
+      }))
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,6 +150,12 @@ export default async function KalenderPage({
 
       <TermineManager bands={bands} bandFilter={bandFilter} initialTermine={termine} />
 
+      <UrlaubManager
+        bandId={bandFilter}
+        initialUrlaube={urlaube}
+        mitglieder={urlaubMitglieder}
+      />
+
       {aktiveAnsicht === "jahr" ? (
         <KalenderJahresView
           eintraege={eintraege}
@@ -138,6 +163,7 @@ export default async function KalenderPage({
           bandFilter={bandFilter}
           proberaumTermine={proberaumTermine}
           termine={termine}
+          urlaube={urlaube}
         />
       ) : (
         <KalenderMonatsView
@@ -151,6 +177,7 @@ export default async function KalenderPage({
           produktionsAuswahl={produktionsAuswahl}
           setlistenAuswahl={setlistenAuswahl}
           terminSongs={terminSongs}
+          urlaube={urlaube}
         />
       )}
     </div>

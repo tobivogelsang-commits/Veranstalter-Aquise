@@ -16,10 +16,11 @@ import {
   gruppiereEintraegeProTag,
   gruppiereProberaumProTag,
   gruppiereTermineProTag,
+  gruppiereUrlaubeProTag,
   kalenderPunktFarbe,
   type TerminVorkommen,
 } from "@/lib/kalenderHelpers";
-import type { KalenderTermin, PipelineEntry } from "@/lib/types";
+import type { KalenderTermin, PipelineEntry, UrlaubMitName } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
 const WOCHENTAGE = ["M", "D", "M", "D", "F", "S", "S"];
@@ -65,6 +66,7 @@ function MiniMonat({
   eintraegeProTag,
   proberaumProTag,
   termineProTag,
+  urlaubeProTag,
   bandFilter,
   tabParam,
 }: {
@@ -72,6 +74,7 @@ function MiniMonat({
   eintraegeProTag: Map<string, PipelineEntry[]>;
   proberaumProTag: Map<string, ProberaumTermin[]>;
   termineProTag: Map<string, TerminVorkommen[]>;
+  urlaubeProTag: Map<string, UrlaubMitName[]>;
   bandFilter: string;
   tabParam?: string;
 }) {
@@ -103,6 +106,7 @@ function MiniMonat({
           const tagesEintraege = eintraegeProTag.get(key) ?? [];
           const tagesProberaum = proberaumProTag.get(key) ?? [];
           const tagesTermine = termineProTag.get(key) ?? [];
+          const tagesUrlaube = urlaubeProTag.get(key) ?? [];
           const imMonat = isSameMonth(tag, monat);
           const farben = eindeutigeFarben(tagesEintraege);
           const terminFarben = Array.from(
@@ -113,6 +117,7 @@ function MiniMonat({
             ...tagesEintraege.map((e) => `${e.venue.name} (${e.band.name})`),
             ...tagesTermine.map((v) => v.termin.titel),
             ...tagesProberaum.map((t) => t.titel),
+            ...tagesUrlaube.map((u) => `Urlaub ${u.name}`),
           ];
           const titel = titelTeile.join(", ");
 
@@ -139,6 +144,9 @@ function MiniMonat({
               {tagesProberaum.length > 0 && (
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
               )}
+              {tagesUrlaube.length > 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+              )}
             </span>
           );
 
@@ -146,7 +154,8 @@ function MiniMonat({
             <div key={key} className="flex flex-col items-center gap-0.5 py-0.5">
               {tagesEintraege.length > 0 ||
               tagesProberaum.length > 0 ||
-              tagesTermine.length > 0 ? (
+              tagesTermine.length > 0 ||
+              tagesUrlaube.length > 0 ? (
                 <Link
                   href={monatDetailLink(monat, bandFilter, tabParam)}
                   title={titel}
@@ -176,6 +185,7 @@ export function KalenderJahresView({
   tabParam,
   proberaumTermine = [],
   termine = [],
+  urlaube = [],
   kompakt = false,
   vorGitter,
 }: {
@@ -185,6 +195,7 @@ export function KalenderJahresView({
   tabParam?: string;
   proberaumTermine?: ProberaumTermin[];
   termine?: KalenderTermin[];
+  urlaube?: UrlaubMitName[];
   kompakt?: boolean;
   vorGitter?: React.ReactNode;
 }) {
@@ -192,6 +203,7 @@ export function KalenderJahresView({
   const eintraegeProTag = gruppiereEintraegeProTag(eintraege);
   const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
   const termineProTag = gruppiereTermineProTag(termine, `${jahr}-01-01`, `${jahr}-12-31`);
+  const urlaubeProTag = gruppiereUrlaubeProTag(urlaube, `${jahr}-01-01`, `${jahr}-12-31`);
   const monate = Array.from({ length: 12 }, (_, i) => new Date(jahr, i, 1));
 
   const navBtnKlasse = kompakt
@@ -235,6 +247,7 @@ export function KalenderJahresView({
             eintraegeProTag={eintraegeProTag}
             proberaumProTag={proberaumProTag}
             termineProTag={termineProTag}
+            urlaubeProTag={urlaubeProTag}
             bandFilter={bandFilter}
             tabParam={tabParam}
           />

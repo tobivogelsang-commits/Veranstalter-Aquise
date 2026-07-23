@@ -1006,12 +1006,58 @@ export async function legeVenueAusRechercheAn(
 
 // Wird vom Kanban-Board beim Drag & Drop aufgerufen, um nur den Status einer
 // einzelnen Band<->Venue-Beziehung zu ändern.
+// Prüft beim Buchen, ob das Veranstaltungsdatum in den Urlaub eines
+// Band-Mitglieds fällt. Liefert den Hinweistext ("X ist im Urlaub …") oder
+// null. Kein Datum eingetragen -> nichts zu prüfen.
+async function findeUrlaubskonflikt(
+  venueId: string,
+  bandId: string
+): Promise<string | null> {
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("veranstaltungsdatum")
+    .eq("id", venueId)
+    .maybeSingle();
+  const datum = venue?.veranstaltungsdatum;
+  if (!datum) return null;
+
+  const { data: urlaube, error } = await supabase
+    .from("mitglied_urlaube")
+    .select("von, bis, mitglied:band_mitglieder!inner(name, band_id)")
+    .eq("band_mitglieder.band_id", bandId)
+    .lte("von", datum)
+    .gte("bis", datum);
+  if (error) throw new Error(error.message);
+
+  const treffer = ((urlaube ?? []) as unknown as {
+    von: string;
+    bis: string;
+    mitglied: { name: string };
+  }[]).map(
+    (u) =>
+      `${u.mitglied.name} ist im Urlaub (${u.von.split("-").reverse().join(".")} – ${u.bis
+        .split("-")
+        .reverse()
+        .join(".")})`
+  );
+  return treffer.length > 0 ? treffer.join(", ") : null;
+}
+
+// urlaubBestaetigt: Beim Buchen trotz Urlaubs-Hinweis bewusst fortfahren
+// (übersteuerbare Sperre - der Client fragt nach und ruft dann erneut auf).
 export async function updateStatus(
   venueId: string,
   bandId: string,
-  status: Status
-) {
+  status: Status,
+  urlaubBestaetigt = false
+): Promise<{ ok: true } | { ok: false; urlaubskonflikt: string }> {
   await requireOwner();
+
+  if (status === "gebucht" && !urlaubBestaetigt) {
+    const konflikt = await findeUrlaubskonflikt(venueId, bandId);
+    if (konflikt) return { ok: false, urlaubskonflikt: konflikt };
+  }
+
   const { data: bestehende } = await supabase
     .from("venue_band_status")
     .select("status")
@@ -1044,6 +1090,7 @@ export async function updateStatus(
   revalidatePath("/venues");
   revalidatePath("/pipeline");
   revalidatePath(`/venues/${venueId}`);
+  return { ok: true };
 }
 
 // Rückt den Status einer Band<->Venue-Beziehung automatisiert vor (z. B. beim

@@ -38,6 +38,7 @@ export function KanbanBoard({
     const entry = items.find((e) => e.relation.id === active.id);
     if (!entry || entry.relation.status === neuerStatus) return;
 
+    const vorherigerStatus = entry.relation.status;
     setItems((prev) =>
       prev.map((e) =>
         e.relation.id === entry.relation.id
@@ -46,9 +47,27 @@ export function KanbanBoard({
       )
     );
 
-    updateStatus(entry.venue.id, entry.band.id, neuerStatus).catch((err) => {
-      console.error("Status-Update fehlgeschlagen", err);
-    });
+    // Beim Buchen kann ein Urlaubs-Hinweis zurückkommen (übersteuerbare
+    // Sperre): nachfragen und nur bei Bestätigung mit urlaubBestaetigt=true
+    // erneut buchen, sonst die optimistische Verschiebung zurücknehmen.
+    updateStatus(entry.venue.id, entry.band.id, neuerStatus)
+      .then(async (ergebnis) => {
+        if (ergebnis.ok) return;
+        if (confirm(`${ergebnis.urlaubskonflikt}. Trotzdem buchen?`)) {
+          await updateStatus(entry.venue.id, entry.band.id, neuerStatus, true);
+          return;
+        }
+        setItems((prev) =>
+          prev.map((e) =>
+            e.relation.id === entry.relation.id
+              ? { ...e, relation: { ...e.relation, status: vorherigerStatus } }
+              : e
+          )
+        );
+      })
+      .catch((err) => {
+        console.error("Status-Update fehlgeschlagen", err);
+      });
   }
 
   return (

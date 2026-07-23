@@ -27,6 +27,7 @@ import type {
   TerminPlanEintrag,
   TerminSongsProVorkommen,
   TerminTeilnahme,
+  UrlaubMitName,
   Venue,
   VenueBandDokument,
   VenueBandProtokoll,
@@ -136,6 +137,34 @@ export async function getTerminSongs(bandFilter: string): Promise<TerminSongsPro
     (songsProVorkommen[key] ??= []).push(eintrag);
   }
   return songsProVorkommen;
+}
+
+// Urlaube aller Mitglieder inkl. Name, nach Beginn sortiert. Bei
+// bandFilter === "alle" für alle Bands.
+export async function getUrlaube(bandFilter: string): Promise<UrlaubMitName[]> {
+  let query = supabase
+    .from("mitglied_urlaube")
+    .select("id, von, bis, mitglied:band_mitglieder!inner(id, name, band_id)")
+    .order("von");
+  if (bandFilter !== ALLE_BANDS_PARAM) {
+    query = query.eq("band_mitglieder.band_id", bandFilter);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as unknown as {
+    id: string;
+    von: string;
+    bis: string;
+    mitglied: { id: string; name: string; band_id: string };
+  }[]).map((u) => ({
+    id: u.id,
+    mitgliedId: u.mitglied.id,
+    bandId: u.mitglied.band_id,
+    name: u.mitglied.name,
+    von: u.von,
+    bis: u.bis,
+  }));
 }
 
 // Auswahl-Kataloge (nur id + name) je Band für den Proben-Plan: Produktionen

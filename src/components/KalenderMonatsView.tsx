@@ -22,6 +22,7 @@ import {
   gruppiereEintraegeProTag,
   gruppiereProberaumProTag,
   gruppiereTermineProTag,
+  gruppiereUrlaubeProTag,
   kalenderPillFarbe,
   type TerminVorkommen,
 } from "@/lib/kalenderHelpers";
@@ -33,6 +34,7 @@ import type {
   PipelineEntry,
   TerminSongsProVorkommen,
   TerminTeilnahme,
+  UrlaubMitName,
 } from "@/lib/types";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
@@ -75,6 +77,7 @@ export function KalenderMonatsView({
   produktionsAuswahl,
   setlistenAuswahl,
   terminSongs,
+  urlaube = [],
   onEintragTap,
 }: {
   eintraege: PipelineEntry[];
@@ -95,6 +98,8 @@ export function KalenderMonatsView({
   produktionsAuswahl?: Record<string, { id: string; name: string }[]>;
   setlistenAuswahl?: Record<string, { id: string; name: string }[]>;
   terminSongs?: TerminSongsProVorkommen;
+  // Urlaube der Mitglieder - als Pill an jedem betroffenen Tag angezeigt.
+  urlaube?: UrlaubMitName[];
   // Wird statt eines /venues-Links verwendet (z. B. in der Team-App, die keine
   // Detailseite hat): Tipp auf einen gebuchten Eintrag öffnet ein Detail-Modal.
   onEintragTap?: (eintrag: PipelineEntry) => void;
@@ -111,6 +116,11 @@ export function KalenderMonatsView({
   const proberaumProTag = gruppiereProberaumProTag(proberaumTermine);
   const termineProTag = gruppiereTermineProTag(
     termine,
+    format(gitterStart, "yyyy-MM-dd"),
+    format(gitterEnde, "yyyy-MM-dd")
+  );
+  const urlaubeProTag = gruppiereUrlaubeProTag(
+    urlaube,
     format(gitterStart, "yyyy-MM-dd"),
     format(gitterEnde, "yyyy-MM-dd")
   );
@@ -276,6 +286,15 @@ export function KalenderMonatsView({
                     Proberaum belegt
                   </button>
                 )}
+                {(urlaubeProTag.get(key) ?? []).map((urlaub) => (
+                  <span
+                    key={urlaub.id}
+                    title={`${urlaub.name} im Urlaub (${formatDatum(urlaub.von)} – ${formatDatum(urlaub.bis)})`}
+                    className="block w-full truncate rounded bg-teal-100 px-1.5 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900 dark:text-teal-200"
+                  >
+                    🌴 {urlaub.name}
+                  </span>
+                ))}
               </div>
             </div>
           );
