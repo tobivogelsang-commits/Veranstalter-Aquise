@@ -274,6 +274,9 @@ export function TeamApp({
   // Songs zum Proben je Vorkommen; Änderungen aus dem Panel (Dashboard-Karte)
   // werden hier eingepflegt, damit Karte und Kalender-Modal denselben Stand sehen.
   const [probenSongs, setProbenSongs] = useState<TerminSongsProVorkommen>(terminSongs);
+  // Auswahl-Optionen für den Proben-Plan (nur id + name).
+  const produktionsAuswahl = produktionen.map((p) => ({ id: p.id, name: p.name }));
+  const setlistenAuswahl = setlisten.map((s) => ({ id: s.id, name: s.name }));
   // Start immer false (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); der echte Wert wird nach dem Mount aus localStorage geladen.
   const [dunkelmodus, setDunkelmodus] = useState(false);
@@ -673,7 +676,9 @@ export function TeamApp({
                     bandId={bandId}
                     vorkommenDatum={naechsteProbe.datum}
                     katalog={songs}
-                    initialSongs={probeKey ? (probenSongs[probeKey] ?? []) : []}
+                    produktionen={produktionsAuswahl}
+                    setlisten={setlistenAuswahl}
+                    initialEintraege={probeKey ? (probenSongs[probeKey] ?? []) : []}
                     onChange={(neueSongs) => {
                       if (!probeKey) return;
                       setProbenSongs((prev) => ({ ...prev, [probeKey]: neueSongs }));
@@ -865,6 +870,8 @@ export function TeamApp({
               termine={termine}
               terminTeilnahme={teilnahme}
               songKataloge={{ [bandId]: songs }}
+              produktionsAuswahl={{ [bandId]: produktionsAuswahl }}
+              setlistenAuswahl={{ [bandId]: setlistenAuswahl }}
               terminSongs={probenSongs}
               kompakt
               vorGitter={

@@ -39,9 +39,16 @@ export type TerminTeilnahme = {
   antwortenProVorkommen: Record<string, TerminAntwortMitName[]>;
 };
 
-// Songs zum Proben je Vorkommen, Schlüssel: `${terminId}__${vorkommenDatum}`.
-// Werte sind die Katalog-Songs in gespeicherter Reihenfolge.
-export type TerminSongsProVorkommen = Record<string, BandSong[]>;
+// Ein Eintrag im Proben-Plan: Katalog-Song, Produktion (unfertiger Song,
+// angezeigt mit Speichername) oder Setliste (angezeigt nur mit Namen).
+export type TerminPlanEintrag =
+  | { typ: "song"; song: BandSong }
+  | { typ: "produktion"; id: string; name: string }
+  | { typ: "setliste"; id: string; name: string };
+
+// Proben-Plan je Vorkommen, Schlüssel: `${terminId}__${vorkommenDatum}`.
+// Werte in gespeicherter Reihenfolge (gemischt über alle Eintrags-Typen).
+export type TerminSongsProVorkommen = Record<string, TerminPlanEintrag[]>;
 
 export type TeilnahmeStand = {
   dabei: string[];
