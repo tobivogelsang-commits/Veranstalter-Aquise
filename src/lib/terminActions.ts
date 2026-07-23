@@ -35,8 +35,9 @@ export type TerminEingabe = {
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UHRZEIT = /^\d{2}:\d{2}$/;
 
+// ausnahmen bewusst ausgenommen: Bearbeiten fasst die Ausfall-Daten nicht an.
 function bereinige(eingabe: TerminEingabe):
-  | { ok: true; werte: Omit<KalenderTermin, "id" | "band_id" | "erstellt_am"> }
+  | { ok: true; werte: Omit<KalenderTermin, "id" | "band_id" | "erstellt_am" | "ausnahmen"> }
   | { ok: false; fehler: string } {
   const titel = eingabe.titel.trim();
   if (!titel) return { ok: false, fehler: "Titel fehlt." };
@@ -187,6 +188,38 @@ export async function speichereTerminSongs(
       }))
     );
     if (einfuegeFehler) return { ok: false, fehler: einfuegeFehler.message };
+  }
+
+  revalidiereKalender(bandId);
+  return { ok: true };
+}
+
+// "Nur diesen Termin löschen" bei Serien: Das Datum wird als Ausnahme an der
+// Serie vermerkt, die Kalender-Expansion überspringt es dann. Die Serie
+// selbst (und alle anderen Vorkommen) bleiben bestehen.
+export async function loescheTerminVorkommen(
+  terminId: string,
+  bandId: string,
+  vorkommenDatum: string
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(vorkommenDatum)) {
+    return { ok: false, fehler: "Ungültiges Datum." };
+  }
+
+  const { data: termin, error: leseFehler } = await supabase
+    .from("kalender_termine")
+    .select("ausnahmen")
+    .eq("id", terminId)
+    .maybeSingle();
+  if (leseFehler) return { ok: false, fehler: leseFehler.message };
+  if (!termin) return { ok: false, fehler: "Termin nicht gefunden." };
+
+  if (!termin.ausnahmen.includes(vorkommenDatum)) {
+    const { error } = await supabase
+      .from("kalender_termine")
+      .update({ ausnahmen: [...termin.ausnahmen, vorkommenDatum] })
+      .eq("id", terminId);
+    if (error) return { ok: false, fehler: error.message };
   }
 
   revalidiereKalender(bandId);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import {
   addMonths,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/kalenderHelpers";
 import { TerminTeilnahmeUebersicht } from "@/components/TerminTeilnahmeUebersicht";
 import { TerminSongsPanel } from "@/components/TerminSongsPanel";
+import { loescheTermin, loescheTerminVorkommen } from "@/lib/terminActions";
 import type {
   BandSong,
   KalenderTermin,
@@ -128,6 +130,34 @@ export function KalenderMonatsView({
     null
   );
   const [offenerTermin, setOffenerTermin] = useState<TerminVorkommen | null>(null);
+  const router = useRouter();
+  const [loeschenLaeuft, setLoeschenLaeuft] = useState(false);
+
+  // Löschen aus dem Termin-Modal: einmalige Termine komplett, bei Serien
+  // wahlweise nur das offene Vorkommen (Ausnahme-Datum) oder die ganze Serie.
+  // Nach Erfolg Modal schließen und Server-Daten neu laden (router.refresh),
+  // damit Gitter und "Eigene Termine" den neuen Stand zeigen.
+  async function handleTerminLoeschen(vorkommen: TerminVorkommen, ganzeSerie: boolean) {
+    const { termin } = vorkommen;
+    const frage = ganzeSerie
+      ? termin.wiederholung === "einmalig"
+        ? `"${termin.titel}" wirklich löschen?`
+        : `Die ganze Serie "${termin.titel}" (inkl. aller Wiederholungen) wirklich löschen?`
+      : `"${termin.titel}" am ${formatDatum(vorkommen.datum)} ausfallen lassen?`;
+    if (!confirm(frage)) return;
+
+    setLoeschenLaeuft(true);
+    const ergebnis = ganzeSerie
+      ? await loescheTermin(termin.id, termin.band_id)
+      : await loescheTerminVorkommen(termin.id, termin.band_id, vorkommen.datum);
+    setLoeschenLaeuft(false);
+    if (!ergebnis.ok) {
+      alert(`Löschen fehlgeschlagen: ${ergebnis.fehler}`);
+      return;
+    }
+    setOffenerTermin(null);
+    router.refresh();
+  }
   // Lokale Kopie der Proben-Songs, damit Änderungen im Modal nach dem
   // Schließen/Wiederöffnen sichtbar bleiben (ohne Server-Roundtrip).
   const [songsProVorkommen, setSongsProVorkommen] = useState<TerminSongsProVorkommen>(
@@ -416,6 +446,37 @@ export function KalenderMonatsView({
                 />
               </div>
             )}
+            <div className="mt-3 flex gap-4 border-t border-slate-200 pt-2 dark:border-slate-700">
+              {offenerTermin.termin.wiederholung === "einmalig" ? (
+                <button
+                  type="button"
+                  disabled={loeschenLaeuft}
+                  onClick={() => handleTerminLoeschen(offenerTermin, true)}
+                  className="text-xs text-red-600 underline hover:text-red-800 disabled:opacity-50"
+                >
+                  Termin löschen
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={loeschenLaeuft}
+                    onClick={() => handleTerminLoeschen(offenerTermin, false)}
+                    className="text-xs text-red-600 underline hover:text-red-800 disabled:opacity-50"
+                  >
+                    Nur diesen Termin löschen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loeschenLaeuft}
+                    onClick={() => handleTerminLoeschen(offenerTermin, true)}
+                    className="text-xs text-red-600 underline hover:text-red-800 disabled:opacity-50"
+                  >
+                    Ganze Serie löschen
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -587,6 +587,9 @@ export interface Database {
           notiz: string | null;
           wiederholung: TerminWiederholung;
           wiederholung_bis: string | null;
+          // Daten, an denen ein Serien-Vorkommen ausfällt ("nur diesen
+          // Termin löschen") - die Kalender-Expansion überspringt sie.
+          ausnahmen: string[];
           erstellt_am: string;
         };
         Insert: Partial<

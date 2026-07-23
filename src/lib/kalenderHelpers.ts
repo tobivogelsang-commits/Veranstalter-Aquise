@@ -163,7 +163,7 @@ export function gruppiereTermineProTag(
     let start: string | null = termin.datum;
     let guard = 0;
     while (start && start <= serienEnde && guard < 1000) {
-      if (start >= vonIso) {
+      if (start >= vonIso && !(termin.ausnahmen ?? []).includes(start)) {
         hinzufuegen(start, { termin, datum: start, datumBis: null });
       }
       start = naechstesVorkommen(start, termin.wiederholung);
@@ -208,7 +208,7 @@ export function kommendeVorkommen(
     let start: string | null = termin.datum;
     let guard = 0;
     while (start && start <= serienEnde && guard < 1000) {
-      if (start >= abIso) {
+      if (start >= abIso && !(termin.ausnahmen ?? []).includes(start)) {
         alle.push({ termin, datum: start, datumBis: null });
       }
       start = naechstesVorkommen(start, termin.wiederholung);
