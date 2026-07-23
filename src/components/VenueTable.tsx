@@ -67,13 +67,13 @@ export function VenueTable({
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
           <tr>
-            <th className="px-2 py-2" aria-label="Aktionen" />
             <th className="px-4 py-2 font-medium">Name</th>
             <th className="px-4 py-2 font-medium">Typ</th>
             <th className="px-4 py-2 font-medium">Ort</th>
             <th className="px-4 py-2 font-medium">Termin</th>
             <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium">Letzter Kontakt</th>
+            <th className="px-2 py-2" aria-label="Aktionen" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -93,21 +93,6 @@ export function VenueTable({
                 className="cursor-pointer hover:bg-slate-50"
                 onClick={() => router.push(`/venues/${venue.id}`)}
               >
-                <td className="px-2 py-3">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      // Nicht die Zeilen-Navigation zur Detailseite auslösen.
-                      e.stopPropagation();
-                      handleLoeschen(venue);
-                    }}
-                    className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600"
-                    title={`"${venue.name}" löschen`}
-                    aria-label={`${venue.name} löschen`}
-                  >
-                    <PapierkorbIcon />
-                  </button>
-                </td>
                 <td className="px-4 py-3">
                   <Link
                     href={`/venues/${venue.id}`}
@@ -157,6 +142,21 @@ export function VenueTable({
                       ))}
                     </div>
                   )}
+                </td>
+                <td className="px-2 py-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      // Nicht die Zeilen-Navigation zur Detailseite auslösen.
+                      e.stopPropagation();
+                      handleLoeschen(venue);
+                    }}
+                    className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600"
+                    title={`"${venue.name}" löschen`}
+                    aria-label={`${venue.name} löschen`}
+                  >
+                    <PapierkorbIcon />
+                  </button>
                 </td>
               </tr>
             );
