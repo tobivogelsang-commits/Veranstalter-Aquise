@@ -194,7 +194,10 @@ export async function autosaveVenue(
   return { ok: true };
 }
 
-export async function deleteVenue(venueId: string) {
+// mitRedirect: von der Detailseite aus zur Liste umleiten (die gelöschte
+// Seite existiert ja nicht mehr); beim Löschen direkt aus der Liste bleibt
+// die Ansicht (inkl. Filter/Suche) erhalten, der Client refresht selbst.
+export async function deleteVenue(venueId: string, mitRedirect = true) {
   await requireOwner();
   const { error } = await supabase.from("venues").delete().eq("id", venueId);
   if (error) throw new Error(error.message);
@@ -202,7 +205,7 @@ export async function deleteVenue(venueId: string) {
   revalidatePath("/");
   revalidatePath("/venues");
   revalidatePath("/pipeline");
-  redirect("/venues");
+  if (mitRedirect) redirect("/venues");
 }
 
 export type KontaktRechercheErgebnis = {

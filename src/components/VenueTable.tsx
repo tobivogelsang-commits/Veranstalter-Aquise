@@ -1,12 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { StatusBadge } from "@/components/StatusBadge";
+import { deleteVenue } from "@/lib/actions";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { VenueWithRelations } from "@/lib/types";
+
+function PapierkorbIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+    </svg>
+  );
+}
 
 export function VenueTable({
   venues,
@@ -16,6 +26,33 @@ export function VenueTable({
   bandFilter: string;
 }) {
   const router = useRouter();
+  // IDs, deren Löschung gerade läuft bzw. schon durch ist - die Zeile wird
+  // sofort ausgeblendet (optimistisch), bis der Server-Refresh sie entfernt.
+  const [geloeschteIds, setGeloeschteIds] = useState<Set<string>>(new Set());
+
+  async function handleLoeschen(venue: VenueWithRelations) {
+    if (
+      !confirm(
+        `"${venue.name}" wirklich unwiderruflich löschen? Das kann nicht rückgängig gemacht werden.`
+      )
+    )
+      return;
+    setGeloeschteIds((prev) => new Set(prev).add(venue.id));
+    try {
+      // Ohne Redirect: Wir sind schon auf der Liste, Filter/Suche bleiben
+      // erhalten; der refresh() holt die Liste ohne die gelöschte Zeile.
+      await deleteVenue(venue.id, false);
+      router.refresh();
+    } catch (err) {
+      console.error("Veranstalter löschen fehlgeschlagen", err);
+      setGeloeschteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(venue.id);
+        return next;
+      });
+      alert("Löschen fehlgeschlagen. Bitte nochmal versuchen.");
+    }
+  }
 
   if (venues.length === 0) {
     return (
@@ -36,10 +73,13 @@ export function VenueTable({
             <th className="px-4 py-2 font-medium">Termin</th>
             <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium">Letzter Kontakt</th>
+            <th className="px-2 py-2" aria-label="Aktionen" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {venues.map((venue) => {
+          {venues
+            .filter((venue) => !geloeschteIds.has(venue.id))
+            .map((venue) => {
             const relationen =
               bandFilter === ALLE_BANDS_PARAM
                 ? venue.venue_band_status
@@ -102,6 +142,21 @@ export function VenueTable({
                       ))}
                     </div>
                   )}
+                </td>
+                <td className="px-2 py-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      // Nicht die Zeilen-Navigation zur Detailseite auslösen.
+                      e.stopPropagation();
+                      handleLoeschen(venue);
+                    }}
+                    className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600"
+                    title={`"${venue.name}" löschen`}
+                    aria-label={`${venue.name} löschen`}
+                  >
+                    <PapierkorbIcon />
+                  </button>
                 </td>
               </tr>
             );
