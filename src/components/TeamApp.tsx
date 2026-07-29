@@ -10,6 +10,7 @@ import {
   beantworteAnfrage,
   beantworteTermin,
   holeTerminAntworten,
+  pruefeMitglied,
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
 import { berechneTeilnahme, kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
@@ -373,6 +374,26 @@ export function TeamApp({
   useEffect(() => {
     if (!identitaet) return;
     const mitgliedId = identitaet.mitgliedId;
+
+    // Existiert das Mitglied serverseitig noch? Wurde es am Desktop entfernt,
+    // hängt sonst auf dem Gerät für immer eine tote Identität (localStorage) -
+    // die App wirkt angemeldet, aber Antworten laufen ins Leere und das
+    // Registrierungs-Formular erscheint nie wieder. Dann: Identität verwerfen
+    // und zur Registrierung zurückkehren. Bei Netzwerkfehlern passiert nichts
+    // (pruefeMitglied liefert dann true).
+    pruefeMitglied(mitgliedId, bandId)
+      .then((existiert) => {
+        if (existiert) return;
+        try {
+          window.localStorage.removeItem(STORAGE_PREFIX + bandId);
+        } catch {
+          // localStorage nicht verfügbar - Zustand gilt trotzdem für die Sitzung.
+        }
+        setIdentitaet(null);
+      })
+      .catch(() => {
+        // Prüfung fehlgeschlagen (z. B. offline) - angemeldet bleiben.
+      });
 
     holeOffeneAnfragen(mitgliedId, bandId).then(setOffeneAnfragen);
     holeTerminAntworten(mitgliedId, bandId).then((eintraege) =>

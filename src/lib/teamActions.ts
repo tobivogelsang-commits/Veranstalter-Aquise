@@ -58,6 +58,26 @@ async function gehoertMitgliedZuBand(
   return Boolean(data);
 }
 
+// Prüft, ob die auf dem Gerät gespeicherte Mitglieds-Identität noch existiert.
+// Identitäten leben nur im localStorage des Geräts - wurde das Mitglied
+// serverseitig entfernt (entferneMitglied), zeigt die App sonst dauerhaft
+// eine tote Identität und das Registrierungs-Formular erscheint nie wieder.
+// Bei Fehlern (z. B. Netzwerk) wird true zurückgegeben: im Zweifel NICHT
+// abmelden, sonst würde ein transienter Ausfall alle Geräte ausloggen.
+export async function pruefeMitglied(
+  mitgliedId: string,
+  bandId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("band_mitglieder")
+    .select("id")
+    .eq("id", mitgliedId)
+    .eq("band_id", bandId)
+    .maybeSingle();
+  if (error) return true;
+  return data !== null;
+}
+
 // Legt ein neues Teammitglied an (einmalige Namenseingabe, kein Login/Passwort)
 // inkl. Push-Subscription. subscription ist optional, falls jemand
 // Benachrichtigungen ablehnt oder der Browser sie nicht unterstützt - die
