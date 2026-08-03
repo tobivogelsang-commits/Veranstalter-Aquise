@@ -103,6 +103,21 @@ export const GIG_ANSPRECHPARTNER_ROLLEN = [
   "Sonstiges",
 ] as const;
 
+// Vorschläge für die Merch-Kategorien - Freitext in der DB, damit später
+// weitere Arten dazukommen können, ohne Migration.
+export const MERCH_KATEGORIEN = [
+  "T-Shirt",
+  "CD",
+  "Vinyl",
+  "Button",
+  "Sticker",
+  "Poster",
+  "Sonstiges",
+];
+
+// Übliche Größen als Schnellauswahl für die Variante (T-Shirts o. Ä.).
+export const MERCH_GROESSEN = ["XS", "S", "M", "L", "XL", "XXL"];
+
 // Home-Bildschirm-Icon der Team-App pro Band (statische Datei unter
 // public/team-icons/, keine Datenbank-Spalte) - fehlt ein Eintrag, greift in
 // getTeamIconPfade() der Standard-favicon als Fallback. Provisorisch als

@@ -695,6 +695,67 @@ export interface Database {
           },
         ];
       };
+      merch_artikel: {
+        Row: {
+          id: string;
+          band_id: string;
+          kategorie: string;
+          name: string;
+          variante: string;
+          bestand: number;
+          mindestbestand: number;
+          notiz: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["merch_artikel"]["Row"]> & {
+          band_id: string;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["merch_artikel"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "merch_artikel_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      merch_vorlagen: {
+        Row: {
+          id: string;
+          band_id: string;
+          artikel_id: string | null;
+          titel: string;
+          dateiname: string;
+          pfad: string;
+          ist_bild: boolean;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["merch_vorlagen"]["Row"]> & {
+          band_id: string;
+          dateiname: string;
+          pfad: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["merch_vorlagen"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "merch_vorlagen_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "merch_vorlagen_artikel_id_fkey";
+            columns: ["artikel_id"];
+            isOneToOne: false;
+            referencedRelation: "merch_artikel";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mitglied_urlaube: {
         Row: {
           id: string;

@@ -50,6 +50,13 @@ export type TerminPlanEintrag =
 // Werte in gespeicherter Reihenfolge (gemischt über alle Eintrags-Typen).
 export type TerminSongsProVorkommen = Record<string, TerminPlanEintrag[]>;
 
+export type MerchArtikel = Database["public"]["Tables"]["merch_artikel"]["Row"];
+export type MerchVorlage = Database["public"]["Tables"]["merch_vorlagen"]["Row"];
+
+// Vorlage inkl. frisch signierter URL für Vorschau/Download (der Bucket ist
+// privat, die URL ist deshalb nur kurz gültig).
+export type MerchVorlageMitUrl = MerchVorlage & { url: string | null };
+
 export type MitgliedUrlaub = Database["public"]["Tables"]["mitglied_urlaube"]["Row"];
 
 // Urlaub inkl. Mitgliedsname und Band (zum Filtern/Anzeigen in den Kalendern
