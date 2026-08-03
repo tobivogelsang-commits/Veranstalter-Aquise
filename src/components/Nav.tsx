@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/emails", label: "E-Mails" },
   { href: "/setliste", label: "Setliste" },
   { href: "/produktion", label: "Prod." },
+  { href: "/merch", label: "Merch" },
   { href: "/einstellungen", label: "Einstellungen" },
 ];
 

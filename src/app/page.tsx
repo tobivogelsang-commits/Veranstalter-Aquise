@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
 import { FollowUpList } from "@/components/FollowUpList";
 import { OffeneTeamAntworten } from "@/components/OffeneTeamAntworten";
@@ -11,6 +12,7 @@ import {
   getBands,
   getDashboardStats,
   getGigAnfragenFuerVenues,
+  getMerchNachbestellAnzahl,
   getNeuesteEingehendeEmails,
   getNeuesteProtokollEintraege,
   getVenuesWithRelations,
@@ -43,12 +45,14 @@ export default async function DashboardPage({
   const anzahlFuerStatus = (status: string) =>
     stats.statusVerteilung.find((s) => s.status === status)?.anzahl ?? 0;
 
-  const [alleAnfragen, mitgliederListen, neueEmails, aktivitaeten] = await Promise.all([
-    getGigAnfragenFuerVenues(venues.map((v) => v.id)),
-    Promise.all(bands.map((b) => getMitgliederFuerBand(b.id))),
-    getNeuesteEingehendeEmails(bandFilter, 5),
-    getNeuesteProtokollEintraege(bandFilter, 5),
-  ]);
+  const [alleAnfragen, mitgliederListen, neueEmails, aktivitaeten, merchNachbestellen] =
+    await Promise.all([
+      getGigAnfragenFuerVenues(venues.map((v) => v.id)),
+      Promise.all(bands.map((b) => getMitgliederFuerBand(b.id))),
+      getNeuesteEingehendeEmails(bandFilter, 5),
+      getNeuesteProtokollEintraege(bandFilter, 5),
+      getMerchNachbestellAnzahl(bandFilter),
+    ]);
   const anfragen = alleAnfragen.filter(
     (a) => bandFilter === ALLE_BANDS_PARAM || a.band_id === bandFilter
   );
@@ -78,6 +82,18 @@ export default async function DashboardPage({
       <NeueEmailsWidget emails={neueEmails} />
 
       <BereitZuBuchenBanner entries={bereitZuBuchen} />
+
+      {merchNachbestellen > 0 && (
+        <Link
+          href={bandFilter === ALLE_BANDS_PARAM ? "/merch" : `/merch/${bandFilter}`}
+          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100"
+        >
+          <span className="font-semibold">
+            📦 Merch nachbestellen ({merchNachbestellen})
+          </span>{" "}
+          – Artikel haben ihren Mindestbestand erreicht.
+        </Link>
+      )}
 
       <section>
         <h2 className="mb-3 text-lg font-medium text-slate-900">Offene Team-Antworten</h2>

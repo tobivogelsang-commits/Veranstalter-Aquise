@@ -4,6 +4,7 @@ import { getBandName } from "@/lib/teamActions";
 import {
   getBandSongs,
   getKalenderEintraege,
+  getMerchArtikel,
   getProduktionen,
   getSetlistenMitSongs,
   getTermine,
@@ -62,6 +63,7 @@ export default async function TeamPage({
     terminTeilnahme,
     terminSongs,
     urlaube,
+    merchArtikel,
   ] = await Promise.all([
     getBandName(bandId),
     getVenuesWithRelations(),
@@ -73,13 +75,16 @@ export default async function TeamPage({
     getTerminTeilnahme(bandId),
     getTerminSongs(bandId),
     getUrlaube(bandId),
+    getMerchArtikel(bandId),
   ]);
 
   if (!bandName) notFound();
 
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
   const aktiverTab =
-    tab === "kalender" || tab === "setliste" || tab === "produktion" ? tab : "dashboard";
+    tab === "kalender" || tab === "setliste" || tab === "produktion" || tab === "merch"
+      ? tab
+      : "dashboard";
   const logoUrl = getTeamIconPfade(bandId)?.klein ?? null;
 
   return (
@@ -100,6 +105,7 @@ export default async function TeamPage({
       terminTeilnahme={terminTeilnahme}
       terminSongs={terminSongs}
       urlaube={urlaube}
+      merchArtikel={merchArtikel}
     />
   );
 }

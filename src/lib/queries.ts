@@ -19,6 +19,8 @@ import type {
   EmailVorlage,
   GigAnfrageMitAntworten,
   KalenderTermin,
+  MerchArtikel,
+  MerchVorlageMitUrl,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
   Produktion,
@@ -137,6 +139,48 @@ export async function getTerminSongs(bandFilter: string): Promise<TerminSongsPro
     (songsProVorkommen[key] ??= []).push(eintrag);
   }
   return songsProVorkommen;
+}
+
+// Merch-Bestand einer Band, sortiert nach Kategorie/Name/Variante - so stehen
+// die Größen eines T-Shirts direkt untereinander.
+export async function getMerchArtikel(bandId: string): Promise<MerchArtikel[]> {
+  const { data, error } = await supabase
+    .from("merch_artikel")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("kategorie")
+    .order("name")
+    .order("variante");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Vorlagen inkl. kurzlebiger signierter URLs (privater Bucket) für Vorschau
+// und Download.
+export async function getMerchVorlagen(bandId: string): Promise<MerchVorlageMitUrl[]> {
+  const { data, error } = await supabase
+    .from("merch_vorlagen")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("erstellt_am", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  const vorlagen = data ?? [];
+  const urls = await signierteAnhangUrls(vorlagen.map((v) => v.pfad));
+  return vorlagen.map((v) => ({ ...v, url: urls[v.pfad] ?? null }));
+}
+
+// Wie viele Artikel liegen auf oder unter ihrem Mindestbestand? Für den
+// Nachbestell-Hinweis auf dem Dashboard. Artikel ohne gesetzten
+// Mindestbestand (0) zählen nicht mit.
+export async function getMerchNachbestellAnzahl(bandFilter: string): Promise<number> {
+  let query = supabase.from("merch_artikel").select("bestand, mindestbestand");
+  if (bandFilter !== ALLE_BANDS_PARAM) query = query.eq("band_id", bandFilter);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []).filter((a) => a.mindestbestand > 0 && a.bestand <= a.mindestbestand)
+    .length;
 }
 
 // Urlaube aller Mitglieder inkl. Name, nach Beginn sortiert. Bei
