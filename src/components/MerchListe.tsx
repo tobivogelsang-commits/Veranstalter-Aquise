@@ -57,7 +57,8 @@ export function MerchListe({
           aufDunkel ? "text-slate-300" : "text-slate-400 dark:text-slate-500"
         )}
       >
-        Nach dem Gig eintragen, was verkauft wurde – einfach mit − abziehen.
+        Nach dem Gig mit − abziehen, was verkauft wurde. Bei der Inventur die
+        gezählte Menge direkt ins Feld eintippen.
       </p>
     </div>
   );

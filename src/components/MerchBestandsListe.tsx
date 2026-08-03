@@ -35,15 +35,37 @@ export function MerchBestandsListe({
   onLoeschen?: (artikel: MerchArtikel) => void;
 }) {
   const [fehler, setFehler] = useState<string | null>(null);
+  // Zwischenstand beim Tippen im Bestandsfeld (Inventur): erst beim Verlassen
+  // des Feldes bzw. mit Enter wird gespeichert, sonst würde jede Ziffer eine
+  // Server-Aktion auslösen ("12" käme als 1, dann 12 an).
+  const [entwurf, setEntwurf] = useState<Record<string, string>>({});
 
-  function aendere(a: MerchArtikel, delta: number) {
-    const neu = Math.max(0, a.bestand + delta);
+  function speichere(a: MerchArtikel, neu: number) {
     if (neu === a.bestand) return;
     setFehler(null);
     onBestandGeaendert(a.id, neu);
     setzeMerchBestand(a.id, bandId, neu).then((ergebnis) => {
       if (!ergebnis.ok) setFehler(ergebnis.fehler);
     });
+  }
+
+  function aendere(a: MerchArtikel, delta: number) {
+    speichere(a, Math.max(0, a.bestand + delta));
+  }
+
+  // Getippte Zahl übernehmen; leere oder unsinnige Eingaben werden verworfen
+  // (das Feld springt dann auf den gespeicherten Wert zurück).
+  function uebernimm(a: MerchArtikel) {
+    const roh = entwurf[a.id];
+    setEntwurf((prev) => {
+      const next = { ...prev };
+      delete next[a.id];
+      return next;
+    });
+    if (roh === undefined || roh.trim() === "") return;
+    const zahl = Number(roh);
+    if (!Number.isFinite(zahl)) return;
+    speichere(a, Math.max(0, Math.trunc(zahl)));
   }
 
   if (artikel.length === 0) {
@@ -137,18 +159,34 @@ export function MerchBestandsListe({
                   >
                     −
                   </button>
-                  <span
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={entwurf[a.id] ?? String(a.bestand)}
+                    onChange={(e) =>
+                      setEntwurf((prev) => ({ ...prev, [a.id]: e.target.value }))
+                    }
+                    onFocus={(e) => e.currentTarget.select()}
+                    onBlur={() => uebernimm(a)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                    aria-label={`Bestand ${a.name} ${a.variante}`}
                     className={clsx(
-                      "w-9 shrink-0 text-center text-sm font-semibold tabular-nums",
+                      // Spinner ausblenden: auf dem Handy nimmt er nur Platz weg,
+                      // gezählt wird per Tastatur oder über −/+.
+                      "w-12 shrink-0 rounded-md border bg-transparent px-1 py-0.5 text-center text-sm font-semibold tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                      aufDunkel
+                        ? "border-white/20 text-white focus:border-white/60"
+                        : "border-slate-200 focus:border-slate-500 dark:border-slate-700",
                       istKnapp(a)
                         ? "text-red-500"
                         : aufDunkel
                           ? "text-white"
                           : "text-slate-900 dark:text-slate-100"
                     )}
-                  >
-                    {a.bestand}
-                  </span>
+                  />
                   <button
                     type="button"
                     onClick={() => aendere(a, 1)}
