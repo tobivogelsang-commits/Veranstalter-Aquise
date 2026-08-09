@@ -80,9 +80,9 @@ export const PRODUKTION_STEPS: ProduktionStep[] = [
   "Jam",
   "Strukturiert",
   "Aufnahmen",
+  "Bearbeiten",
   "Mixen",
   "Mastern",
-  "Bearbeiten",
   "Veröffentlichen",
 ];
 

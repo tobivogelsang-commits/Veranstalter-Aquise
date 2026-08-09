@@ -25,7 +25,11 @@ export default async function ProduktionDetailPage({
           Produktion: {band.name}
         </h1>
       </div>
-      <ProduktionListe bandId={band.id} initialProduktionen={produktionen} />
+      <ProduktionListe
+        bandId={band.id}
+        bandName={band.name}
+        initialProduktionen={produktionen}
+      />
     </div>
   );
 }

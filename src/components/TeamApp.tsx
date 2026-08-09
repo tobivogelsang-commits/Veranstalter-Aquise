@@ -31,7 +31,7 @@ import type {
   MerchArtikel,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
-  Produktion,
+  ProduktionMitSong,
   TerminSongsProVorkommen,
   TerminTeilnahme,
   UrlaubMitName,
@@ -253,7 +253,7 @@ export function TeamApp({
   kalenderEintraege: PipelineEntry[];
   songs: BandSong[];
   setlisten: SetlisteMitSongs[];
-  produktionen: Produktion[];
+  produktionen: ProduktionMitSong[];
   aktiverTab: TeamTab;
   kalenderAnsicht: "monat" | "jahr";
   monatParam?: string;
@@ -976,7 +976,11 @@ export function TeamApp({
 
       {aktiverTab === "produktion" && (
         <div>
-          <ProduktionListe bandId={bandId} initialProduktionen={produktionen} />
+          <ProduktionListe
+            bandId={bandId}
+            bandName={bandName}
+            initialProduktionen={produktionen}
+          />
         </div>
       )}
 

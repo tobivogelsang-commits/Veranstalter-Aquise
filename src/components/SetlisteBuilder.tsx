@@ -26,6 +26,7 @@ import {
   speichereSetlistReihenfolge,
 } from "@/lib/setlistActions";
 import { SongTitelInput } from "@/components/SongTitelInput";
+import { erstelleProduktion } from "@/lib/produktionActions";
 import { formatDauer, parseDauerEingabe, summeDauer } from "@/lib/dauer";
 import type { BandSong } from "@/lib/types";
 import type { SetlistPause } from "@/lib/database.types";
@@ -266,6 +267,7 @@ export function SetlisteBuilder({
 
   const [neuerSong, setNeuerSong] = useState({ titel: "", interpret: "", dauer: "" });
   const [songFehler, setSongFehler] = useState<string | null>(null);
+  const [songMeldung, setSongMeldung] = useState<string | null>(null);
   const [neueSetlisteName, setNeueSetlisteName] = useState("");
   const [zeigeNeueSetliste, setZeigeNeueSetliste] = useState(false);
   const [umbenennenAktiv, setUmbenennenAktiv] = useState(false);
@@ -307,6 +309,7 @@ export function SetlisteBuilder({
   async function handleSongHinzufuegen() {
     if (!neuerSong.titel.trim()) return;
     setSongFehler(null);
+    setSongMeldung(null);
     const ergebnis = await fuegeSongHinzu(
       bandId,
       neuerSong.titel,
@@ -318,6 +321,27 @@ export function SetlisteBuilder({
       return;
     }
     setSongs((prev) => [...prev, ergebnis.song].sort((a, b) => a.titel.localeCompare(b.titel)));
+    setSongMeldung(`„${ergebnis.song.titel}" zu den Songs hinzugefügt.`);
+    setNeuerSong({ titel: "", interpret: "", dauer: "" });
+  }
+
+  // Legt aus derselben Eingabe stattdessen einen Produktions-Eintrag an - für
+  // Songs, an denen noch gearbeitet wird. Speichername ist "Titel Interpret",
+  // der übliche Arbeitstitel bei Cover-Songs; die Dauer entfällt, weil
+  // Produktionen kein solches Feld haben.
+  async function handleZurProduktion() {
+    const titel = neuerSong.titel.trim();
+    if (!titel) return;
+    setSongFehler(null);
+    setSongMeldung(null);
+
+    const name = [titel, neuerSong.interpret.trim()].filter(Boolean).join(" ");
+    const ergebnis = await erstelleProduktion(bandId, name);
+    if (!ergebnis.ok) {
+      setSongFehler(ergebnis.fehler);
+      return;
+    }
+    setSongMeldung(`„${name}" im Produktion-Tab angelegt.`);
     setNeuerSong({ titel: "", interpret: "", dauer: "" });
   }
 
@@ -495,34 +519,57 @@ export function SetlisteBuilder({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="mb-2 text-sm font-medium text-slate-900 dark:text-slate-100">Songs ({songs.length})</h2>
-          <div className="mb-2 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={neuerSong.titel}
-              onChange={(e) => setNeuerSong((prev) => ({ ...prev, titel: e.target.value }))}
-              placeholder="Titel"
-              className={inputClass}
-            />
-            <input
-              value={neuerSong.interpret}
-              onChange={(e) => setNeuerSong((prev) => ({ ...prev, interpret: e.target.value }))}
-              placeholder="Interpret"
-              className={inputClass}
-            />
-            <input
-              value={neuerSong.dauer}
-              onChange={(e) => setNeuerSong((prev) => ({ ...prev, dauer: e.target.value }))}
-              placeholder="3:42"
-              className={`${inputClass} sm:w-20`}
-            />
-            <button
-              type="button"
-              onClick={handleSongHinzufuegen}
-              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              + Song
-            </button>
+          <div className="mb-2 flex flex-col gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <SongTitelInput
+                value={neuerSong.titel}
+                onChange={(wert) => setNeuerSong((prev) => ({ ...prev, titel: wert }))}
+                onVorschlag={(v) =>
+                  setNeuerSong({
+                    titel: v.titel,
+                    interpret: v.interpret,
+                    dauer: v.dauerSekunden !== null ? formatDauer(v.dauerSekunden) : "",
+                  })
+                }
+                className={inputClass}
+              />
+              <input
+                value={neuerSong.interpret}
+                onChange={(e) => setNeuerSong((prev) => ({ ...prev, interpret: e.target.value }))}
+                placeholder="Interpret"
+                className={inputClass}
+              />
+              <input
+                value={neuerSong.dauer}
+                onChange={(e) => setNeuerSong((prev) => ({ ...prev, dauer: e.target.value }))}
+                placeholder="3:42"
+                className={`${inputClass} sm:w-20`}
+              />
+            </div>
+            {/* Zwei Ziele für dieselbe Eingabe: fertiger Song in den Katalog
+                (Basis für Setlisten) oder Arbeits-Eintrag in der Produktion. */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSongHinzufuegen}
+                className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                + Song
+              </button>
+              <button
+                type="button"
+                onClick={handleZurProduktion}
+                title="Legt den Song als Arbeits-Eintrag im Produktion-Tab an"
+                className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                + zur Produktion
+              </button>
+            </div>
           </div>
           {songFehler && <p className="mb-2 text-xs text-red-600">{songFehler}</p>}
+          {songMeldung && (
+            <p className="mb-2 text-xs text-green-600 dark:text-green-400">{songMeldung}</p>
+          )}
           <div className="flex flex-col">
             {songs.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">Noch keine Songs angelegt.</p>
