@@ -141,6 +141,62 @@ export async function getTerminSongs(bandFilter: string): Promise<TerminSongsPro
   return songsProVorkommen;
 }
 
+// Was hängt an einer Band? Wird vor dem Löschen angezeigt, damit auf einen
+// Blick klar ist, was mit verschwindet - und damit man merkt, wenn man die
+// falsche Band erwischt hat. Veranstalter selbst bleiben erhalten, nur ihre
+// Zuordnung zu dieser Band geht verloren.
+export type BandLoeschUmfang = {
+  mitglieder: number;
+  songs: number;
+  setlisten: number;
+  termine: number;
+  produktionen: number;
+  merchArtikel: number;
+  venueZuordnungen: number;
+  emails: number;
+};
+
+export async function getBandLoeschUmfang(bandId: string): Promise<BandLoeschUmfang> {
+  const zaehle = async (tabelle: string): Promise<number> => {
+    const { count } = await supabase
+      .from(tabelle as "band_mitglieder")
+      .select("id", { count: "exact", head: true })
+      .eq("band_id", bandId);
+    return count ?? 0;
+  };
+
+  const [
+    mitglieder,
+    songs,
+    setlisten,
+    termine,
+    produktionen,
+    merchArtikel,
+    venueZuordnungen,
+    emails,
+  ] = await Promise.all([
+    zaehle("band_mitglieder"),
+    zaehle("band_songs"),
+    zaehle("setlisten"),
+    zaehle("kalender_termine"),
+    zaehle("produktionen"),
+    zaehle("merch_artikel"),
+    zaehle("venue_band_status"),
+    zaehle("band_emails"),
+  ]);
+
+  return {
+    mitglieder,
+    songs,
+    setlisten,
+    termine,
+    produktionen,
+    merchArtikel,
+    venueZuordnungen,
+    emails,
+  };
+}
+
 // Merch-Bestand einer Band, sortiert nach Kategorie/Name/Variante - so stehen
 // die Größen eines T-Shirts direkt untereinander.
 export async function getMerchArtikel(bandId: string): Promise<MerchArtikel[]> {

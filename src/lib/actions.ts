@@ -1227,6 +1227,47 @@ export async function entferneBandLogo(
   return { ok: true };
 }
 
+// Löscht eine Band mit ALLEM, was an ihr hängt (Mitglieder, Songs, Setlisten,
+// Termine, Produktionen, Merch, E-Mails, Veranstalter-Zuordnungen - per
+// Fremdschlüssel-Cascade in der Datenbank). Die Veranstalter selbst bleiben
+// bestehen, nur ihre Zuordnung zu dieser Band verschwindet.
+//
+// Wegen der Tragweite ist der exakte Bandname als Bestätigung nötig: Ein
+// versehentlicher Klick auf "Löschen" kann so nicht die falsche Band treffen.
+export async function loescheBand(
+  bandId: string,
+  bestaetigterName: string
+): Promise<{ ok: false; fehler: string } | never> {
+  await requireOwner();
+
+  const { data: band } = await supabase
+    .from("bands")
+    .select("name, logo_pfad")
+    .eq("id", bandId)
+    .maybeSingle();
+  if (!band) return { ok: false, fehler: "Band nicht gefunden." };
+
+  if (bestaetigterName.trim() !== band.name) {
+    return { ok: false, fehler: "Der eingegebene Name stimmt nicht überein." };
+  }
+
+  const { error } = await supabase.from("bands").delete().eq("id", bandId);
+  if (error) return { ok: false, fehler: error.message };
+
+  // Logo aufräumen (best effort - eine verwaiste Datei ist harmloser als ein
+  // abgebrochenes Löschen).
+  if (band.logo_pfad) {
+    await supabaseAdmin.storage.from(BILD_BUCKET).remove([band.logo_pfad]);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/venues");
+  revalidatePath("/pipeline");
+  revalidatePath("/kalender");
+  revalidatePath("/einstellungen");
+  redirect("/einstellungen");
+}
+
 export async function updateBand(bandId: string, formData: FormData) {
   await requireOwner();
   const name = str(formData, "name");

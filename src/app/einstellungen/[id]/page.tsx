@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { BandForm } from "@/components/BandForm";
 import { BandLogoPanel } from "@/components/BandLogoPanel";
+import { BandLoeschenPanel } from "@/components/BandLoeschenPanel";
 import { getEmailEinstellungen } from "@/lib/emailActions";
 import { getBandLogoUrl, getMitgliederFuerBand } from "@/lib/teamActions";
 import {
   getBandDokumentTypen,
+  getBandLoeschUmfang,
   getBandWithMaterialien,
   getEmailVorlagen,
 } from "@/lib/queries";
@@ -34,6 +36,7 @@ export default async function EinstellungenDetailPage({
     emailVorlagen,
     dokumentTypen,
     bandLogoUrl,
+    loeschUmfang,
   ] = await Promise.all([
     getBandWithMaterialien(id),
     getEmailEinstellungen(id),
@@ -42,6 +45,7 @@ export default async function EinstellungenDetailPage({
     getEmailVorlagen(id),
     getBandDokumentTypen(id),
     getBandLogoUrl(id),
+    getBandLoeschUmfang(id),
   ]);
 
   if (!band) notFound();
@@ -64,6 +68,7 @@ export default async function EinstellungenDetailPage({
         emailVorlagen={emailVorlagen}
         dokumentTypen={dokumentTypen}
       />
+      <BandLoeschenPanel bandId={band.id} bandName={band.name} umfang={loeschUmfang} />
     </div>
   );
 }
