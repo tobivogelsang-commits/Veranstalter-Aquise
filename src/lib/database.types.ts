@@ -83,6 +83,9 @@ export interface Database {
           gagenrahmen_max: number | null;
           kontakt_email: string | null;
           epk_link: string | null;
+          // Storage-Pfad im öffentlichen Bild-Bucket; Logo der Team-App und
+          // Icon auf dem Home-Bildschirm.
+          logo_pfad: string | null;
           created_at: string;
           user_id: string | null;
         };

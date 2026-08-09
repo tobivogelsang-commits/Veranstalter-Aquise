@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
+import { getTeamIconPfade } from "@/lib/constants";
+import { oeffentlicheBildUrl } from "@/lib/storage";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
 import type {
@@ -522,4 +524,19 @@ export async function holeTerminAntworten(
     vorkommenDatum: r.vorkommen_datum,
     antwort: r.antwort as GigAntwort,
   }));
+}
+
+// Bild der Band für Team-App und Home-Bildschirm-Icon. Reihenfolge:
+// 1. selbst hochgeladenes Logo (öffentliche URL, gilt für jede neue Band
+//    automatisch), 2. die alte fest hinterlegte Icon-Datei (Bestandsschutz
+//    für Trash Back), 3. nichts - der Aufrufer nimmt dann das Standard-Icon.
+export async function getBandLogoUrl(bandId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("bands")
+    .select("logo_pfad")
+    .eq("id", bandId)
+    .maybeSingle();
+
+  if (data?.logo_pfad) return oeffentlicheBildUrl(data.logo_pfad);
+  return getTeamIconPfade(bandId)?.klein ?? null;
 }

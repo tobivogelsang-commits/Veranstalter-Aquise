@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 // authenticated keinen Tabellenzugriff mehr. Der gesamte serverseitige
 // Datenzugriff läuft daher über den service_role-Client (umgeht RLS). Der
 // Zugriffsschutz erfolgt über den Login-Proxy + requireOwner() je Aktion.
-import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
+import { BILD_BUCKET } from "@/lib/storage";
 import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
@@ -1125,6 +1126,146 @@ export async function rueckeStatusAutomatischVor(
   revalidatePath("/venues");
   revalidatePath("/pipeline");
   revalidatePath(`/venues/${venueId}`);
+}
+
+// Legt eine weitere Band an. Alle Bereiche der App (Pipeline, Kalender,
+// Setliste, Produktion, Merch, eigene Team-App unter /team/<id>) hängen an
+// der band_id und stehen damit sofort zur Verfügung.
+export async function createBand(formData: FormData) {
+  await requireOwner();
+  const name = str(formData, "name");
+  if (!name) throw new Error("Name ist ein Pflichtfeld.");
+
+  const { data, error } = await supabase
+    .from("bands")
+    .insert({ name, genre: str(formData, "genre") })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  // Logo ist optional - wird es mitgeschickt, dient es zugleich als Icon der
+  // Team-App auf dem Home-Bildschirm.
+  const logo = formData.get("logo");
+  if (logo instanceof File && logo.size > 0) {
+    await speichereBandLogo(data.id, logo);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/einstellungen");
+  redirect(`/einstellungen/${data.id}`);
+}
+
+// Lädt das Logo in den ÖFFENTLICHEN Bild-Bucket (das Web-Manifest-Icon wird
+// vom Betriebssystem ohne Anmeldung geladen, eine signierte URL wäre zu kurz
+// gültig) und merkt sich den Pfad an der Band.
+async function speichereBandLogo(bandId: string, datei: File): Promise<void> {
+  const sicherName = datei.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const pfad = `band-logos/${bandId}/${Date.now()}-${sicherName}`;
+  const buffer = Buffer.from(await datei.arrayBuffer());
+
+  const { error: uploadFehler } = await supabaseAdmin.storage
+    .from(BILD_BUCKET)
+    .upload(pfad, buffer, { contentType: datei.type || undefined, upsert: false });
+  if (uploadFehler) throw new Error(uploadFehler.message);
+
+  const { error } = await supabase
+    .from("bands")
+    .update({ logo_pfad: pfad })
+    .eq("id", bandId);
+  if (error) throw new Error(error.message);
+}
+
+export async function ladeBandLogoHoch(
+  bandId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const datei = formData.get("logo");
+  if (!(datei instanceof File) || datei.size === 0) {
+    return { ok: false, fehler: "Keine Datei erhalten." };
+  }
+  if (!datei.type.startsWith("image/")) {
+    return { ok: false, fehler: "Bitte ein Bild auswählen (PNG oder JPG)." };
+  }
+
+  try {
+    await speichereBandLogo(bandId, datei);
+  } catch (err) {
+    return { ok: false, fehler: err instanceof Error ? err.message : "Upload fehlgeschlagen." };
+  }
+
+  revalidatePath("/einstellungen");
+  revalidatePath(`/einstellungen/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true };
+}
+
+export async function entferneBandLogo(
+  bandId: string
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const { data: band } = await supabase
+    .from("bands")
+    .select("logo_pfad")
+    .eq("id", bandId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("bands")
+    .update({ logo_pfad: null })
+    .eq("id", bandId);
+  if (error) return { ok: false, fehler: error.message };
+
+  // Datei aufräumen (best effort).
+  if (band?.logo_pfad) {
+    await supabaseAdmin.storage.from(BILD_BUCKET).remove([band.logo_pfad]);
+  }
+
+  revalidatePath("/einstellungen");
+  revalidatePath(`/einstellungen/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true };
+}
+
+// Löscht eine Band mit ALLEM, was an ihr hängt (Mitglieder, Songs, Setlisten,
+// Termine, Produktionen, Merch, E-Mails, Veranstalter-Zuordnungen - per
+// Fremdschlüssel-Cascade in der Datenbank). Die Veranstalter selbst bleiben
+// bestehen, nur ihre Zuordnung zu dieser Band verschwindet.
+//
+// Wegen der Tragweite ist der exakte Bandname als Bestätigung nötig: Ein
+// versehentlicher Klick auf "Löschen" kann so nicht die falsche Band treffen.
+export async function loescheBand(
+  bandId: string,
+  bestaetigterName: string
+): Promise<{ ok: false; fehler: string } | never> {
+  await requireOwner();
+
+  const { data: band } = await supabase
+    .from("bands")
+    .select("name, logo_pfad")
+    .eq("id", bandId)
+    .maybeSingle();
+  if (!band) return { ok: false, fehler: "Band nicht gefunden." };
+
+  if (bestaetigterName.trim() !== band.name) {
+    return { ok: false, fehler: "Der eingegebene Name stimmt nicht überein." };
+  }
+
+  const { error } = await supabase.from("bands").delete().eq("id", bandId);
+  if (error) return { ok: false, fehler: error.message };
+
+  // Logo aufräumen (best effort - eine verwaiste Datei ist harmloser als ein
+  // abgebrochenes Löschen).
+  if (band.logo_pfad) {
+    await supabaseAdmin.storage.from(BILD_BUCKET).remove([band.logo_pfad]);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/venues");
+  revalidatePath("/pipeline");
+  revalidatePath("/kalender");
+  revalidatePath("/einstellungen");
+  redirect("/einstellungen");
 }
 
 export async function updateBand(bandId: string, formData: FormData) {

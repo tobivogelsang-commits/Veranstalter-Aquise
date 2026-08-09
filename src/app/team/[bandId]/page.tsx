@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getBandName } from "@/lib/teamActions";
+import { getBandLogoUrl, getBandName } from "@/lib/teamActions";
 import {
   getBandSongs,
   getKalenderEintraege,
@@ -14,7 +14,6 @@ import {
   getVenuesWithRelations,
 } from "@/lib/queries";
 import { getProberaumTermine } from "@/lib/proberaumKalender";
-import { getTeamIconPfade } from "@/lib/constants";
 import { TeamApp } from "@/components/TeamApp";
 
 export const dynamic = "force-dynamic";
@@ -26,14 +25,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { bandId } = await params;
   const bandName = (await getBandName(bandId)) ?? "Team";
-  const teamIcon = getTeamIconPfade(bandId);
+  const logoUrl = await getBandLogoUrl(bandId);
 
   return {
     title: `${bandName} – Team`,
     manifest: `/api/team-manifest/${bandId}`,
-    icons: teamIcon
-      ? { apple: teamIcon.gross, icon: teamIcon.klein }
-      : undefined,
+    icons: logoUrl ? { apple: logoUrl, icon: logoUrl } : undefined,
   };
 }
 
@@ -85,7 +82,7 @@ export default async function TeamPage({
     tab === "kalender" || tab === "setliste" || tab === "produktion" || tab === "merch"
       ? tab
       : "dashboard";
-  const logoUrl = getTeamIconPfade(bandId)?.klein ?? null;
+  const logoUrl = await getBandLogoUrl(bandId);
 
   return (
     <TeamApp

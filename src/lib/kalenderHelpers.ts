@@ -236,11 +236,11 @@ type BandFarben = {
 
 // Feste Farbzuordnung pro Band, damit auf einen Blick erkennbar ist, welcher
 // Gig zu welcher Band gehört - "gebucht" kräftig, "interessiert" deutlich
-// heller/schwächer in derselben Farbfamilie. Unbekannte Bandnamen (z. B.
-// falls später eine dritte Band dazukommt) fallen auf neutrales Grau zurück,
-// statt zu crashen.
+// heller/schwächer in derselben Farbfamilie. Bands ohne festen Eintrag
+// bekommen deterministisch eine Farbe aus WEITERE_FARBEN (siehe unten),
+// damit auch eine dritte/vierte Band unterscheidbar bleibt.
 const BAND_FARBEN: Record<string, BandFarben> = {
-  "90er Coverband": {
+  "Trash Back": {
     pill: {
       gebucht: "bg-green-600 text-white hover:bg-green-700",
       interessiert:
@@ -264,23 +264,57 @@ const BAND_FARBEN: Record<string, BandFarben> = {
   },
 };
 
-const STANDARD_FARBEN: BandFarben = {
-  pill: {
-    gebucht: "bg-slate-700 text-white hover:bg-slate-800",
-    interessiert: "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100",
+// Farbfamilien für später hinzugekommene Bands - bewusst deutlich anders als
+// Grün/Rot der beiden festen Bands und als die Termin-Farben (indigo/amber/sky).
+const WEITERE_FARBEN: BandFarben[] = [
+  {
+    pill: {
+      gebucht: "bg-violet-600 text-white hover:bg-violet-700",
+      interessiert:
+        "border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+    },
+    punkt: { gebucht: "bg-violet-600", interessiert: "bg-violet-300" },
   },
-  punkt: {
-    gebucht: "bg-slate-700",
-    interessiert: "bg-slate-300",
+  {
+    pill: {
+      gebucht: "bg-teal-600 text-white hover:bg-teal-700",
+      interessiert: "border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100",
+    },
+    punkt: { gebucht: "bg-teal-600", interessiert: "bg-teal-300" },
   },
-};
+  {
+    pill: {
+      gebucht: "bg-fuchsia-600 text-white hover:bg-fuchsia-700",
+      interessiert:
+        "border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
+    },
+    punkt: { gebucht: "bg-fuchsia-600", interessiert: "bg-fuchsia-300" },
+  },
+  {
+    pill: {
+      gebucht: "bg-cyan-700 text-white hover:bg-cyan-800",
+      interessiert: "border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100",
+    },
+    punkt: { gebucht: "bg-cyan-700", interessiert: "bg-cyan-300" },
+  },
+];
+
+// Stabile Zuordnung über den Bandnamen: dieselbe Band bekommt immer dieselbe
+// Farbe, unabhängig von Reihenfolge oder Anzahl der Bands.
+function farbenFuer(bandName: string): BandFarben {
+  const fest = BAND_FARBEN[bandName];
+  if (fest) return fest;
+  let summe = 0;
+  for (let i = 0; i < bandName.length; i += 1) summe += bandName.charCodeAt(i);
+  return WEITERE_FARBEN[summe % WEITERE_FARBEN.length];
+}
 
 export function kalenderPillFarbe(bandName: string, status: KalenderStatus): string {
-  return (BAND_FARBEN[bandName] ?? STANDARD_FARBEN).pill[status];
+  return farbenFuer(bandName).pill[status];
 }
 
 export function kalenderPunktFarbe(bandName: string, status: KalenderStatus): string {
-  return (BAND_FARBEN[bandName] ?? STANDARD_FARBEN).punkt[status];
+  return farbenFuer(bandName).punkt[status];
 }
 
 export function bekannteKalenderBands(): string[] {

@@ -24,6 +24,14 @@ export function anhangPfad(bandId: string, dateiname: string, unterordner?: stri
   return teile.join("/");
 }
 
+// Dauerhafte öffentliche URL aus dem Bild-Bucket. Für Inhalte, die auch ohne
+// Anmeldung ladbar sein müssen (Mail-Bilder, Band-Logo als App-Icon im
+// Web-Manifest - dort wäre eine signierte URL nach einer Stunde tot).
+export function oeffentlicheBildUrl(pfad: string): string {
+  const { data } = supabaseAdmin.storage.from(BILD_BUCKET).getPublicUrl(pfad);
+  return data.publicUrl;
+}
+
 // Kurzlebiger Download-Link für die Anzeige in der App.
 export async function signierteAnhangUrl(pfad: string): Promise<string | null> {
   const { data, error } = await supabaseAdmin.storage
