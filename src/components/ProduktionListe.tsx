@@ -380,6 +380,16 @@ export function ProduktionListe({
     <div className="flex flex-col gap-3">
       {fehler && <p className="text-xs text-red-600">{fehler}</p>}
 
+      {/* Oben, weil neue Einträge oben in der Liste erscheinen - so steht der
+          Knopf direkt über dem, was er erzeugt. */}
+      <button
+        type="button"
+        onClick={handleNeu}
+        className="self-start rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+      >
+        + Neuer Eintrag
+      </button>
+
       {produktionen.length === 0 ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Noch keine Produktions-Einträge.
@@ -418,13 +428,6 @@ export function ProduktionListe({
         })
       )}
 
-      <button
-        type="button"
-        onClick={handleNeu}
-        className="self-start rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-      >
-        + Neuer Eintrag
-      </button>
     </div>
   );
 }
