@@ -24,7 +24,7 @@ import type {
   MerchVorlageMitUrl,
   OffeneAnfrageFuerMitglied,
   PipelineEntry,
-  Produktion,
+  ProduktionMitSong,
   Setliste,
   TerminAntwortMitName,
   TerminPlanEintrag,
@@ -637,17 +637,23 @@ export async function getSetlistenMitSongs(bandId: string): Promise<SetlisteMitS
   return setlisten.map((s, i) => ({ ...s, songs: songsProSetliste[i] }));
 }
 
-// Produktions-Einträge einer Band, neuester zuerst (erstellt_am absteigend) -
-// so steht die zuletzt angelegte Karte oben in der Liste.
-export async function getProduktionen(bandId: string): Promise<Produktion[]> {
+// Produktions-Einträge einer Band inkl. des ggf. daraus entstandenen
+// Katalog-Songs. Sortierung: laufende Arbeiten zuerst (neueste oben), bereits
+// übernommene Produktionen ans Ende - dort stört die Historie nicht.
+export async function getProduktionen(bandId: string): Promise<ProduktionMitSong[]> {
   const { data, error } = await supabase
     .from("produktionen")
-    .select("*")
+    .select("*, song:band_songs(id, titel)")
     .eq("band_id", bandId)
     .order("erstellt_am", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  const produktionen = (data ?? []) as unknown as ProduktionMitSong[];
+  return [
+    ...produktionen.filter((p) => !p.song_id),
+    ...produktionen.filter((p) => p.song_id),
+  ];
 }
 
 export async function getVenuesWithRelations(): Promise<

@@ -28,9 +28,9 @@ export type ProduktionStep =
   | "Jam"
   | "Strukturiert"
   | "Aufnahmen"
+  | "Bearbeiten"
   | "Mixen"
   | "Mastern"
-  | "Bearbeiten"
   | "Veröffentlichen";
 export type ProduktionRecording = "Vox" | "Keys" | "Gitarre" | "Drums" | "Sample";
 
@@ -589,6 +589,8 @@ export interface Database {
           datum: string;
           step: string | null;
           recordings: string[];
+          // Gesetzt, sobald die Produktion in den Songkatalog übernommen wurde.
+          song_id: string | null;
           erstellt_am: string;
         };
         Insert: Partial<Database["public"]["Tables"]["produktionen"]["Row"]> & {
@@ -601,6 +603,13 @@ export interface Database {
             columns: ["band_id"];
             isOneToOne: false;
             referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "produktionen_song_id_fkey";
+            columns: ["song_id"];
+            isOneToOne: false;
+            referencedRelation: "band_songs";
             referencedColumns: ["id"];
           },
         ];

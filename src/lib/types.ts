@@ -22,6 +22,12 @@ export type BandSong = Database["public"]["Tables"]["band_songs"]["Row"];
 export type Setliste = Database["public"]["Tables"]["setlisten"]["Row"];
 export type SetlistEintrag = Database["public"]["Tables"]["setlist_eintraege"]["Row"];
 export type Produktion = Database["public"]["Tables"]["produktionen"]["Row"];
+
+// Produktion inkl. des Songs, der daraus im Katalog entstanden ist (falls
+// bereits übernommen) - für die Anzeige "✓ Im Katalog: How I Get".
+export type ProduktionMitSong = Produktion & {
+  song: { id: string; titel: string } | null;
+};
 export type KalenderTermin = Database["public"]["Tables"]["kalender_termine"]["Row"];
 export type TerminAntwortRow =
   Database["public"]["Tables"]["termin_antworten"]["Row"];

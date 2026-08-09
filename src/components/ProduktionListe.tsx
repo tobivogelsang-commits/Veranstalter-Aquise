@@ -6,13 +6,14 @@ import {
   aktualisiereProduktion,
   erstelleProduktion,
   loescheProduktion,
+  uebernehmeInKatalog,
 } from "@/lib/produktionActions";
 import { fuegeSongHinzu } from "@/lib/setlistActions";
 import { formatDauer, parseDauerEingabe } from "@/lib/dauer";
 import { type SongVorschlag } from "@/lib/musikSuche";
 import { SongTitelInput } from "@/components/SongTitelInput";
 import { PRODUKTION_RECORDINGS, PRODUKTION_STEPS } from "@/lib/constants";
-import type { Produktion } from "@/lib/types";
+import type { Produktion, ProduktionMitSong } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
@@ -47,18 +48,22 @@ function ChevronIcon({ offen }: { offen: boolean }) {
 
 function ProduktionKarte({
   bandId,
+  bandName,
   produktion,
   offen,
   onToggle,
   onChange,
   onLoeschen,
+  onUebernommen,
 }: {
   bandId: string;
-  produktion: Produktion;
+  bandName: string;
+  produktion: ProduktionMitSong;
   offen: boolean;
   onToggle: () => void;
   onChange: (werte: Partial<Produktion>) => void;
   onLoeschen: () => void;
+  onUebernommen: (song: { id: string; titel: string }) => void;
 }) {
   const titel = produktion.name.trim() || "Ohne Titel";
   const recordingsText = produktion.recordings.join(" · ");
@@ -69,6 +74,44 @@ function ProduktionKarte({
   const [songFehler, setSongFehler] = useState<string | null>(null);
   const [songGespeichert, setSongGespeichert] = useState<string | null>(null);
   const [songLaeuft, setSongLaeuft] = useState(false);
+
+  // Übernahme in den Songkatalog: Der Arbeitstitel ist selten der spätere
+  // Songtitel, deshalb ein eigenes Formular statt stumpfem Kopieren.
+  const [katalogOffen, setKatalogOffen] = useState(false);
+  const [katalogForm, setKatalogForm] = useState({ titel: "", interpret: "", dauer: "" });
+  const [katalogFehler, setKatalogFehler] = useState<string | null>(null);
+  const [katalogLaeuft, setKatalogLaeuft] = useState(false);
+
+  function starteUebernahme() {
+    setKatalogForm({
+      titel: produktion.name.trim(),
+      // Eigenkompositionen: Interpret ist die Band selbst.
+      interpret: bandName,
+      dauer: "",
+    });
+    setKatalogFehler(null);
+    setKatalogOffen(true);
+  }
+
+  async function handleUebernehmen() {
+    if (!katalogForm.titel.trim() || katalogLaeuft) return;
+    setKatalogLaeuft(true);
+    setKatalogFehler(null);
+    const ergebnis = await uebernehmeInKatalog(
+      produktion.id,
+      bandId,
+      katalogForm.titel,
+      katalogForm.interpret || null,
+      katalogForm.dauer ? parseDauerEingabe(katalogForm.dauer) : null
+    );
+    setKatalogLaeuft(false);
+    if (!ergebnis.ok) {
+      setKatalogFehler(ergebnis.fehler);
+      return;
+    }
+    setKatalogOffen(false);
+    onUebernommen(ergebnis.song);
+  }
 
   // Auto-Vervollständigung: Klick auf einen iTunes-Vorschlag übernimmt
   // Titel, Interpret und Originallänge in die Felder.
@@ -253,6 +296,74 @@ function ProduktionKarte({
               ))}
             </div>
           </div>
+
+          {/* Rückweg in den Katalog: erst wenn der Song fertig ist. Danach
+              zeigt die Karte nur noch, wohin er gewandert ist. */}
+          <div className="border-t border-slate-100 pt-3 dark:border-slate-700">
+            {produktion.song ? (
+              <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                ✓ Im Songkatalog: {produktion.song.titel}
+              </p>
+            ) : katalogOffen ? (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  In den Songkatalog übernehmen
+                </span>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={katalogForm.titel}
+                    onChange={(e) =>
+                      setKatalogForm((prev) => ({ ...prev, titel: e.target.value }))
+                    }
+                    placeholder="Songtitel"
+                    className={inputClass}
+                  />
+                  <input
+                    value={katalogForm.interpret}
+                    onChange={(e) =>
+                      setKatalogForm((prev) => ({ ...prev, interpret: e.target.value }))
+                    }
+                    placeholder="Interpret"
+                    className={inputClass}
+                  />
+                  <input
+                    value={katalogForm.dauer}
+                    onChange={(e) =>
+                      setKatalogForm((prev) => ({ ...prev, dauer: e.target.value }))
+                    }
+                    placeholder="3:42"
+                    className={`${inputClass} sm:w-20`}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUebernehmen}
+                    disabled={katalogLaeuft}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    {katalogLaeuft ? "Übernehme…" : "Übernehmen"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKatalogOffen(false)}
+                    className="text-sm text-slate-500 underline hover:text-slate-900 dark:hover:text-slate-100"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+                {katalogFehler && <p className="text-xs text-red-600">{katalogFehler}</p>}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={starteUebernahme}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                → In den Songkatalog übernehmen
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -261,12 +372,15 @@ function ProduktionKarte({
 
 export function ProduktionListe({
   bandId,
+  bandName,
   initialProduktionen,
 }: {
   bandId: string;
-  initialProduktionen: Produktion[];
+  bandName: string;
+  initialProduktionen: ProduktionMitSong[];
 }) {
-  const [produktionen, setProduktionen] = useState<Produktion[]>(initialProduktionen);
+  const [produktionen, setProduktionen] =
+    useState<ProduktionMitSong[]>(initialProduktionen);
   const [offeneIds, setOffeneIds] = useState<Set<string>>(new Set());
   const [fehler, setFehler] = useState<string | null>(null);
   // Debounce-Timer pro Eintrag, damit Tippen im Namens-/Datumsfeld nicht bei
@@ -295,6 +409,17 @@ export function ProduktionListe({
     });
   }
 
+  // Übernommene Produktionen rutschen ans Ende - oben bleiben die laufenden
+  // Arbeiten, die Historie stört dort nicht.
+  function handleUebernommen(produktionId: string, song: { id: string; titel: string }) {
+    setProduktionen((prev) => {
+      const next = prev.map((p) =>
+        p.id === produktionId ? { ...p, song_id: song.id, song } : p
+      );
+      return [...next.filter((p) => !p.song_id), ...next.filter((p) => p.song_id)];
+    });
+  }
+
   function toggleOffen(produktionId: string) {
     setOffeneIds((prev) => {
       const next = new Set(prev);
@@ -312,7 +437,7 @@ export function ProduktionListe({
       return;
     }
     // Neuester Eintrag oben, direkt aufgeklappt.
-    setProduktionen((prev) => [ergebnis.produktion, ...prev]);
+    setProduktionen((prev) => [{ ...ergebnis.produktion, song: null }, ...prev]);
     setOffeneIds((prev) => new Set(prev).add(ergebnis.produktion.id));
   }
 
@@ -342,11 +467,13 @@ export function ProduktionListe({
           <ProduktionKarte
             key={produktion.id}
             bandId={bandId}
+            bandName={bandName}
             produktion={produktion}
             offen={offeneIds.has(produktion.id)}
             onToggle={() => toggleOffen(produktion.id)}
             onChange={(werte) => handleChange(produktion.id, werte)}
             onLoeschen={() => handleLoeschen(produktion.id)}
+            onUebernommen={(song) => handleUebernommen(produktion.id, song)}
           />
         ))
       )}
