@@ -142,6 +142,22 @@ export async function getTerminSongs(bandFilter: string): Promise<TerminSongsPro
   return songsProVorkommen;
 }
 
+// Schlanke Veranstalter-Liste für die Auswahl im Angebot (Vorschläge beim
+// Tippen; die Adresse wird dann ins Angebot übernommen).
+export type VenueVorschlag = Pick<
+  Venue,
+  "id" | "name" | "ansprechpartner" | "strasse" | "ort" | "email"
+>;
+
+export async function getVenueVorschlaege(): Promise<VenueVorschlag[]> {
+  const { data, error } = await supabase
+    .from("venues")
+    .select("id, name, ansprechpartner, strasse, ort, email")
+    .order("name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 // Angebote einer Band bzw. aller Bands, neueste zuerst.
 export async function getAngebote(bandFilter: string): Promise<AngebotMitBand[]> {
   let query = supabase

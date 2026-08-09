@@ -120,6 +120,7 @@ export async function aktualisiereAngebot(
     titel: string;
     datum: string;
     gueltigBis: string | null;
+    venueId: string | null;
     empfaengerName: string;
     empfaengerAnsprechpartner: string | null;
     empfaengerStrasse: string | null;
@@ -139,6 +140,7 @@ export async function aktualisiereAngebot(
   const { data, error } = await supabase
     .from("angebote")
     .update({
+      venue_id: werte.venueId,
       titel: werte.titel.trim() || "Angebot",
       datum: werte.datum,
       gueltig_bis: werte.gueltigBis,

@@ -35,6 +35,7 @@ import type { SetlisteMitSongs } from "@/lib/queries";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
 import { DokumentChecklist } from "@/components/DokumentChecklist";
+import { VenueAngebote } from "@/components/VenueAngebote";
 import { VenueEmailThread } from "@/components/VenueEmailThread";
 import { VenueProtokoll } from "@/components/VenueProtokoll";
 
@@ -971,6 +972,15 @@ export function VenueForm({
                       <AnfrageBadge
                         anfrage={bandAnfrage}
                         gesamtMitglieder={mitgliederProBand?.[band.id] ?? 0}
+                      />
+                    </div>
+                  )}
+                  {venue && (
+                    <div className="sm:col-span-2">
+                      <VenueAngebote
+                        bandId={band.id}
+                        venueId={venue.id}
+                        angebote={angebote ?? []}
                       />
                     </div>
                   )}

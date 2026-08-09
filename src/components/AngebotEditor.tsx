@@ -9,8 +9,10 @@ import {
   setzeAngebotStatus,
 } from "@/lib/angebotActions";
 import { berechneAngebotSummen, formatEuro } from "@/lib/angebotHelpers";
+import { AngebotMailDialog } from "@/components/AngebotMailDialog";
 import type { AngebotPosition, AngebotStatus } from "@/lib/database.types";
-import type { AngebotMitBand } from "@/lib/types";
+import type { AngebotMitBand, EmailVorlage } from "@/lib/types";
+import type { VenueVorschlag } from "@/lib/queries";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
@@ -33,7 +35,15 @@ function Feld({ label, children }: { label: string; children: React.ReactNode })
 
 // Angebots-Maske: Empfänger, Texte und Positionen. Gespeichert wird per Klick
 // (kein Autosave), danach lässt sich das PDF erzeugen und ansehen.
-export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
+export function AngebotEditor({
+  angebot,
+  venues,
+  vorlagen,
+}: {
+  angebot: AngebotMitBand;
+  venues: VenueVorschlag[];
+  vorlagen: EmailVorlage[];
+}) {
   const [form, setForm] = useState({
     titel: angebot.titel,
     datum: angebot.datum,
@@ -51,6 +61,14 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
   const [positionen, setPositionen] = useState<AngebotPosition[]>(
     angebot.positionen.length > 0 ? angebot.positionen : [{ beschreibung: "", betrag: 0 }]
   );
+  const [venueId, setVenueId] = useState<string | null>(angebot.venue_id);
+  // E-Mail des gewählten Veranstalters (nur für den Versand-Dialog, nicht
+  // Teil des Angebots selbst).
+  const [venueEmail, setVenueEmail] = useState<string | null>(
+    venues.find((v) => v.id === angebot.venue_id)?.email ?? null
+  );
+  const [zeigeVorschlaege, setZeigeVorschlaege] = useState(false);
+  const [mailOffen, setMailOffen] = useState(false);
   const [status, setStatus] = useState<AngebotStatus>(angebot.status);
   const [pdfDateiname, setPdfDateiname] = useState<string | null>(angebot.pdf_dateiname);
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -58,6 +76,33 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
   const [laeuft, setLaeuft] = useState(false);
 
   const summen = berechneAngebotSummen(positionen, form.ustSatz);
+
+  // Vorschläge: Veranstalter, deren Name den Eingabetext enthält. Erst ab dem
+  // ersten Zeichen, damit die Liste nicht ungefragt aufspringt.
+  const treffer =
+    form.empfaengerName.trim().length > 0
+      ? venues
+          .filter((v) =>
+            v.name.toLowerCase().includes(form.empfaengerName.trim().toLowerCase())
+          )
+          .slice(0, 8)
+      : [];
+
+  // Übernimmt Anschrift und Ansprechpartner und verknüpft das Angebot mit dem
+  // Veranstalter - dadurch taucht es dort auf und lässt sich an dessen Mails
+  // anhängen.
+  function waehleVenue(venue: VenueVorschlag) {
+    setForm((p) => ({
+      ...p,
+      empfaengerName: venue.name,
+      empfaengerAnsprechpartner: venue.ansprechpartner ?? "",
+      empfaengerStrasse: venue.strasse ?? "",
+      empfaengerOrt: venue.ort ?? "",
+    }));
+    setVenueId(venue.id);
+    setVenueEmail(venue.email);
+    setZeigeVorschlaege(false);
+  }
 
   function setzePosition(index: number, werte: Partial<AngebotPosition>) {
     setPositionen((prev) =>
@@ -73,6 +118,7 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
       titel: form.titel,
       datum: form.datum,
       gueltigBis: form.gueltigBis || null,
+      venueId,
       empfaengerName: form.empfaengerName,
       empfaengerAnsprechpartner: form.empfaengerAnsprechpartner || null,
       empfaengerStrasse: form.empfaengerStrasse || null,
@@ -141,12 +187,53 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
         <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-medium text-slate-900">Empfänger</h2>
           <Feld label="Name">
-            <input
-              value={form.empfaengerName}
-              onChange={(e) => setForm((p) => ({ ...p, empfaengerName: e.target.value }))}
-              placeholder="Name des Veranstalters"
-              className={inputClass}
-            />
+            <div className="relative">
+              <input
+                value={form.empfaengerName}
+                onChange={(e) => {
+                  setForm((p) => ({ ...p, empfaengerName: e.target.value }));
+                  setZeigeVorschlaege(true);
+                  // Tippt jemand den Namen frei um, ist die Verknüpfung zum
+                  // Veranstalter nicht mehr gesichert.
+                  setVenueId(null);
+                }}
+                onFocus={() => setZeigeVorschlaege(true)}
+                onBlur={() => setTimeout(() => setZeigeVorschlaege(false), 120)}
+                placeholder="Name des Veranstalters"
+                className={inputClass}
+              />
+              {zeigeVorschlaege && treffer.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+                  {treffer.map((v) => (
+                    <li key={v.id}>
+                      <button
+                        type="button"
+                        // onMouseDown feuert vor dem Blur des Feldes.
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          waehleVenue(v);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-left hover:bg-slate-100"
+                      >
+                        <span className="block truncate text-sm text-slate-900">
+                          {v.name}
+                        </span>
+                        {(v.ort || v.ansprechpartner) && (
+                          <span className="block truncate text-xs text-slate-500">
+                            {[v.ort, v.ansprechpartner].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {venueId && (
+              <span className="text-xs font-normal text-green-700">
+                ✓ mit dem Veranstalter verknüpft – das Angebot erscheint dort
+              </span>
+            )}
           </Feld>
           <Feld label="Ansprechpartner">
             <input
@@ -383,6 +470,18 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
         )}
         <button
           type="button"
+          onClick={async () => {
+            // Vor dem Versand speichern, damit Empfänger und Texte im Dialog
+            // zum aktuellen Stand passen.
+            if (await speichere()) setMailOffen(true);
+          }}
+          disabled={laeuft}
+          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+        >
+          ✉ Per E-Mail senden
+        </button>
+        <button
+          type="button"
           onClick={() => {
             if (confirm(`Angebot ${angebot.nummer} wirklich löschen?`)) {
               loescheAngebot(angebot.id);
@@ -396,6 +495,30 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
 
       {meldung && <p className="text-sm text-green-700">{meldung}</p>}
       {fehler && <p className="text-sm text-red-600">{fehler}</p>}
+
+      {mailOffen && (
+        <AngebotMailDialog
+          angebotId={angebot.id}
+          bandId={angebot.band_id}
+          bandName={angebot.band.name}
+          nummer={angebot.nummer}
+          titel={form.titel}
+          venueId={venueId}
+          empfaengerName={form.empfaengerName}
+          empfaengerOrt={form.empfaengerOrt || null}
+          ansprechpartner={form.empfaengerAnsprechpartner || null}
+          emailVorschlag={venueEmail}
+          vorlagen={vorlagen}
+          pdfPfad={angebot.pdf_pfad}
+          pdfDateiname={pdfDateiname}
+          onGesendet={() => {
+            setMailOffen(false);
+            setStatus("versendet");
+            setMeldung("Angebot wurde versendet.");
+          }}
+          onSchliessen={() => setMailOffen(false)}
+        />
+      )}
     </div>
   );
 }

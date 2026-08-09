@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AngebotEditor } from "@/components/AngebotEditor";
-import { getAngebot } from "@/lib/queries";
+import { getAngebot, getEmailVorlagen, getVenueVorschlaege } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,11 @@ export default async function AngebotDetailPage({
   const angebot = await getAngebot(id);
   if (!angebot) notFound();
 
+  const [venues, vorlagen] = await Promise.all([
+    getVenueVorschlaege(),
+    getEmailVorlagen(angebot.band_id),
+  ]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -24,7 +29,7 @@ export default async function AngebotDetailPage({
           {angebot.titel} {angebot.nummer}
         </h1>
       </div>
-      <AngebotEditor angebot={angebot} />
+      <AngebotEditor angebot={angebot} venues={venues} vorlagen={vorlagen} />
     </div>
   );
 }
