@@ -54,6 +54,10 @@ export type SetlistPause = {
 export type AngebotPosition = {
   beschreibung: string;
   betrag: number;
+  // Eventualposition: Preis wird ausgewiesen, zählt aber NICHT in den
+  // Gesamtbetrag (z. B. "jede weitere Stunde Spielzeit"). Fehlt das Feld bei
+  // älteren Angeboten, gilt die Position als normal.
+  optional?: boolean;
 };
 
 export type AngebotStatus = "entwurf" | "versendet" | "angenommen" | "abgelehnt";

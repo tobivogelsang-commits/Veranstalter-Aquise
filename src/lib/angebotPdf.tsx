@@ -82,6 +82,7 @@ const stil = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
   },
   hinweis: { marginTop: 12, color: FARBE_GRAU },
+  eventualLabel: { fontSize: 8, color: FARBE_GRAU, marginBottom: 1 },
   bedingungenTitel: { fontFamily: "Helvetica-Bold", marginBottom: 2, marginTop: 16 },
   fuss: {
     position: "absolute",
@@ -224,14 +225,29 @@ export function AngebotDokument({
           <Text style={stil.spalteText}>Leistung</Text>
           <Text style={stil.spalteBetrag}>Betrag</Text>
         </View>
-        {angebot.positionen.map((position, i) => (
-          <View key={i} style={stil.zeile} wrap={false}>
-            <View style={stil.spalteText}>
-              <Zeilen text={position.beschreibung} />
+        {angebot.positionen.map((position, i) => {
+          const betrag = formatEuro(Number(position.betrag) || 0);
+          return (
+            <View key={i} style={stil.zeile} wrap={false}>
+              <View style={stil.spalteText}>
+                {position.optional && (
+                  <Text style={stil.eventualLabel}>Eventualposition</Text>
+                )}
+                <Zeilen text={position.beschreibung} />
+              </View>
+              {/* Eventualpositionen in Klammern - übliche Kennzeichnung dafür,
+                  dass der Betrag nicht in der Summe steckt. */}
+              <Text
+                style={[
+                  stil.spalteBetrag,
+                  ...(position.optional ? [{ color: FARBE_GRAU }] : []),
+                ]}
+              >
+                {position.optional ? `(${betrag})` : betrag}
+              </Text>
             </View>
-            <Text style={stil.spalteBetrag}>{formatEuro(Number(position.betrag) || 0)}</Text>
-          </View>
-        ))}
+          );
+        })}
 
         <View style={stil.summenBlock}>
           {angebot.ust_satz > 0 ? (
@@ -258,6 +274,13 @@ export function AngebotDokument({
             </View>
           )}
         </View>
+
+        {summen.hatEventualpositionen && (
+          <Text style={stil.hinweis}>
+            Eventualpositionen (in Klammern) sind im Gesamtbetrag nicht
+            enthalten und können bei Bedarf separat beauftragt werden.
+          </Text>
+        )}
 
         {angebot.ust_satz === 0 && (
           <Text style={stil.hinweis}>

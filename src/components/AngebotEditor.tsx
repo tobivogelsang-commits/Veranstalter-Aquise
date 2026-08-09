@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import clsx from "clsx";
 import {
   aktualisiereAngebot,
   erzeugeAngebotPdfDatei,
@@ -243,31 +244,48 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
         <h2 className="mb-3 text-sm font-medium text-slate-900">Leistungen</h2>
         <div className="flex flex-col gap-2">
           {positionen.map((position, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span className="mt-2 w-5 shrink-0 text-xs text-slate-400">{i + 1}</span>
-              <textarea
-                value={position.beschreibung}
-                onChange={(e) => setzePosition(i, { beschreibung: e.target.value })}
-                rows={2}
-                placeholder="z. B. Live-Auftritt 2 x 45 Minuten inkl. Anlage und Licht"
-                className={inputClass}
-              />
-              <input
-                type="number"
-                step="0.01"
-                value={position.betrag || ""}
-                onChange={(e) => setzePosition(i, { betrag: Number(e.target.value) })}
-                placeholder="0,00"
-                className="w-32 shrink-0 rounded-md border border-slate-300 px-3 py-2 text-right text-sm focus:border-slate-500 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setPositionen((prev) => prev.filter((_, x) => x !== i))}
-                className="mt-2 shrink-0 text-slate-300 hover:text-red-600"
-                title="Position entfernen"
-              >
-                ×
-              </button>
+            <div key={i} className="flex flex-col gap-1">
+              <div className="flex items-start gap-2">
+                <span className="mt-2 w-5 shrink-0 text-xs text-slate-400">{i + 1}</span>
+                <textarea
+                  value={position.beschreibung}
+                  onChange={(e) => setzePosition(i, { beschreibung: e.target.value })}
+                  rows={2}
+                  placeholder="z. B. Live-Auftritt 2 x 45 Minuten inkl. Anlage und Licht"
+                  className={inputClass}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={position.betrag || ""}
+                  onChange={(e) => setzePosition(i, { betrag: Number(e.target.value) })}
+                  placeholder="0,00"
+                  className={clsx(
+                    "w-32 shrink-0 rounded-md border px-3 py-2 text-right text-sm focus:outline-none",
+                    position.optional
+                      ? "border-slate-300 bg-slate-50 text-slate-500 focus:border-slate-400"
+                      : "border-slate-300 focus:border-slate-500"
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setPositionen((prev) => prev.filter((_, x) => x !== i))}
+                  className="mt-2 shrink-0 text-slate-300 hover:text-red-600"
+                  title="Position entfernen"
+                >
+                  ×
+                </button>
+              </div>
+              <label className="ml-7 flex w-fit items-center gap-2 text-xs text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={Boolean(position.optional)}
+                  onChange={(e) => setzePosition(i, { optional: e.target.checked })}
+                  className="h-3.5 w-3.5"
+                />
+                Eventualposition – Preis wird ausgewiesen, zählt aber nicht zum
+                Gesamtbetrag
+              </label>
             </div>
           ))}
         </div>
@@ -303,6 +321,11 @@ export function AngebotEditor({ angebot }: { angebot: AngebotMitBand }) {
               <span>Gesamtbetrag</span>
               <span className="w-28 text-right">{formatEuro(summen.netto)}</span>
             </div>
+          )}
+          {summen.hatEventualpositionen && (
+            <p className="mt-1 text-xs text-slate-500">
+              Eventualpositionen sind nicht enthalten.
+            </p>
           )}
         </div>
       </div>
