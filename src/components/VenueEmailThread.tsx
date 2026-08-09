@@ -13,6 +13,7 @@ import {
 import type { EmailAnhang } from "@/lib/database.types";
 import { escapeText, HtmlEditor, type HtmlEditorHandle } from "@/components/HtmlEditor";
 import type {
+  AngebotMitBand,
   BandDokumentTypMitUrl,
   BandMaterial,
   EmailVorlage,
@@ -96,6 +97,7 @@ export function VenueEmailThread({
   vorlagen,
   emails,
   dokumentTypen,
+  angebote = [],
   materialien,
   setlisten,
   hatTelefonatNachweis,
@@ -111,6 +113,9 @@ export function VenueEmailThread({
   vorlagen: EmailVorlage[];
   emails: VenueEmailMitBand[];
   dokumentTypen: BandDokumentTypMitUrl[];
+  // Angebote dieses Veranstalters mit bereits erzeugtem PDF - lassen sich wie
+  // Dokumente mit einem Klick anhängen.
+  angebote?: AngebotMitBand[];
   materialien: BandMaterial[];
   setlisten: SetlisteMitSongs[];
   // Ob es für diese Band<->Veranstalter-Kombi bereits einen Protokolleintrag
@@ -202,6 +207,20 @@ export function VenueEmailThread({
   }
 
   const dokumenteMitDatei = dokumentTypen.filter((t) => t.datei_pfad);
+
+  // Nur Angebote der gerade gewählten Band und nur solche mit erzeugtem PDF.
+  const angeboteMitPdf = angebote.filter(
+    (a) => a.pdf_pfad && a.pdf_dateiname && a.band_id === bandId
+  );
+
+  function handleAngebotAnhaengen(angebot: AngebotMitBand) {
+    if (!angebot.pdf_pfad || !angebot.pdf_dateiname) return;
+    if (anhaenge.some((a) => a.pfad === angebot.pdf_pfad)) return;
+    setAnhaenge((prev) => [
+      ...prev,
+      { dateiname: angebot.pdf_dateiname!, pfad: angebot.pdf_pfad! },
+    ]);
+  }
 
   // Fügt einen Materialien-Link (Instagram, EPK etc.) als Hyperlink an der
   // aktuellen Cursor-Position ein, statt ihn als Anhang zu behandeln - anders
@@ -368,6 +387,21 @@ export function VenueEmailThread({
           </div>
         )}
         <div className="flex flex-col gap-2">
+          {angeboteMitPdf.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {angeboteMitPdf.map((angebot) => (
+                <button
+                  key={angebot.id}
+                  type="button"
+                  onClick={() => handleAngebotAnhaengen(angebot)}
+                  disabled={anhaenge.some((a) => a.pfad === angebot.pdf_pfad)}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  + 📄 {angebot.titel} {angebot.nummer}
+                </button>
+              ))}
+            </div>
+          )}
           {dokumenteMitDatei.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {dokumenteMitDatei.map((typ) => (

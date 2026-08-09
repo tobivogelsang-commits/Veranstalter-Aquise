@@ -20,6 +20,7 @@ import { berechneSetZeiten } from "@/lib/setzeiten";
 import { formatDauer, summeDauer } from "@/lib/dauer";
 import type { GigAnsprechpartner, Status } from "@/lib/database.types";
 import type {
+  AngebotMitBand,
   Band,
   BandDokumentTypMitUrl,
   BandMaterial,
@@ -34,6 +35,7 @@ import type { SetlisteMitSongs } from "@/lib/queries";
 import { SpeichernToast } from "@/components/SpeichernToast";
 import { AnfrageBadge } from "@/components/TeamAnfragenList";
 import { DokumentChecklist } from "@/components/DokumentChecklist";
+import { VenueAngebote } from "@/components/VenueAngebote";
 import { VenueEmailThread } from "@/components/VenueEmailThread";
 import { VenueProtokoll } from "@/components/VenueProtokoll";
 
@@ -96,6 +98,7 @@ export function VenueForm({
   mitgliederProBand,
   vorlagenProBand,
   dokumentTypenProBand,
+  angebote,
   materialienProBand,
   setlistenProBand,
   dokumente,
@@ -108,6 +111,9 @@ export function VenueForm({
   mitgliederProBand?: Record<string, number>;
   vorlagenProBand?: Record<string, EmailVorlage[]>;
   dokumentTypenProBand?: Record<string, BandDokumentTypMitUrl[]>;
+  // Angebote dieses Veranstalters - zum Anhängen an die E-Mail und für den
+  // Hinweis bei "Bereit zu buchen".
+  angebote?: AngebotMitBand[];
   materialienProBand?: Record<string, BandMaterial[]>;
   setlistenProBand?: Record<string, SetlisteMitSongs[]>;
   dokumente?: VenueBandDokument[];
@@ -971,6 +977,15 @@ export function VenueForm({
                   )}
                   {venue && (
                     <div className="sm:col-span-2">
+                      <VenueAngebote
+                        bandId={band.id}
+                        venueId={venue.id}
+                        angebote={angebote ?? []}
+                      />
+                    </div>
+                  )}
+                  {venue && (
+                    <div className="sm:col-span-2">
                       <VenueProtokoll
                         bandId={band.id}
                         venueId={venue.id}
@@ -1008,6 +1023,7 @@ export function VenueForm({
                           (m) => m.band.id === band.id
                         )}
                         dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
+                        angebote={angebote ?? []}
                         materialien={materialienProBand?.[band.id] ?? []}
                         setlisten={setlistenProBand?.[band.id] ?? []}
                         hatTelefonatNachweis={(protokoll ?? []).some(

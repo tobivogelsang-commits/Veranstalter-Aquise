@@ -48,6 +48,20 @@ export type SetlistPause = {
   minuten: number;
 };
 
+// Eine Zeile im Angebot: Freitext plus Betrag (netto bzw. bei
+// Kleinunternehmern der Endbetrag). Bewusst schlank - Band-Angebote haben
+// typischerweise wenige Posten (Auftritt, Anfahrt, Technik).
+export type AngebotPosition = {
+  beschreibung: string;
+  betrag: number;
+  // Eventualposition: Preis wird ausgewiesen, zählt aber NICHT in den
+  // Gesamtbetrag (z. B. "jede weitere Stunde Spielzeit"). Fehlt das Feld bei
+  // älteren Angeboten, gilt die Position als normal.
+  optional?: boolean;
+};
+
+export type AngebotStatus = "entwurf" | "versendet" | "angenommen" | "abgelehnt";
+
 export type TerminTyp = "probe" | "konzertmoeglichkeit" | "event";
 export type TerminWiederholung =
   | "einmalig"
@@ -86,6 +100,20 @@ export interface Database {
           // Storage-Pfad im öffentlichen Bild-Bucket; Logo der Team-App und
           // Icon auf dem Home-Bildschirm.
           logo_pfad: string | null;
+          // Briefkopf-/Fußdaten für Angebote.
+          absender_name: string | null;
+          absender_strasse: string | null;
+          absender_plz: string | null;
+          absender_ort: string | null;
+          absender_telefon: string | null;
+          bank_inhaber: string | null;
+          iban: string | null;
+          bic: string | null;
+          bank_name: string | null;
+          steuernummer: string | null;
+          ust_id: string | null;
+          // 0 = Kleinunternehmer (§ 19 UStG), sonst 7 oder 19.
+          ust_satz: number;
           created_at: string;
           user_id: string | null;
         };
@@ -694,6 +722,52 @@ export interface Database {
             columns: ["setliste_id"];
             isOneToOne: false;
             referencedRelation: "setlisten";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      angebote: {
+        Row: {
+          id: string;
+          band_id: string;
+          venue_id: string | null;
+          nummer: string;
+          datum: string;
+          gueltig_bis: string | null;
+          empfaenger_name: string;
+          empfaenger_ansprechpartner: string | null;
+          empfaenger_strasse: string | null;
+          empfaenger_plz: string | null;
+          empfaenger_ort: string | null;
+          titel: string;
+          einleitung: string | null;
+          positionen: AngebotPosition[];
+          ust_satz: number;
+          zahlungsbedingungen: string | null;
+          nachbemerkung: string | null;
+          status: AngebotStatus;
+          pdf_pfad: string | null;
+          pdf_dateiname: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["angebote"]["Row"]> & {
+          band_id: string;
+          nummer: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["angebote"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "angebote_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "angebote_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
             referencedColumns: ["id"];
           },
         ];

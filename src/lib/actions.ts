@@ -1285,6 +1285,19 @@ export async function updateBand(bandId: string, formData: FormData) {
       gagenrahmen_max: gagenMax ? Number(gagenMax) : null,
       kontakt_email: str(formData, "kontakt_email"),
       epk_link: str(formData, "epk_link"),
+      // Briefkopf-/Fußdaten für Angebote
+      absender_name: str(formData, "absender_name"),
+      absender_strasse: str(formData, "absender_strasse"),
+      absender_plz: str(formData, "absender_plz"),
+      absender_ort: str(formData, "absender_ort"),
+      absender_telefon: str(formData, "absender_telefon"),
+      bank_inhaber: str(formData, "bank_inhaber"),
+      iban: str(formData, "iban"),
+      bic: str(formData, "bic"),
+      bank_name: str(formData, "bank_name"),
+      steuernummer: str(formData, "steuernummer"),
+      ust_id: str(formData, "ust_id"),
+      ust_satz: Number(str(formData, "ust_satz") ?? "0") || 0,
     })
     .eq("id", bandId);
   if (error) throw new Error(error.message);

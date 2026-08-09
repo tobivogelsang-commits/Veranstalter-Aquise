@@ -9,6 +9,7 @@ import {
   getEmailVorlagen,
   getGigAnfragenFuerVenues,
   getSetlistenMitSongs,
+  getAngeboteFuerVenue,
   getVenueBandDokumente,
   getVenueBandProtokoll,
   getVenueWithRelations,
@@ -41,6 +42,7 @@ export default async function VenueDetailPage({
     setlistenProBandListe,
     dokumente,
     protokoll,
+    angebote,
   ] = await Promise.all([
     getGigAnfragenFuerVenues([id]),
     getBandMitgliederAnzahlProBand(),
@@ -50,6 +52,7 @@ export default async function VenueDetailPage({
     Promise.all(bands.map((band) => getSetlistenMitSongs(band.id))),
     getVenueBandDokumente(id),
     getVenueBandProtokoll(id),
+    getAngeboteFuerVenue(id),
   ]);
 
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
@@ -76,6 +79,7 @@ export default async function VenueDetailPage({
         mitgliederProBand={mitgliederProBand}
         vorlagenProBand={vorlagenProBand}
         dokumentTypenProBand={dokumentTypenProBand}
+        angebote={angebote}
         materialienProBand={materialienProBand}
         setlistenProBand={setlistenProBand}
         dokumente={dokumente}

@@ -50,6 +50,11 @@ export type TerminPlanEintrag =
 // Werte in gespeicherter Reihenfolge (gemischt über alle Eintrags-Typen).
 export type TerminSongsProVorkommen = Record<string, TerminPlanEintrag[]>;
 
+export type Angebot = Database["public"]["Tables"]["angebote"]["Row"];
+
+// Angebot inkl. Bandname für Übersichtslisten.
+export type AngebotMitBand = Angebot & { band: { id: string; name: string } };
+
 export type MerchArtikel = Database["public"]["Tables"]["merch_artikel"]["Row"];
 export type MerchVorlage = Database["public"]["Tables"]["merch_vorlagen"]["Row"];
 
