@@ -28,6 +28,14 @@ export function SongTitelInput({
   // Nur das Ergebnis der zuletzt abgeschickten Suche anzeigen (Race vermeiden,
   // wenn eine frühere, langsamere Antwort nach einer neueren eintrifft).
   const suchLaufId = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function schliesse() {
+    if (suchTimer.current) clearTimeout(suchTimer.current);
+    // Laufende Antwort entwerten, damit sie die Liste nicht wieder aufklappt.
+    suchLaufId.current += 1;
+    setZeigeVorschlaege(false);
+  }
 
   function handleChange(wert: string) {
     onChange(wert);
@@ -43,12 +51,16 @@ export function SongTitelInput({
       const treffer = await sucheSongVorschlaege(suchbegriff);
       if (laufId !== suchLaufId.current) return; // veraltete Antwort verwerfen
       setVorschlaege(treffer);
+      // Nur aufklappen, wenn das Feld noch den Fokus hat: Sonst springt die
+      // Liste wieder auf, nachdem man sie längst weggeklickt hat - und
+      // verdeckt dabei die Knöpfe darunter.
+      if (document.activeElement !== inputRef.current) return;
       setZeigeVorschlaege(treffer.length > 0);
     }, 350);
   }
 
   function waehleVorschlag(vorschlag: SongVorschlag) {
-    setZeigeVorschlaege(false);
+    schliesse();
     setVorschlaege([]);
     onVorschlag(vorschlag);
   }
@@ -56,10 +68,18 @@ export function SongTitelInput({
   return (
     <div className="relative w-full">
       <input
+        ref={inputRef}
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => vorschlaege.length > 0 && setZeigeVorschlaege(true)}
-        onBlur={() => setTimeout(() => setZeigeVorschlaege(false), 120)}
+        // Kurze Verzögerung, damit ein Klick auf einen Vorschlag noch ankommt.
+        onBlur={() => setTimeout(schliesse, 120)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            schliesse();
+          }
+        }}
         placeholder={placeholder}
         className={className}
       />
