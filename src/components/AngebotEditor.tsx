@@ -11,7 +11,11 @@ import {
 import { berechneAngebotSummen, formatEuro } from "@/lib/angebotHelpers";
 import { AngebotMailDialog } from "@/components/AngebotMailDialog";
 import type { AngebotPosition, AngebotStatus } from "@/lib/database.types";
-import type { AngebotMitBand, EmailVorlage } from "@/lib/types";
+import type {
+  AngebotMitBand,
+  BandDokumentTypMitUrl,
+  EmailVorlage,
+} from "@/lib/types";
 import type { VenueVorschlag } from "@/lib/queries";
 
 const inputClass =
@@ -39,10 +43,12 @@ export function AngebotEditor({
   angebot,
   venues,
   vorlagen,
+  dokumentTypen,
 }: {
   angebot: AngebotMitBand;
   venues: VenueVorschlag[];
   vorlagen: EmailVorlage[];
+  dokumentTypen: BandDokumentTypMitUrl[];
 }) {
   const [form, setForm] = useState({
     titel: angebot.titel,
@@ -509,6 +515,7 @@ export function AngebotEditor({
           ansprechpartner={form.empfaengerAnsprechpartner || null}
           emailVorschlag={venueEmail}
           vorlagen={vorlagen}
+          dokumentTypen={dokumentTypen}
           pdfPfad={angebot.pdf_pfad}
           pdfDateiname={pdfDateiname}
           onGesendet={() => {

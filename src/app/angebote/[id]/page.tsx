@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AngebotEditor } from "@/components/AngebotEditor";
-import { getAngebot, getEmailVorlagen, getVenueVorschlaege } from "@/lib/queries";
+import {
+  getAngebot,
+  getBandDokumentTypen,
+  getEmailVorlagen,
+  getVenueVorschlaege,
+} from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +19,10 @@ export default async function AngebotDetailPage({
   const angebot = await getAngebot(id);
   if (!angebot) notFound();
 
-  const [venues, vorlagen] = await Promise.all([
+  const [venues, vorlagen, dokumentTypen] = await Promise.all([
     getVenueVorschlaege(),
     getEmailVorlagen(angebot.band_id),
+    getBandDokumentTypen(angebot.band_id),
   ]);
 
   return (
@@ -29,7 +35,12 @@ export default async function AngebotDetailPage({
           {angebot.titel} {angebot.nummer}
         </h1>
       </div>
-      <AngebotEditor angebot={angebot} venues={venues} vorlagen={vorlagen} />
+      <AngebotEditor
+        angebot={angebot}
+        venues={venues}
+        vorlagen={vorlagen}
+        dokumentTypen={dokumentTypen}
+      />
     </div>
   );
 }
