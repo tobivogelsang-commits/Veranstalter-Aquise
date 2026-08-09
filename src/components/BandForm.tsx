@@ -144,6 +144,110 @@ export function BandForm({
             />
           </Field>
         </div>
+
+        {/* Briefkopf und Fuß der Angebots-PDFs. */}
+        <div className="rounded-lg border border-slate-200 p-4">
+          <h2 className="text-base font-medium text-slate-900">Angebots-Daten</h2>
+          <p className="mt-1 mb-3 text-sm text-slate-500">
+            Erscheinen im Briefkopf und im Fuß der Angebots-PDFs.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Absender (falls abweichend vom Bandnamen)">
+              <input
+                name="absender_name"
+                defaultValue={band.absender_name ?? ""}
+                placeholder={band.name}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Telefon">
+              <input
+                name="absender_telefon"
+                defaultValue={band.absender_telefon ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Straße & Hausnummer">
+              <input
+                name="absender_strasse"
+                defaultValue={band.absender_strasse ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="PLZ">
+                <input
+                  name="absender_plz"
+                  defaultValue={band.absender_plz ?? ""}
+                  className={inputClass}
+                />
+              </Field>
+              <div className="col-span-2">
+                <Field label="Ort">
+                  <input
+                    name="absender_ort"
+                    defaultValue={band.absender_ort ?? ""}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            </div>
+            <Field label="Steuernummer">
+              <input
+                name="steuernummer"
+                defaultValue={band.steuernummer ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="USt-IdNr.">
+              <input
+                name="ust_id"
+                defaultValue={band.ust_id ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Kontoinhaber">
+              <input
+                name="bank_inhaber"
+                defaultValue={band.bank_inhaber ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Bank">
+              <input
+                name="bank_name"
+                defaultValue={band.bank_name ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="IBAN">
+              <input
+                name="iban"
+                defaultValue={band.iban ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="BIC">
+              <input
+                name="bic"
+                defaultValue={band.bic ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Umsatzsteuer (Vorgabe für neue Angebote)">
+              <select
+                name="ust_satz"
+                defaultValue={String(band.ust_satz ?? 0)}
+                className={inputClass}
+              >
+                <option value="0">Kleinunternehmer (§ 19 UStG, ohne USt)</option>
+                <option value="7">7 % (ermäßigt)</option>
+                <option value="19">19 %</option>
+              </select>
+            </Field>
+          </div>
+        </div>
+
         <div>
           <button
             type="submit"

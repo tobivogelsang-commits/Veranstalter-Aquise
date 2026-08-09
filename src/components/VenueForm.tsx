@@ -20,6 +20,7 @@ import { berechneSetZeiten } from "@/lib/setzeiten";
 import { formatDauer, summeDauer } from "@/lib/dauer";
 import type { GigAnsprechpartner, Status } from "@/lib/database.types";
 import type {
+  AngebotMitBand,
   Band,
   BandDokumentTypMitUrl,
   BandMaterial,
@@ -96,6 +97,7 @@ export function VenueForm({
   mitgliederProBand,
   vorlagenProBand,
   dokumentTypenProBand,
+  angebote,
   materialienProBand,
   setlistenProBand,
   dokumente,
@@ -108,6 +110,9 @@ export function VenueForm({
   mitgliederProBand?: Record<string, number>;
   vorlagenProBand?: Record<string, EmailVorlage[]>;
   dokumentTypenProBand?: Record<string, BandDokumentTypMitUrl[]>;
+  // Angebote dieses Veranstalters - zum Anhängen an die E-Mail und für den
+  // Hinweis bei "Bereit zu buchen".
+  angebote?: AngebotMitBand[];
   materialienProBand?: Record<string, BandMaterial[]>;
   setlistenProBand?: Record<string, SetlisteMitSongs[]>;
   dokumente?: VenueBandDokument[];
@@ -1008,6 +1013,7 @@ export function VenueForm({
                           (m) => m.band.id === band.id
                         )}
                         dokumentTypen={dokumentTypenProBand?.[band.id] ?? []}
+                        angebote={angebote ?? []}
                         materialien={materialienProBand?.[band.id] ?? []}
                         setlisten={setlistenProBand?.[band.id] ?? []}
                         hatTelefonatNachweis={(protokoll ?? []).some(

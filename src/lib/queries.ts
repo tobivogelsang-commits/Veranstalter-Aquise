@@ -9,6 +9,7 @@ import { signierteAnhangUrls } from "@/lib/storage";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {
+  AngebotMitBand,
   Band,
   BandDokumentTypMitUrl,
   BandEmailMitVenue,
@@ -139,6 +140,41 @@ export async function getTerminSongs(bandFilter: string): Promise<TerminSongsPro
     (songsProVorkommen[key] ??= []).push(eintrag);
   }
   return songsProVorkommen;
+}
+
+// Angebote einer Band bzw. aller Bands, neueste zuerst.
+export async function getAngebote(bandFilter: string): Promise<AngebotMitBand[]> {
+  let query = supabase
+    .from("angebote")
+    .select("*, band:bands(id, name)")
+    .order("erstellt_am", { ascending: false });
+  if (bandFilter !== ALLE_BANDS_PARAM) query = query.eq("band_id", bandFilter);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as AngebotMitBand[];
+}
+
+export async function getAngebot(angebotId: string): Promise<AngebotMitBand | null> {
+  const { data, error } = await supabase
+    .from("angebote")
+    .select("*, band:bands(id, name)")
+    .eq("id", angebotId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as unknown as AngebotMitBand | null;
+}
+
+// Angebote zu einem Veranstalter (für die Veranstalter-Seite und den
+// E-Mail-Anhang).
+export async function getAngeboteFuerVenue(venueId: string): Promise<AngebotMitBand[]> {
+  const { data, error } = await supabase
+    .from("angebote")
+    .select("*, band:bands(id, name)")
+    .eq("venue_id", venueId)
+    .order("erstellt_am", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as AngebotMitBand[];
 }
 
 // Was hängt an einer Band? Wird vor dem Löschen angezeigt, damit auf einen
