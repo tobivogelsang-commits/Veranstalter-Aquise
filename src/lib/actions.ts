@@ -11,7 +11,7 @@ import { requireOwner } from "@/lib/authServer";
 import { BILD_BUCKET } from "@/lib/storage";
 import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
-import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamActions";
+import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamPush";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { GigAnsprechpartner, Status, VenueTyp } from "@/lib/database.types";
 
