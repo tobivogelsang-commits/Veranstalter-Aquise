@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AngebotEditor } from "@/components/AngebotEditor";
 import {
   getAngebot,
+  getAngebotBausteine,
   getBandDokumentTypen,
   getEmailVorlagen,
   getVenueVorschlaege,
@@ -19,10 +20,11 @@ export default async function AngebotDetailPage({
   const angebot = await getAngebot(id);
   if (!angebot) notFound();
 
-  const [venues, vorlagen, dokumentTypen] = await Promise.all([
+  const [venues, vorlagen, dokumentTypen, bausteine] = await Promise.all([
     getVenueVorschlaege(),
     getEmailVorlagen(angebot.band_id),
     getBandDokumentTypen(angebot.band_id),
+    getAngebotBausteine(angebot.band_id),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function AngebotDetailPage({
         venues={venues}
         vorlagen={vorlagen}
         dokumentTypen={dokumentTypen}
+        bausteine={bausteine}
       />
     </div>
   );

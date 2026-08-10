@@ -64,6 +64,12 @@ export type AngebotPosition = {
 
 export type AngebotStatus = "entwurf" | "versendet" | "angenommen" | "abgelehnt";
 
+// Textfelder eines Angebots, für die es Bausteine gibt.
+export type AngebotBausteinFeld =
+  | "einleitung"
+  | "zahlungsbedingungen"
+  | "nachbemerkung";
+
 export type TerminTyp = "probe" | "konzertmoeglichkeit" | "event";
 export type TerminWiederholung =
   | "einmalig"
@@ -840,6 +846,31 @@ export interface Database {
             columns: ["artikel_id"];
             isOneToOne: false;
             referencedRelation: "merch_artikel";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      angebot_bausteine: {
+        Row: {
+          id: string;
+          band_id: string;
+          feld: AngebotBausteinFeld;
+          titel: string;
+          text: string;
+          ist_standard: boolean;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["angebot_bausteine"]["Row"]> & {
+          band_id: string;
+          feld: AngebotBausteinFeld;
+        };
+        Update: Partial<Database["public"]["Tables"]["angebot_bausteine"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "angebot_bausteine_band_id_fkey";
+            columns: ["band_id"];
+            isOneToOne: false;
+            referencedRelation: "bands";
             referencedColumns: ["id"];
           },
         ];
