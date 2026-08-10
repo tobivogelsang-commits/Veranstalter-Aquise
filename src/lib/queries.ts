@@ -340,6 +340,23 @@ export async function getMerchVorlagen(bandId: string): Promise<MerchVorlageMitU
   return vorlagen.map((v) => ({ ...v, url: urls[v.pfad] ?? null }));
 }
 
+// Nachbestell-Anzahl je Band - für die Kennzeichnung auf der Band-Auswahl,
+// damit man nach dem Dashboard-Hinweis sieht, welche Band gemeint ist.
+export async function getMerchNachbestellProBand(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("merch_artikel")
+    .select("band_id, bestand, mindestbestand");
+  if (error) throw new Error(error.message);
+
+  const proBand: Record<string, number> = {};
+  for (const a of data ?? []) {
+    if (a.mindestbestand > 0 && a.bestand <= a.mindestbestand) {
+      proBand[a.band_id] = (proBand[a.band_id] ?? 0) + 1;
+    }
+  }
+  return proBand;
+}
+
 // Wie viele Artikel liegen auf oder unter ihrem Mindestbestand? Für den
 // Nachbestell-Hinweis auf dem Dashboard. Artikel ohne gesetzten
 // Mindestbestand (0) zählen nicht mit.

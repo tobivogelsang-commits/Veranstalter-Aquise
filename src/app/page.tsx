@@ -12,7 +12,7 @@ import {
   getBands,
   getDashboardStats,
   getGigAnfragenFuerVenues,
-  getMerchNachbestellAnzahl,
+  getMerchNachbestellProBand,
   getVenuesOhneAngebot,
   getNeuesteEingehendeEmails,
   getNeuesteProtokollEintraege,
@@ -51,7 +51,7 @@ export default async function DashboardPage({
     mitgliederListen,
     neueEmails,
     aktivitaeten,
-    merchNachbestellen,
+    merchProBand,
     offeneAngebote,
   ] =
     await Promise.all([
@@ -59,9 +59,22 @@ export default async function DashboardPage({
       Promise.all(bands.map((b) => getMitgliederFuerBand(b.id))),
       getNeuesteEingehendeEmails(bandFilter, 5),
       getNeuesteProtokollEintraege(bandFilter, 5),
-      getMerchNachbestellAnzahl(bandFilter),
+      getMerchNachbestellProBand(),
       getVenuesOhneAngebot(bandFilter),
     ]);
+  // Betroffene Bands für den Merch-Hinweis. Ist genau eine betroffen, führt
+  // der Hinweis direkt in ihr Lager statt auf die Band-Auswahl.
+  const merchBetroffen = Object.entries(merchProBand).filter(
+    ([bId]) => bandFilter === ALLE_BANDS_PARAM || bId === bandFilter
+  );
+  const merchNachbestellen = merchBetroffen.reduce((summe, [, n]) => summe + n, 0);
+  const merchZiel =
+    merchBetroffen.length === 1 ? `/merch/${merchBetroffen[0][0]}` : "/merch";
+  const merchBandName =
+    merchBetroffen.length === 1
+      ? (bands.find((b) => b.id === merchBetroffen[0][0])?.name ?? null)
+      : null;
+
   const anfragen = alleAnfragen.filter(
     (a) => bandFilter === ALLE_BANDS_PARAM || a.band_id === bandFilter
   );
@@ -119,13 +132,14 @@ export default async function DashboardPage({
 
       {merchNachbestellen > 0 && (
         <Link
-          href={bandFilter === ALLE_BANDS_PARAM ? "/merch" : `/merch/${bandFilter}`}
+          href={merchZiel}
           className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100"
         >
           <span className="font-semibold">
             📦 Merch nachbestellen ({merchNachbestellen})
           </span>{" "}
-          – Artikel haben ihren Mindestbestand erreicht.
+          – Artikel haben ihren Mindestbestand erreicht
+          {merchBandName ? ` (${merchBandName})` : ""}.
         </Link>
       )}
 
