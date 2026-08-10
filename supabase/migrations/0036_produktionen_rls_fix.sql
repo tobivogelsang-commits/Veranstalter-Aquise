@@ -1,0 +1,14 @@
+-- SICHERHEITSFIX: Die Policy aus Migration 0025 öffnete `produktionen` für
+-- anon/authenticated ("using (true) with check (true)"). Der anon-Key steht im
+-- Browser jeder Besucherin - damit waren die Produktions-Einträge öffentlich
+-- les- und schreibbar. Aufgefallen im Supabase-Advisor ("RLS Policy Always
+-- True"), bestätigt: 13 von 13 Zeilen waren mit dem öffentlichen Key sichtbar.
+--
+-- Ursache: Beim Anlegen wurde das Muster der alten Tabellen (0015) kopiert,
+-- ohne zu beachten, dass Migration 0016 (RLS-Lockdown) genau diese Policies
+-- abgeschafft hat. Seitdem gilt: KEINE anon/authenticated-Policies, sämtlicher
+-- Zugriff läuft serverseitig über den service_role-Client, der RLS umgeht.
+--
+-- Die App ist davon nicht betroffen: queries.ts und produktionActions.ts nutzen
+-- ausschließlich supabaseAdmin (service_role).
+drop policy if exists "produktionen_alle_zugriffe" on produktionen;
