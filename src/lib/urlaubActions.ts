@@ -63,6 +63,17 @@ export async function loescheUrlaub(
   urlaubId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  // mitglied_urlaube haengt am Mitglied, nicht direkt an der Band - die
+  // Zugehoerigkeit muss daher ueber das Mitglied geprueft werden. Ohne das
+  // genuegte die Kenntnis einer fremden Urlaubs-ID, um sie zu loeschen.
+  const { data: urlaub } = await supabase
+    .from("mitglied_urlaube")
+    .select("id, band_mitglieder!inner(band_id)")
+    .eq("id", urlaubId)
+    .eq("band_mitglieder.band_id", bandId)
+    .maybeSingle();
+  if (!urlaub) return { ok: false, fehler: "Nicht gefunden." };
+
   const { error } = await supabase.from("mitglied_urlaube").delete().eq("id", urlaubId);
   if (error) return { ok: false, fehler: error.message };
 

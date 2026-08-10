@@ -9,6 +9,13 @@ import { PRODUKTION_RECORDINGS, PRODUKTION_STEPS } from "@/lib/constants";
 import type { ProduktionRecording, ProduktionStep } from "@/lib/database.types";
 import type { Produktion } from "@/lib/types";
 
+// Jede Aktion filtert zusaetzlich nach band_id: die bandId kam bisher nur fuer
+// revalidatePath mit, sodass die Kenntnis einer fremden Produktions-ID
+// genuegte, um sie zu aendern, zu loeschen oder in den eigenen Katalog zu
+// uebernehmen. "Nicht gefunden" deckt beide Faelle ab (existiert nicht /
+// fremde Band), damit die Antwort fremde IDs nicht bestaetigt.
+const FREMD = "Nicht gefunden.";
+
 // Nur erlaubte Werte durchlassen (Client schickt zwar nur gültige, aber die
 // Aktion ist öffentlich erreichbar).
 function bereinigeStep(step: string | null): ProduktionStep | null {
@@ -55,7 +62,7 @@ export async function aktualisiereProduktion(
     recordings: string[];
   }
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("produktionen")
     .update({
       name: werte.name,
@@ -63,17 +70,30 @@ export async function aktualisiereProduktion(
       step: bereinigeStep(werte.step),
       recordings: bereinigeRecordings(werte.recordings),
     })
-    .eq("id", produktionId);
+    .eq("id", produktionId)
+    .eq("band_id", bandId)
+    .select("id")
+    .maybeSingle();
 
   if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidatePath(`/produktion/${bandId}`);
   revalidatePath(`/team/${bandId}`);
   return { ok: true };
 }
 
+// Loeschen ist absichtlich idempotent: trifft der band_id-Filter nichts (ID
+// existiert nicht oder gehoert einer anderen Band), wird nichts geloescht und
+// trotzdem Erfolg gemeldet. Das verraet einem Fremden nicht, ob eine ID
+// existiert, und ein zweiter Klick / zweites Geraet laeuft nicht in einen
+// Fehler.
 export async function loescheProduktion(produktionId: string, bandId: string) {
-  const { error } = await supabase.from("produktionen").delete().eq("id", produktionId);
+  const { error } = await supabase
+    .from("produktionen")
+    .delete()
+    .eq("id", produktionId)
+    .eq("band_id", bandId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/produktion/${bandId}`);
@@ -103,8 +123,10 @@ export async function uebernehmeInKatalog(
     .from("produktionen")
     .select("song_id")
     .eq("id", produktionId)
+    .eq("band_id", bandId)
     .maybeSingle();
-  if (bestehende?.song_id) {
+  if (!bestehende) return { ok: false, fehler: FREMD };
+  if (bestehende.song_id) {
     return { ok: false, fehler: "Diese Produktion ist bereits im Katalog." };
   }
 
@@ -123,7 +145,8 @@ export async function uebernehmeInKatalog(
   const { error } = await supabase
     .from("produktionen")
     .update({ song_id: song.id })
-    .eq("id", produktionId);
+    .eq("id", produktionId)
+    .eq("band_id", bandId);
   if (error) return { ok: false, fehler: error.message };
 
   revalidatePath(`/produktion/${bandId}`);

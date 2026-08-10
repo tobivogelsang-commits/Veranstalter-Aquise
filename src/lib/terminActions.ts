@@ -8,7 +8,7 @@
 // Desktop sitzt zusätzlich der Login-Proxy davor.
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { sendeTerminPush } from "@/lib/teamActions";
+import { sendeTerminPush } from "@/lib/teamPush";
 import type { KalenderTermin } from "@/lib/types";
 import type { TerminTyp, TerminWiederholung } from "@/lib/database.types";
 
@@ -34,6 +34,24 @@ export type TerminEingabe = {
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UHRZEIT = /^\d{2}:\d{2}$/;
+
+// Jede Aktion filtert zusaetzlich nach band_id: die bandId kam bisher nur fuer
+// revalidatePath mit, sodass die Kenntnis einer fremden Termin-ID genuegte, um
+// den Kalender einer anderen Band zu aendern oder zu loeschen. "Nicht
+// gefunden" gilt gleichermassen fuer "existiert nicht" und "fremde Band",
+// damit die Antwort die Existenz fremder IDs nicht verraet.
+const FREMD = "Nicht gefunden.";
+
+// termin_songs haengt nur am Termin und hat selbst keine band_id.
+async function gehoertTerminZuBand(terminId: string, bandId: string) {
+  const { data } = await supabase
+    .from("kalender_termine")
+    .select("id")
+    .eq("id", terminId)
+    .eq("band_id", bandId)
+    .maybeSingle();
+  return Boolean(data);
+}
 
 // ausnahmen bewusst ausgenommen: Bearbeiten fasst die Ausfall-Daten nicht an.
 function bereinige(eingabe: TerminEingabe):
@@ -130,20 +148,31 @@ export async function aktualisiereTermin(
     .from("kalender_termine")
     .update(geprueft.werte)
     .eq("id", terminId)
+    .eq("band_id", bandId)
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidiereKalender(bandId);
   return { ok: true, termin: data };
 }
 
+// Loeschen ist absichtlich idempotent: trifft der band_id-Filter nichts (ID
+// existiert nicht oder gehoert einer anderen Band), wird nichts geloescht und
+// trotzdem Erfolg gemeldet. Das verraet einem Fremden nicht, ob eine ID
+// existiert, und ein zweiter Klick / zweites Geraet laeuft nicht in einen
+// Fehler.
 export async function loescheTermin(
   terminId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  const { error } = await supabase.from("kalender_termine").delete().eq("id", terminId);
+  const { error } = await supabase
+    .from("kalender_termine")
+    .delete()
+    .eq("id", terminId)
+    .eq("band_id", bandId);
   if (error) return { ok: false, fehler: error.message };
 
   revalidiereKalender(bandId);
@@ -165,6 +194,19 @@ export async function speichereTerminSongs(
   vorkommenDatum: string,
   eintraege: TerminPlanEintragEingabe[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (!(await gehoertTerminZuBand(terminId, bandId))) {
+    return { ok: false, fehler: FREMD };
+  }
+
+  // Auch die verplanten Songs/Produktionen/Setlisten muessen der Band gehoeren
+  // - sonst liessen sich fremde Eintraege in den eigenen Proben-Plan haengen
+  // und deren Namen darueber auslesen.
+  const tabelleZuTyp = {
+    song: "band_songs",
+    produktion: "produktionen",
+    setliste: "setlisten",
+  } as const;
+
   const { error: loeschFehler } = await supabase
     .from("termin_songs")
     .delete()
@@ -176,6 +218,21 @@ export async function speichereTerminSongs(
   const gueltige = eintraege.filter((e) =>
     ["song", "produktion", "setliste"].includes(e.typ)
   );
+
+  for (const typ of ["song", "produktion", "setliste"] as const) {
+    const ids = gueltige.filter((e) => e.typ === typ).map((e) => e.id);
+    if (ids.length === 0) continue;
+    const { data: eigene } = await supabase
+      .from(tabelleZuTyp[typ])
+      .select("id")
+      .eq("band_id", bandId)
+      .in("id", ids);
+    const erlaubt = new Set((eigene ?? []).map((e) => e.id));
+    if (ids.some((id) => !erlaubt.has(id))) {
+      return { ok: false, fehler: FREMD };
+    }
+  }
+
   if (gueltige.length > 0) {
     const { error: einfuegeFehler } = await supabase.from("termin_songs").insert(
       gueltige.map((eintrag, index) => ({
@@ -210,6 +267,7 @@ export async function loescheTerminVorkommen(
     .from("kalender_termine")
     .select("ausnahmen")
     .eq("id", terminId)
+    .eq("band_id", bandId)
     .maybeSingle();
   if (leseFehler) return { ok: false, fehler: leseFehler.message };
   if (!termin) return { ok: false, fehler: "Termin nicht gefunden." };
@@ -218,7 +276,8 @@ export async function loescheTerminVorkommen(
     const { error } = await supabase
       .from("kalender_termine")
       .update({ ausnahmen: [...termin.ausnahmen, vorkommenDatum] })
-      .eq("id", terminId);
+      .eq("id", terminId)
+      .eq("band_id", bandId);
     if (error) return { ok: false, fehler: error.message };
   }
 

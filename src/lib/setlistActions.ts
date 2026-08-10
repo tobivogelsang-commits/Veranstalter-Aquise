@@ -8,6 +8,26 @@ import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import type { SetlistPause } from "@/lib/database.types";
 import type { BandSong, Setliste } from "@/lib/types";
 
+// Jede Aktion filtert zusaetzlich nach band_id. Die bandId kam bisher nur fuer
+// revalidatePath mit - ohne sie im WHERE genuegte die blosse Kenntnis einer
+// fremden Song-/Setlisten-ID, um Daten einer anderen Band zu aendern oder zu
+// loeschen. Ein Treffer null bedeutet: gibt es nicht ODER gehoert nicht zu
+// dieser Band; beides beantworten wir gleich, damit die Antwort nicht verraet,
+// ob eine fremde ID existiert.
+const FREMD = "Nicht gefunden.";
+
+// setlist_eintraege haengt nur an der Setliste und hat selbst keine band_id -
+// die Zugehoerigkeit muss daher vorab ueber die Setliste geprueft werden.
+async function gehoertSetlisteZuBand(setlistId: string, bandId: string) {
+  const { data } = await supabase
+    .from("setlisten")
+    .select("id")
+    .eq("id", setlistId)
+    .eq("band_id", bandId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export async function fuegeSongHinzu(
   bandId: string,
   titel: string,
@@ -56,18 +76,29 @@ export async function bearbeiteSong(
       dauer_sekunden: dauerSekunden,
     })
     .eq("id", songId)
+    .eq("band_id", bandId)
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
   return { ok: true, song: data };
 }
 
+// Loeschen ist absichtlich idempotent: trifft der band_id-Filter nichts (ID
+// existiert nicht oder gehoert einer anderen Band), wird nichts geloescht und
+// trotzdem Erfolg gemeldet. Das verraet einem Fremden nicht, ob eine ID
+// existiert, und ein zweiter Klick / zweites Geraet laeuft nicht in einen
+// Fehler.
 export async function entferneSong(songId: string, bandId: string) {
-  const { error } = await supabase.from("band_songs").delete().eq("id", songId);
+  const { error } = await supabase
+    .from("band_songs")
+    .delete()
+    .eq("id", songId)
+    .eq("band_id", bandId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/setliste/${bandId}`);
@@ -102,11 +133,15 @@ export async function benenneSetlisteUm(
   const bereinigt = name.trim();
   if (!bereinigt) return { ok: false, fehler: "Name fehlt." };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("setlisten")
     .update({ name: bereinigt })
-    .eq("id", setlistId);
+    .eq("id", setlistId)
+    .eq("band_id", bandId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
@@ -120,6 +155,12 @@ export async function dupliziereSetliste(
 ): Promise<{ ok: true; setliste: Setliste } | { ok: false; fehler: string }> {
   const bereinigt = neuerName.trim();
   if (!bereinigt) return { ok: false, fehler: "Name fehlt." };
+
+  // Vorlage muss der eigenen Band gehoeren - sonst liessen sich fremde
+  // Setlisten samt Songs in die eigene Band kopieren und damit auslesen.
+  if (!(await gehoertSetlisteZuBand(setlistId, bandId))) {
+    return { ok: false, fehler: FREMD };
+  }
 
   const { data: neueSetliste, error: erstellFehler } = await supabase
     .from("setlisten")
@@ -151,8 +192,17 @@ export async function dupliziereSetliste(
   return { ok: true, setliste: neueSetliste };
 }
 
+// Loeschen ist absichtlich idempotent: trifft der band_id-Filter nichts (ID
+// existiert nicht oder gehoert einer anderen Band), wird nichts geloescht und
+// trotzdem Erfolg gemeldet. Das verraet einem Fremden nicht, ob eine ID
+// existiert, und ein zweiter Klick / zweites Geraet laeuft nicht in einen
+// Fehler.
 export async function loescheSetliste(setlistId: string, bandId: string) {
-  const { error } = await supabase.from("setlisten").delete().eq("id", setlistId);
+  const { error } = await supabase
+    .from("setlisten")
+    .delete()
+    .eq("id", setlistId)
+    .eq("band_id", bandId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/setliste/${bandId}`);
@@ -173,11 +223,15 @@ export async function speicherePausen(
     }))
     .filter((p) => Number.isFinite(p.nach_index) && p.nach_index >= 0 && p.minuten > 0);
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("setlisten")
     .update({ pausen: bereinigt })
-    .eq("id", setlistId);
+    .eq("id", setlistId)
+    .eq("band_id", bandId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
@@ -192,6 +246,24 @@ export async function speichereSetlistReihenfolge(
   bandId: string,
   songIds: string[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  if (!(await gehoertSetlisteZuBand(setlistId, bandId))) {
+    return { ok: false, fehler: FREMD };
+  }
+
+  // Auch die Songs muessen der Band gehoeren, sonst liessen sich fremde Songs
+  // in die eigene Setliste einhaengen und ihre Titel darueber auslesen.
+  if (songIds.length > 0) {
+    const { data: eigene } = await supabase
+      .from("band_songs")
+      .select("id")
+      .eq("band_id", bandId)
+      .in("id", songIds);
+    const erlaubt = new Set((eigene ?? []).map((s) => s.id));
+    if (songIds.some((id) => !erlaubt.has(id))) {
+      return { ok: false, fehler: FREMD };
+    }
+  }
+
   const { error: loeschFehler } = await supabase
     .from("setlist_eintraege")
     .delete()
