@@ -193,6 +193,54 @@ export async function getAngeboteFuerVenue(venueId: string): Promise<AngebotMitB
   return (data ?? []) as unknown as AngebotMitBand[];
 }
 
+// Veranstalter, die auf "Bereit zu buchen" stehen, für die es aber noch kein
+// Angebot gibt - der Anstoß, eins zu schreiben. Sobald ein Angebot angelegt
+// ist, verschwindet der Eintrag hier (unabhängig davon, ob es schon raus ist;
+// dafür wandert der Kontakt danach auf "Angebot verschickt").
+export type OffenesAngebot = {
+  venueId: string;
+  venueName: string;
+  bandId: string;
+  bandName: string;
+};
+
+export async function getVenuesOhneAngebot(bandFilter: string): Promise<OffenesAngebot[]> {
+  let statusQuery = supabase
+    .from("venue_band_status")
+    .select("venue_id, band_id, venues(name), bands(name)")
+    .eq("status", "bereit_zu_buchen");
+  if (bandFilter !== ALLE_BANDS_PARAM) statusQuery = statusQuery.eq("band_id", bandFilter);
+
+  const { data: relationen, error } = await statusQuery;
+  if (error) throw new Error(error.message);
+  if (!relationen || relationen.length === 0) return [];
+
+  const { data: angebote } = await supabase
+    .from("angebote")
+    .select("venue_id, band_id")
+    .in(
+      "venue_id",
+      relationen.map((r) => r.venue_id)
+    );
+  const mitAngebot = new Set(
+    (angebote ?? []).map((a) => `${a.venue_id}__${a.band_id}`)
+  );
+
+  return (relationen as unknown as {
+    venue_id: string;
+    band_id: string;
+    venues: { name: string } | null;
+    bands: { name: string } | null;
+  }[])
+    .filter((r) => !mitAngebot.has(`${r.venue_id}__${r.band_id}`))
+    .map((r) => ({
+      venueId: r.venue_id,
+      venueName: r.venues?.name ?? "?",
+      bandId: r.band_id,
+      bandName: r.bands?.name ?? "?",
+    }));
+}
+
 // Was hängt an einer Band? Wird vor dem Löschen angezeigt, damit auf einen
 // Blick klar ist, was mit verschwindet - und damit man merkt, wenn man die
 // falsche Band erwischt hat. Veranstalter selbst bleiben erhalten, nur ihre

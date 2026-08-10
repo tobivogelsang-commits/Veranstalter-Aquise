@@ -13,6 +13,7 @@ import {
   getDashboardStats,
   getGigAnfragenFuerVenues,
   getMerchNachbestellAnzahl,
+  getVenuesOhneAngebot,
   getNeuesteEingehendeEmails,
   getNeuesteProtokollEintraege,
   getVenuesWithRelations,
@@ -45,13 +46,21 @@ export default async function DashboardPage({
   const anzahlFuerStatus = (status: string) =>
     stats.statusVerteilung.find((s) => s.status === status)?.anzahl ?? 0;
 
-  const [alleAnfragen, mitgliederListen, neueEmails, aktivitaeten, merchNachbestellen] =
+  const [
+    alleAnfragen,
+    mitgliederListen,
+    neueEmails,
+    aktivitaeten,
+    merchNachbestellen,
+    offeneAngebote,
+  ] =
     await Promise.all([
       getGigAnfragenFuerVenues(venues.map((v) => v.id)),
       Promise.all(bands.map((b) => getMitgliederFuerBand(b.id))),
       getNeuesteEingehendeEmails(bandFilter, 5),
       getNeuesteProtokollEintraege(bandFilter, 5),
       getMerchNachbestellAnzahl(bandFilter),
+      getVenuesOhneAngebot(bandFilter),
     ]);
   const anfragen = alleAnfragen.filter(
     (a) => bandFilter === ALLE_BANDS_PARAM || a.band_id === bandFilter
@@ -82,6 +91,31 @@ export default async function DashboardPage({
       <NeueEmailsWidget emails={neueEmails} />
 
       <BereitZuBuchenBanner entries={bereitZuBuchen} />
+
+      {offeneAngebote.length > 0 && (
+        <div className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3">
+          <p className="text-sm font-semibold text-sky-900">
+            📄 Angebot schreiben ({offeneAngebote.length})
+          </p>
+          <p className="mt-0.5 text-sm text-sky-800">
+            Diese Kontakte stehen auf „Bereit zu buchen“, haben aber noch kein
+            Angebot:
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {offeneAngebote.map((o) => (
+              <li key={`${o.venueId}-${o.bandId}`}>
+                <Link
+                  href={`/venues/${o.venueId}`}
+                  className="text-sm text-sky-900 underline hover:text-sky-950"
+                >
+                  {o.venueName}
+                </Link>
+                <span className="text-sm text-sky-700"> · {o.bandName}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {merchNachbestellen > 0 && (
         <Link
