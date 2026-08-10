@@ -1,9 +1,14 @@
-"use server";
+// BEWUSST KEIN "use server": Diese Datei ist ein internes Server-Modul, kein
+// Aktions-Endpunkt. Als Server Action wäre setzeStatusVorwaerts über seine
+// Kennung von jeder Adresse aus aufrufbar (auch von der öffentlichen
+// Team-Seite) und könnte den Pipeline-Status fremder Kontakte verschieben.
+// "server-only" lässt den Build scheitern, falls jemand die Datei versehentlich
+// in eine Client-Komponente importiert.
+import "server-only";
 
-// service_role-Client (umgeht RLS). setzeStatusVorwaerts ist ein interner
-// Helper, der sowohl aus Inhaber-Aktionen als auch aus dem öffentlichen
-// Team-Flow (beantworteAnfrage) aufgerufen wird - daher bewusst ohne
-// requireOwner(); der Schutz sitzt an den jeweiligen Einstiegspunkten.
+// service_role-Client (umgeht RLS). setzeStatusVorwaerts wird sowohl aus
+// Inhaber-Aktionen als auch aus dem öffentlichen Team-Flow (beantworteAnfrage)
+// heraus genutzt - der Schutz sitzt an den jeweiligen Einstiegspunkten.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { STATUS_ORDER } from "@/lib/constants";
 import type { Status } from "@/lib/database.types";

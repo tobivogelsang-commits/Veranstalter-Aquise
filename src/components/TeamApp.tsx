@@ -419,7 +419,7 @@ export function TeamApp({
     versuchePushSubscription().then(({ subscription, hinweis }) => {
       if (hinweis) setPushHinweis(hinweis);
       if (subscription) {
-        aktualisierePushSubscription(mitgliedId, subscription);
+        aktualisierePushSubscription(mitgliedId, bandId, subscription);
       }
     });
 
