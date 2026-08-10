@@ -7,6 +7,8 @@ import type {
   VenueTyp,
 } from "@/lib/database.types";
 
+// Reihenfolge der Kanban-Spalten UND Rangfolge für setzeStatusVorwaerts()
+// (dort wird über den Index verglichen, damit ein Kontakt nie zurückfällt).
 export const STATUS_ORDER: Status[] = [
   "neu",
   "recherchiert",
@@ -15,6 +17,8 @@ export const STATUS_ORDER: Status[] = [
   "interessiert",
   "abgesagt",
   "bereit_zu_buchen",
+  "angebot_verschickt",
+  "angebot_nachfassen",
   "gebucht",
 ];
 
@@ -25,6 +29,8 @@ export const STATUS_LABELS: Record<Status, string> = {
   nachgefasst: "Nachgefasst",
   interessiert: "Interessiert",
   bereit_zu_buchen: "Bereit zu buchen",
+  angebot_verschickt: "Angebot verschickt",
+  angebot_nachfassen: "Angebot nachfassen",
   abgesagt: "Abgesagt",
   gebucht: "Gebucht",
 };
@@ -41,6 +47,10 @@ export const STATUS_COLORS: Record<Status, string> = {
   nachgefasst: "bg-orange-100 text-orange-800 border-orange-300",
   interessiert: "bg-purple-100 text-purple-800 border-purple-300",
   bereit_zu_buchen: "bg-emerald-600 text-white border-emerald-700",
+  // Verschickt = ruhiger Wartezustand; Nachfassen = Aufgabe, deshalb kräftig
+  // (wie "Bereit zu buchen") und deutlich anders als das blasse "Nachgefasst".
+  angebot_verschickt: "bg-blue-100 text-blue-800 border-blue-300",
+  angebot_nachfassen: "bg-amber-500 text-white border-amber-600",
   abgesagt: "bg-red-100 text-red-700 border-red-300",
   gebucht: "bg-green-100 text-green-800 border-green-300",
 };

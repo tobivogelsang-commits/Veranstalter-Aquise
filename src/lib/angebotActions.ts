@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin as supabase, supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
+import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import { ANHANG_BUCKET, anhangPfad } from "@/lib/storage";
 import { getBandLogoUrl } from "@/lib/teamActions";
 import { erzeugeAngebotPdf } from "@/lib/angebotPdf";
@@ -170,11 +171,25 @@ export async function setzeAngebotStatus(
   status: "entwurf" | "versendet" | "angenommen" | "abgelehnt"
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   await requireOwner();
-  const { error } = await supabase
+  const { data: angebot, error } = await supabase
     .from("angebote")
     .update({ status })
-    .eq("id", angebotId);
+    .eq("id", angebotId)
+    .select("venue_id, band_id")
+    .single();
   if (error) return { ok: false, fehler: error.message };
+
+  // Ist das Angebot raus, zieht die Pipeline mit: Der Veranstalter wandert in
+  // die Spalte "Angebot verschickt", damit man später sieht, wo nachzufassen
+  // ist. setzeStatusVorwaerts rückt nur vor - ein bereits gebuchter Kontakt
+  // fällt dadurch nicht zurück.
+  if (status === "versendet" && angebot.venue_id) {
+    await setzeStatusVorwaerts(angebot.venue_id, angebot.band_id, "angebot_verschickt");
+    revalidatePath("/");
+    revalidatePath("/pipeline");
+    revalidatePath("/venues");
+    revalidatePath(`/venues/${angebot.venue_id}`);
+  }
 
   revalidiereAngebote(angebotId);
   return { ok: true };
