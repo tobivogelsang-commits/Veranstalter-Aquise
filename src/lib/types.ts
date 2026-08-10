@@ -61,6 +61,9 @@ export type Angebot = Database["public"]["Tables"]["angebote"]["Row"];
 // Angebot inkl. Bandname für Übersichtslisten.
 export type AngebotMitBand = Angebot & { band: { id: string; name: string } };
 
+export type AngebotBaustein =
+  Database["public"]["Tables"]["angebot_bausteine"]["Row"];
+
 export type MerchArtikel = Database["public"]["Tables"]["merch_artikel"]["Row"];
 export type MerchVorlage = Database["public"]["Tables"]["merch_vorlagen"]["Row"];
 

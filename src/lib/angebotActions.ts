@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin as supabase, supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
+import type { AngebotBausteinFeld } from "@/lib/database.types";
+import type { AngebotBaustein } from "@/lib/types";
 import { ANHANG_BUCKET, anhangPfad } from "@/lib/storage";
 import { getBandLogoUrl } from "@/lib/teamActions";
 import { erzeugeAngebotPdf } from "@/lib/angebotPdf";
@@ -59,10 +61,21 @@ export async function erstelleAngebot(
 ): Promise<{ ok: false; fehler: string } | never> {
   await requireOwner();
 
-  const [{ data: band }, nummer] = await Promise.all([
+  const [{ data: band }, nummer, { data: standardBausteine }] = await Promise.all([
     supabase.from("bands").select("ust_satz").eq("id", bandId).maybeSingle(),
     naechsteNummer(bandId),
+    // Als Standard markierte Textbausteine der Band - sie füllen das neue
+    // Angebot vor, damit wiederkehrende Formulierungen nicht jedes Mal neu
+    // getippt werden müssen.
+    supabase
+      .from("angebot_bausteine")
+      .select("feld, text")
+      .eq("band_id", bandId)
+      .eq("ist_standard", true),
   ]);
+
+  const standard = (feld: string, rueckfall: string | null): string | null =>
+    (standardBausteine ?? []).find((b) => b.feld === feld)?.text ?? rueckfall;
 
   let empfaenger = {
     empfaenger_name: "",
@@ -101,8 +114,12 @@ export async function erstelleAngebot(
       nummer,
       gueltig_bis: gueltigBis.toISOString().slice(0, 10),
       ust_satz: band?.ust_satz ?? 0,
-      einleitung: "gerne unterbreiten wir Ihnen folgendes Angebot:",
-      zahlungsbedingungen: "Zahlbar innerhalb von 14 Tagen nach Erhalt der Rechnung.",
+      einleitung: standard("einleitung", "gerne unterbreiten wir Ihnen folgendes Angebot:"),
+      zahlungsbedingungen: standard(
+        "zahlungsbedingungen",
+        "Zahlbar innerhalb von 14 Tagen nach Erhalt der Rechnung."
+      ),
+      nachbemerkung: standard("nachbemerkung", null),
       positionen: [],
       ...empfaenger,
     })
@@ -275,4 +292,71 @@ export async function erzeugeAngebotPdfDatei(
 
   revalidiereAngebote(angebotId, angebot.venue_id);
   return { ok: true, pfad, dateiname };
+}
+
+// --- Textbausteine ---------------------------------------------------------
+// Wiederkehrende Formulierungen je Feld. Der als Standard markierte Baustein
+// wird bei einem neuen Angebot automatisch eingesetzt (siehe erstelleAngebot).
+
+export async function speichereBaustein(
+  bandId: string,
+  werte: {
+    id?: string;
+    feld: AngebotBausteinFeld;
+    titel: string;
+    text: string;
+    istStandard: boolean;
+  }
+): Promise<{ ok: true; baustein: AngebotBaustein } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const titel = werte.titel.trim();
+  if (!titel) return { ok: false, fehler: "Titel fehlt." };
+
+  // Standard ist je Feld eindeutig: vorhandene Markierung zurücknehmen.
+  if (werte.istStandard) {
+    await supabase
+      .from("angebot_bausteine")
+      .update({ ist_standard: false })
+      .eq("band_id", bandId)
+      .eq("feld", werte.feld);
+  }
+
+  const daten = {
+    band_id: bandId,
+    feld: werte.feld,
+    titel,
+    text: werte.text,
+    ist_standard: werte.istStandard,
+  };
+
+  const { data, error } = werte.id
+    ? await supabase
+        .from("angebot_bausteine")
+        .update(daten)
+        .eq("id", werte.id)
+        .select("*")
+        .single()
+    : await supabase.from("angebot_bausteine").insert(daten).select("*").single();
+
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath("/einstellungen");
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true, baustein: data };
+}
+
+export async function loescheBaustein(
+  bausteinId: string,
+  bandId: string
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const { error } = await supabase
+    .from("angebot_bausteine")
+    .delete()
+    .eq("id", bausteinId);
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath("/einstellungen");
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true };
 }

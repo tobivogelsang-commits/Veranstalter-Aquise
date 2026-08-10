@@ -9,6 +9,7 @@ import { signierteAnhangUrls } from "@/lib/storage";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {
+  AngebotBaustein,
   AngebotMitBand,
   Band,
   BandDokumentTypMitUrl,
@@ -191,6 +192,18 @@ export async function getAngeboteFuerVenue(venueId: string): Promise<AngebotMitB
     .order("erstellt_am", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as AngebotMitBand[];
+}
+
+// Textbausteine einer Band, nach Feld und Titel sortiert.
+export async function getAngebotBausteine(bandId: string): Promise<AngebotBaustein[]> {
+  const { data, error } = await supabase
+    .from("angebot_bausteine")
+    .select("*")
+    .eq("band_id", bandId)
+    .order("feld")
+    .order("titel");
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 // Veranstalter, die auf "Bereit zu buchen" stehen, für die es aber noch kein

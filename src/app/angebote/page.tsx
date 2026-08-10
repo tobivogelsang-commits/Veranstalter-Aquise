@@ -1,6 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { BandSwitcher } from "@/components/BandSwitcher";
+import { AngebotLoeschenKnopf } from "@/components/AngebotLoeschenKnopf";
 import { NeuesAngebotButton } from "@/components/NeuesAngebotButton";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { berechneAngebotSummen, formatDatumLang, formatEuro } from "@/lib/angebotHelpers";
@@ -64,6 +65,7 @@ export default async function AngebotePage({
                 <th className="px-4 py-2 font-medium">Datum</th>
                 <th className="px-4 py-2 font-medium">Betrag</th>
                 <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-2 py-2" aria-label="Aktionen" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -98,6 +100,9 @@ export default async function AngebotePage({
                       >
                         {STATUS_LABEL[a.status]}
                       </span>
+                    </td>
+                    <td className="px-2 py-3">
+                      <AngebotLoeschenKnopf angebotId={a.id} nummer={a.nummer} />
                     </td>
                   </tr>
                 );

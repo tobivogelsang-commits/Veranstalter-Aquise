@@ -10,8 +10,13 @@ import {
 } from "@/lib/angebotActions";
 import { berechneAngebotSummen, formatEuro } from "@/lib/angebotHelpers";
 import { AngebotMailDialog } from "@/components/AngebotMailDialog";
-import type { AngebotPosition, AngebotStatus } from "@/lib/database.types";
 import type {
+  AngebotBausteinFeld,
+  AngebotPosition,
+  AngebotStatus,
+} from "@/lib/database.types";
+import type {
+  AngebotBaustein,
   AngebotMitBand,
   BandDokumentTypMitUrl,
   EmailVorlage,
@@ -37,6 +42,41 @@ function Feld({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+// Auswahl eines Textbausteins für ein Feld. Bewusst außerhalb der
+// Editor-Komponente definiert: Eine im Render erzeugte Komponente würde bei
+// jedem Tastendruck neu aufgebaut und verlöre dabei Fokus und Zustand.
+function BausteinAuswahl({
+  bausteine,
+  feld,
+  onWaehlen,
+}: {
+  bausteine: AngebotBaustein[];
+  feld: AngebotBausteinFeld;
+  onWaehlen: (text: string) => void;
+}) {
+  const passende = bausteine.filter((b) => b.feld === feld);
+  if (passende.length === 0) return null;
+
+  return (
+    <select
+      value=""
+      onChange={(e) => {
+        const baustein = passende.find((b) => b.id === e.target.value);
+        if (baustein) onWaehlen(baustein.text);
+      }}
+      className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 focus:border-slate-500 focus:outline-none"
+      title="Textbaustein einsetzen"
+    >
+      <option value="">Baustein…</option>
+      {passende.map((b) => (
+        <option key={b.id} value={b.id}>
+          {b.titel}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // Angebots-Maske: Empfänger, Texte und Positionen. Gespeichert wird per Klick
 // (kein Autosave), danach lässt sich das PDF erzeugen und ansehen.
 export function AngebotEditor({
@@ -44,11 +84,13 @@ export function AngebotEditor({
   venues,
   vorlagen,
   dokumentTypen,
+  bausteine,
 }: {
   angebot: AngebotMitBand;
   venues: VenueVorschlag[];
   vorlagen: EmailVorlage[];
   dokumentTypen: BandDokumentTypMitUrl[];
+  bausteine: AngebotBaustein[];
 }) {
   const [form, setForm] = useState({
     titel: angebot.titel,
@@ -82,6 +124,7 @@ export function AngebotEditor({
   const [laeuft, setLaeuft] = useState(false);
 
   const summen = berechneAngebotSummen(positionen, form.ustSatz);
+
 
   // Vorschläge: Veranstalter, deren Name den Eingabetext enthält. Erst ab dem
   // ersten Zeichen, damit die Liste nicht ungefragt aufspringt.
@@ -323,7 +366,14 @@ export function AngebotEditor({
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-medium text-slate-900">Einleitung</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-medium text-slate-900">Einleitung</h2>
+          <BausteinAuswahl
+              bausteine={bausteine}
+              feld="einleitung"
+              onWaehlen={(text) => setForm((p) => ({ ...p, einleitung: text }))}
+            />
+        </div>
         <textarea
           value={form.einleitung}
           onChange={(e) => setForm((p) => ({ ...p, einleitung: e.target.value }))}
@@ -425,7 +475,14 @@ export function AngebotEditor({
 
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
-          <h2 className="mb-1 text-sm font-medium text-slate-900">Zahlungsbedingungen</h2>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-slate-900">Zahlungsbedingungen</h2>
+            <BausteinAuswahl
+              bausteine={bausteine}
+              feld="zahlungsbedingungen"
+              onWaehlen={(text) => setForm((p) => ({ ...p, zahlungsbedingungen: text }))}
+            />
+          </div>
           <textarea
             value={form.zahlungsbedingungen}
             onChange={(e) =>
@@ -436,7 +493,14 @@ export function AngebotEditor({
           />
         </div>
         <div>
-          <h2 className="mb-1 text-sm font-medium text-slate-900">Nachbemerkung</h2>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-slate-900">Nachbemerkung</h2>
+            <BausteinAuswahl
+              bausteine={bausteine}
+              feld="nachbemerkung"
+              onWaehlen={(text) => setForm((p) => ({ ...p, nachbemerkung: text }))}
+            />
+          </div>
           <textarea
             value={form.nachbemerkung}
             onChange={(e) => setForm((p) => ({ ...p, nachbemerkung: e.target.value }))}
