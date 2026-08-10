@@ -10,6 +10,8 @@ export type Status =
   | "nachgefasst"
   | "interessiert"
   | "bereit_zu_buchen"
+  | "angebot_verschickt"
+  | "angebot_nachfassen"
   | "abgesagt"
   | "gebucht";
 

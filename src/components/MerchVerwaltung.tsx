@@ -126,7 +126,12 @@ export function MerchVerwaltung({
 
   async function handleVorlageHochladen() {
     const datei = dateiRef.current?.files?.[0];
-    if (!datei || vorlageLaeuft) return;
+    if (vorlageLaeuft) return;
+    // Ohne Rückmeldung wirkt der Knopf kaputt, wenn noch keine Datei gewählt ist.
+    if (!datei) {
+      setVorlageFehler("Bitte zuerst eine Datei auswählen.");
+      return;
+    }
     setVorlageLaeuft(true);
     setVorlageFehler(null);
 
