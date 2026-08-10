@@ -135,8 +135,16 @@ export async function registriereMitglied(
 // App-Start im Hintergrund aufgerufen.
 export async function aktualisierePushSubscription(
   mitgliedId: string,
+  bandId: string,
   subscription: PushSubscriptionInput
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  // Ohne diese Prüfung könnte man mit einer fremden Mitglieds-Kennung dessen
+  // Push-Anmeldung überschreiben und so seine Benachrichtigungen auf das
+  // eigene Gerät umleiten.
+  if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) {
+    return { ok: false, fehler: "Mitglied gehört nicht zu dieser Band." };
+  }
+
   const { error } = await supabaseAdmin
     .from("band_mitglieder")
     .update({

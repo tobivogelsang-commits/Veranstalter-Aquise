@@ -965,6 +965,10 @@ async function verknuepfeMitAktuellemBand(venueId: string, bandFilter: string) {
 export async function legeVenueAusRechercheAn(
   input: VenueAusRechercheInput
 ): Promise<VenueAusRechercheResult> {
+  // Wird nur aus der Veranstalter-Suche im Inhaber-Bereich aufgerufen. Ohne
+  // diese Prüfung wäre die Aktion über ihre Kennung von außen auslösbar - der
+  // Login-Wächter schützt nur Seitenaufrufe, keine Aktions-Aufrufe.
+  await requireOwner();
   const { data: vorhanden } = await supabase
     .from("venues")
     .select("id")
@@ -1108,6 +1112,10 @@ export async function rueckeStatusAutomatischVor(
   zielStatus: Status,
   naechsterFollowUpAm?: string | null
 ) {
+  // Aufrufer sind ausschließlich E-Mail-Aktionen, die selbst requireOwner()
+  // prüfen - die Wiederholung hier schließt den Aufruf von außen über die
+  // Aktions-Kennung aus.
+  await requireOwner();
   const geaendert = await setzeStatusVorwaerts(
     venueId,
     bandId,
