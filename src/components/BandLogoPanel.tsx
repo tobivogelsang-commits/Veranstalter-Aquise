@@ -18,9 +18,18 @@ export function BandLogoPanel({
   const [laeuft, setLaeuft] = useState(false);
   const dateiRef = useRef<HTMLInputElement>(null);
 
-  async function handleHochladen() {
-    const datei = dateiRef.current?.files?.[0];
+  // Wird direkt beim Auswählen der Datei ausgelöst: Ein Klick auf "Logo
+  // hochladen" öffnet die Dateiauswahl, danach lädt es sofort hoch. Vorher
+  // brauchte es zwei Schritte (erst Datei wählen, dann Knopf) - wer nur auf
+  // den Knopf drückte, bekam gar keine Reaktion.
+  async function handleDateiGewaehlt(e: React.ChangeEvent<HTMLInputElement>) {
+    const datei = e.target.files?.[0];
+    e.target.value = "";
     if (!datei || laeuft) return;
+    if (!datei.type.startsWith("image/")) {
+      setFehler("Bitte ein Bild auswählen (PNG oder JPG).");
+      return;
+    }
     setLaeuft(true);
     setFehler(null);
 
@@ -70,15 +79,21 @@ export function BandLogoPanel({
         )}
 
         <div className="flex flex-col gap-2">
-          <input ref={dateiRef} type="file" accept="image/*" className="text-sm" />
+          <input
+            ref={dateiRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDateiGewaehlt}
+            className="hidden"
+          />
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleHochladen}
+              onClick={() => dateiRef.current?.click()}
               disabled={laeuft}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
             >
-              {laeuft ? "Lädt…" : logoUrl ? "Ersetzen" : "Hochladen"}
+              {laeuft ? "Lädt…" : logoUrl ? "Logo ersetzen" : "Logo hochladen"}
             </button>
             {logoUrl && (
               <button
