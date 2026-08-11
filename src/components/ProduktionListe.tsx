@@ -9,7 +9,12 @@ import {
   uebernehmeInKatalog,
 } from "@/lib/produktionActions";
 import { parseDauerEingabe } from "@/lib/dauer";
-import { PRODUKTION_RECORDINGS, PRODUKTION_STEPS } from "@/lib/constants";
+import {
+  PRODUKTION_NOTEN,
+  PRODUKTION_RECORDINGS,
+  PRODUKTION_STEPS,
+} from "@/lib/constants";
+import { sortiereProduktionen } from "@/lib/produktionHelpers";
 import type { Produktion, ProduktionMitSong } from "@/lib/types";
 
 const inputClass =
@@ -24,6 +29,17 @@ function chipClass(aktiv: boolean): string {
       ? "border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
       : "border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
   );
+}
+
+// Note als Ampel: gute Songs gruen, mittlere neutral, schwache gedaempft.
+// Bewusst dezent - die Note steuert vor allem die Reihenfolge, die Farbe ist
+// nur eine Lesehilfe beim Ueberfliegen.
+function noteBadgeClass(note: number): string {
+  if (note <= 2)
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200";
+  if (note <= 4)
+    return "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200";
+  return "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
 }
 
 function ChevronIcon({ offen }: { offen: boolean }) {
@@ -133,6 +149,17 @@ function ProduktionKarte({
               {titel}
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+              {produktion.note !== null && (
+                <span
+                  className={clsx(
+                    "rounded-full px-2 py-0.5 font-semibold",
+                    noteBadgeClass(produktion.note)
+                  )}
+                  title={`Priorität: Note ${produktion.note}`}
+                >
+                  {produktion.note}
+                </span>
+              )}
               {produktion.datum.trim() && <span>{produktion.datum}</span>}
               {produktion.step && (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -178,6 +205,36 @@ function ProduktionKarte({
               placeholder="z. B. 15.07. oder nächste Woche"
               className={inputClass}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Priorität
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {PRODUKTION_NOTEN.map((note) => {
+                const aktiv = produktion.note === note;
+                return (
+                  <button
+                    key={note}
+                    type="button"
+                    // Nochmaliger Klick hebt die Note wieder auf - wie beim
+                    // Prozessschritt, damit man eine Fehleingabe zuruecknehmen
+                    // kann, ohne auf eine andere Note ausweichen zu muessen.
+                    onClick={() => onChange({ note: aktiv ? null : note })}
+                    className={chipClass(aktiv)}
+                    title={
+                      note === 1 ? "1 = gut, steht oben" : note === 6 ? "6 = steht unten" : undefined
+                    }
+                  >
+                    {note}
+                  </button>
+                );
+              })}
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                1 = gut (oben) · 6 = unten
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -318,6 +375,7 @@ export function ProduktionListe({
         datum: produktion.datum,
         step: produktion.step,
         recordings: produktion.recordings,
+        note: produktion.note,
       }).catch((err) => console.error("Produktion speichern fehlgeschlagen", err));
     }, 500);
   }
@@ -327,19 +385,21 @@ export function ProduktionListe({
       const next = prev.map((p) => (p.id === produktionId ? { ...p, ...werte } : p));
       const aktualisiert = next.find((p) => p.id === produktionId);
       if (aktualisiert) speicherePlanen(aktualisiert);
-      return next;
+      // Nur bei einer Notenvergabe umsortieren: Der Eintrag wandert sofort an
+      // seinen Platz, damit man die Wirkung der Note sieht. Beim Tippen in
+      // Name/Datum wäre Umsortieren dagegen störend - deshalb nicht generell.
+      return "note" in werte ? sortiereProduktionen(next) : next;
     });
   }
 
   // Übernommene Produktionen rutschen ans Ende - oben bleiben die laufenden
   // Arbeiten, die Historie stört dort nicht.
   function handleUebernommen(produktionId: string, song: { id: string; titel: string }) {
-    setProduktionen((prev) => {
-      const next = prev.map((p) =>
-        p.id === produktionId ? { ...p, song_id: song.id, song } : p
-      );
-      return [...next.filter((p) => !p.song_id), ...next.filter((p) => p.song_id)];
-    });
+    setProduktionen((prev) =>
+      sortiereProduktionen(
+        prev.map((p) => (p.id === produktionId ? { ...p, song_id: song.id, song } : p))
+      )
+    );
   }
 
   function toggleOffen(produktionId: string) {
