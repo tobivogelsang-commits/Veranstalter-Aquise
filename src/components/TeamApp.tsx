@@ -14,7 +14,7 @@ import {
   type PushSubscriptionInput,
 } from "@/lib/teamActions";
 import { berechneTeilnahme, kalenderPillFarbe, kommendeVorkommen } from "@/lib/kalenderHelpers";
-import { ALLE_BANDS_PARAM } from "@/lib/constants";
+import { ALLE_BANDS_PARAM, PASSWORT_MIN_LAENGE } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { ProduktionListe } from "@/components/ProduktionListe";
 import { MerchListe } from "@/components/MerchListe";
@@ -279,6 +279,7 @@ export function TeamApp({
   // Bands immer falsch und ergaebe einen sichtbaren Rahmen.
   const [logoRandFarbe, setLogoRandFarbe] = useState<string | null>(null);
   const [nameEingabe, setNameEingabe] = useState("");
+  const [passwortEingabe, setPasswortEingabe] = useState("");
   const [registrierungLaeuft, setRegistrierungLaeuft] = useState(false);
   const [registrierungFehler, setRegistrierungFehler] = useState<string | null>(null);
   const [pushHinweis, setPushHinweis] = useState<string | null>(null);
@@ -502,7 +503,12 @@ export function TeamApp({
     try {
       const { subscription, hinweis } = await versuchePushSubscription();
       if (hinweis) setPushHinweis(hinweis);
-      ergebnis = await registriereMitglied(bandId, nameEingabe, subscription);
+      ergebnis = await registriereMitglied(
+        bandId,
+        nameEingabe,
+        passwortEingabe,
+        subscription
+      );
     } catch (err) {
       console.error("Registrierung fehlgeschlagen", err);
       setRegistrierungLaeuft(false);
@@ -518,9 +524,11 @@ export function TeamApp({
       return;
     }
 
+    // Namen aus der Antwort uebernehmen: Bei der Anmeldung auf einem weiteren
+    // Geraet gilt die Schreibweise des bestehenden Eintrags ("cj" -> "CJ").
     const neueIdentitaet: Identitaet = {
       mitgliedId: ergebnis.mitgliedId,
-      name: nameEingabe.trim(),
+      name: ergebnis.name,
     };
     window.localStorage.setItem(STORAGE_PREFIX + bandId, JSON.stringify(neueIdentitaet));
     setIdentitaet(neueIdentitaet);
@@ -545,8 +553,14 @@ export function TeamApp({
     return (
       <div className="mx-auto flex max-w-sm flex-col gap-4 px-4 pt-16">
         <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
+        {/* Ein Formular fuer beides: Beim ersten Mal legt man mit Name und
+            Passwort sein Konto an, auf einem weiteren Geraet meldet man sich
+            damit an. Der Server erkennt am Namen, welcher Fall vorliegt -
+            zwei getrennte Masken waeren hier nur eine Huerde mehr. */}
         <p className="text-sm text-slate-500">
-          Wie heißt du? Wird einmalig auf diesem Gerät gespeichert, kein Passwort nötig.
+          Melde dich mit deinem Namen und einem Passwort an. Beim ersten Mal legst
+          du damit dein Konto an – auf einem weiteren Gerät kommst du mit
+          denselben Angaben wieder rein.
         </p>
         <form onSubmit={handleRegistrieren} className="flex flex-col gap-3">
           <input
@@ -554,6 +568,17 @@ export function TeamApp({
             value={nameEingabe}
             onChange={(e) => setNameEingabe(e.target.value)}
             placeholder="Dein Name"
+            autoComplete="username"
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          />
+          <input
+            required
+            type="password"
+            value={passwortEingabe}
+            onChange={(e) => setPasswortEingabe(e.target.value)}
+            placeholder="Passwort"
+            autoComplete="current-password"
+            minLength={PASSWORT_MIN_LAENGE}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
           />
           <button
@@ -563,6 +588,10 @@ export function TeamApp({
           >
             {registrierungLaeuft ? "Wird eingerichtet…" : "Loslegen"}
           </button>
+          <p className="text-xs text-slate-400">
+            Passwort vergessen? Tobias kann es zurücksetzen, dann vergibst du beim
+            nächsten Anmelden ein neues.
+          </p>
           {registrierungFehler && (
             <p className="text-sm text-red-600">{registrierungFehler}</p>
           )}

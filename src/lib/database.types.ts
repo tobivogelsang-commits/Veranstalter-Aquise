@@ -108,6 +108,9 @@ export interface Database {
           // Storage-Pfad im öffentlichen Bild-Bucket; Logo der Team-App und
           // Icon auf dem Home-Bildschirm.
           logo_pfad: string | null;
+          // false = niemand kann sich mehr selbst eintragen; bestehende Mitglieder
+          // melden sich weiter an (auch auf neuen Geraeten).
+          registrierung_offen: boolean;
           // Briefkopf-/Fußdaten für Angebote.
           absender_name: string | null;
           absender_strasse: string | null;
@@ -431,6 +434,9 @@ export interface Database {
           push_endpoint: string | null;
           push_p256dh: string | null;
           push_auth: string | null;
+          // scrypt-Hash des selbst vergebenen Passworts; null bei Mitgliedern
+          // aus der Zeit vor der Umstellung (setzen es bei naechster Anmeldung).
+          passwort_hash: string | null;
           erstellt_am: string;
         };
         Insert: Partial<Database["public"]["Tables"]["band_mitglieder"]["Row"]> & {

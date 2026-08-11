@@ -8,9 +8,10 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireOwner } from "@/lib/authServer";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
-import { getTeamIconPfade } from "@/lib/constants";
+import { getTeamIconPfade, PASSWORT_MIN_LAENGE } from "@/lib/constants";
 import { oeffentlicheBildUrl } from "@/lib/storage";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
+import { hashePasswort, passwortStimmt } from "@/lib/mitgliedPasswort";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
 import type {
   BandMitgliedOhnePush,
@@ -68,28 +69,110 @@ export async function pruefeMitglied(
   return data !== null;
 }
 
-// Legt ein neues Teammitglied an (einmalige Namenseingabe, kein Login/Passwort)
-// inkl. Push-Subscription. subscription ist optional, falls jemand
-// Benachrichtigungen ablehnt oder der Browser sie nicht unterstützt - die
-// Person kann die Team-Seite trotzdem manuell nutzen. Läuft über den
-// service_role-Client, da band_mitglieder bewusst keine anon-Policy hat
-// (schützt die Push-Zugangsdaten).
+// Meldet ein Teammitglied an - dieselbe Aktion legt an ODER meldet auf einem
+// weiteren Gerät an, je nachdem ob der Name in dieser Band schon existiert:
+//
+//  - Name frei          -> neues Mitglied, das eingegebene Passwort wird gesetzt
+//  - Name existiert     -> Passwort wird geprüft; stimmt es, meldet sich die
+//                          Person auf DIESEM Gerät an und bekommt ihren
+//                          bestehenden Eintrag (keine zweite Karteikarte mehr)
+//  - Name existiert, hat aber noch KEIN Passwort -> Mitglied aus der Zeit vor
+//                          der Umstellung: das eingegebene Passwort wird
+//                          uebernommen. Alle nachträglich zu zwingen wäre
+//                          unnötig unfreundlich, und der Band-Link als
+//                          Zugangsschutz gilt hier ohnehin weiterhin.
+//
+// Genau diese Zusammenführung verhindert die Doppelanmeldungen, durch die
+// mehrere Mitglieder zweimal in der Teilnahmeliste standen.
+// Läuft über den service_role-Client, da band_mitglieder bewusst keine
+// anon-Policy hat (schützt Passwort-Hash und Push-Zugangsdaten).
 export async function registriereMitglied(
   bandId: string,
   name: string,
+  passwort: string,
   subscription: PushSubscriptionInput | null
-): Promise<{ ok: true; mitgliedId: string } | { ok: false; fehler: string }> {
+): Promise<
+  | { ok: true; mitgliedId: string; name: string; angemeldet: boolean }
+  | { ok: false; fehler: string }
+> {
   const sauberName = name.trim().slice(0, MAX_NAME_LAENGE);
   if (!sauberName) return { ok: false, fehler: "Name fehlt." };
+  if (passwort.length < PASSWORT_MIN_LAENGE) {
+    return {
+      ok: false,
+      fehler: `Passwort muss mindestens ${PASSWORT_MIN_LAENGE} Zeichen haben.`,
+    };
+  }
 
   // Existiert die Band überhaupt? Ohne Prüfung liefe man in einen rohen
   // Fremdschlüssel-Fehler, dessen Meldung nichts erklärt.
   const { data: band } = await supabaseAdmin
     .from("bands")
-    .select("id")
+    .select("id, registrierung_offen")
     .eq("id", bandId)
     .maybeSingle();
   if (!band) return { ok: false, fehler: "Band nicht gefunden." };
+
+  const pushFelder = {
+    push_endpoint: subscription?.endpoint ?? null,
+    push_p256dh: subscription?.keys.p256dh ?? null,
+    push_auth: subscription?.keys.auth ?? null,
+  };
+
+  // Gibt es den Namen in dieser Band schon? Vergleich ohne Rücksicht auf
+  // Gross-/Kleinschreibung, damit "cj" und "CJ" dieselbe Person sind.
+  const { data: bestehende } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("id, name, passwort_hash")
+    .eq("band_id", bandId)
+    .ilike("name", sauberName);
+  const vorhanden = (bestehende ?? []).find(
+    (m) => m.name.trim().toLowerCase() === sauberName.toLowerCase()
+  );
+
+  if (vorhanden) {
+    if (vorhanden.passwort_hash) {
+      if (!(await passwortStimmt(passwort, vorhanden.passwort_hash))) {
+        // Kleine Verzögerung, damit Passwörter nicht in schneller Folge
+        // durchprobiert werden können.
+        await new Promise((fertig) => setTimeout(fertig, 400));
+        return {
+          ok: false,
+          fehler: "Dieser Name ist vergeben und das Passwort stimmt nicht.",
+        };
+      }
+    } else {
+      // Bestandsmitglied ohne Passwort: Das jetzt eingegebene wird seins.
+      await supabaseAdmin
+        .from("band_mitglieder")
+        .update({ passwort_hash: await hashePasswort(passwort) })
+        .eq("id", vorhanden.id);
+    }
+
+    // Anmeldung auf diesem Gerät: Push-Daten gehören ab jetzt hierher.
+    await supabaseAdmin
+      .from("band_mitglieder")
+      .update(pushFelder)
+      .eq("id", vorhanden.id);
+    return {
+      ok: true,
+      mitgliedId: vorhanden.id,
+      name: vorhanden.name,
+      angemeldet: true,
+    };
+  }
+
+  // Ab hier: NEUES Mitglied. Die Sperre greift bewusst erst an dieser Stelle -
+  // bestehende Mitglieder (oben behandelt) sollen sich weiterhin anmelden
+  // koennen, auch auf einem neuen Geraet. Sonst waere ein verlorenes Handy
+  // gleichbedeutend mit dem Verlust des Zugangs.
+  if (!band.registrierung_offen) {
+    return {
+      ok: false,
+      fehler:
+        "Für diese Band sind keine neuen Anmeldungen möglich. Melde dich bei der Band, wenn du dabei sein solltest.",
+    };
+  }
 
   const { count } = await supabaseAdmin
     .from("band_mitglieder")
@@ -107,15 +190,62 @@ export async function registriereMitglied(
     .insert({
       band_id: bandId,
       name: sauberName,
-      push_endpoint: subscription?.endpoint ?? null,
-      push_p256dh: subscription?.keys.p256dh ?? null,
-      push_auth: subscription?.keys.auth ?? null,
+      passwort_hash: await hashePasswort(passwort),
+      ...pushFelder,
     })
-    .select("id")
+    .select("id, name")
     .single();
 
+  // 23505 = der Unique-Index hat zugeschlagen: In der Zeit zwischen Prüfung und
+  // Einfügen hat sich derselbe Name eingetragen (zwei Geräte gleichzeitig).
+  if (error) {
+    return {
+      ok: false,
+      fehler:
+        error.code === "23505"
+          ? "Dieser Name wurde gerade vergeben. Bitte nochmal mit deinem Passwort anmelden."
+          : error.message,
+    };
+  }
+  return { ok: true, mitgliedId: data.id, name: data.name, angemeldet: false };
+}
+
+// Schaltet die Selbstregistrierung fuer eine Band an oder aus (Inhaber, am
+// Desktop). Zugeschaltet kommt niemand Neues mehr hinein - auch niemand, der
+// gerade entfernt wurde. Bestehende Mitglieder sind davon nicht betroffen.
+export async function setzeRegistrierungOffen(
+  bandId: string,
+  offen: boolean
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const { error } = await supabaseAdmin
+    .from("bands")
+    .update({ registrierung_offen: offen })
+    .eq("id", bandId);
   if (error) return { ok: false, fehler: error.message };
-  return { ok: true, mitgliedId: data.id };
+
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true };
+}
+
+// Setzt das Passwort eines Mitglieds zurück (Inhaber, am Desktop): Der Hash
+// wird geleert, die nächste Anmeldung mit diesem Namen vergibt ein neues.
+// Für den Fall "Passwort vergessen" - niemand kann es auslesen, auch nicht
+// der Inhaber.
+export async function setzeMitgliedPasswortZurueck(
+  mitgliedId: string,
+  bandId: string
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const { error } = await supabaseAdmin
+    .from("band_mitglieder")
+    .update({ passwort_hash: null })
+    .eq("id", mitgliedId)
+    .eq("band_id", bandId);
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true };
 }
 
 // Hält die Push-Subscription eines bereits registrierten Mitglieds aktuell
@@ -258,12 +388,16 @@ export async function getMitgliederFuerBand(
   await requireOwner();
   const { data, error } = await supabaseAdmin
     .from("band_mitglieder")
-    .select("id, band_id, name, erstellt_am")
+    .select("id, band_id, name, erstellt_am, passwort_hash")
     .eq("band_id", bandId)
     .order("erstellt_am");
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  // Den Hash selbst nicht weiterreichen - nur, ob einer gesetzt ist.
+  return (data ?? []).map(({ passwort_hash, ...rest }) => ({
+    ...rest,
+    hat_passwort: passwort_hash !== null,
+  }));
 }
 
 // Entfernt ein Mitglied (z. B. hat die Band verlassen oder doppelt

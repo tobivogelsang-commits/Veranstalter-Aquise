@@ -148,10 +148,14 @@ export type PipelineEntry = {
 
 // Mitglied ohne Push-Zugangsdaten - so wird der Client bedient (z. B. für die
 // Anzeige "wer hat abgesagt"), die Subscription-Details bleiben serverseitig.
+// Ohne Push-Zugangsdaten UND ohne passwort_hash: Der Hash verlaesst den Server
+// nicht, auch nicht in Richtung der eingeloggten Inhaber-Ansicht. Fuer die
+// Mitglieder-Verwaltung reicht die Information, OB ein Passwort gesetzt ist
+// (hat_passwort) - zum Anbieten des Zuruecksetzens.
 export type BandMitgliedOhnePush = Omit<
   BandMitglied,
-  "push_endpoint" | "push_p256dh" | "push_auth"
->;
+  "push_endpoint" | "push_p256dh" | "push_auth" | "passwort_hash"
+> & { hat_passwort: boolean };
 
 // Anfrage inkl. aller bisherigen Antworten (mit Mitgliedsname) - für die
 // Status-Anzeige auf Dashboard/Venue-Seite.
