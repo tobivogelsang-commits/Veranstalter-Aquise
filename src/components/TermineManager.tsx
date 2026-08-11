@@ -311,11 +311,15 @@ export function TermineManager({
       {sichtbareTermine.length > 0 && (
         <ul className="mt-3 flex flex-col gap-1.5">
           {sichtbareTermine.map((termin) => (
+            // Aktionen stehen UNTER den Angaben, nicht daneben: nebeneinander
+            // liefen Titel und Datum auf schmalen Geraeten unter "bearbeiten/
+            // loeschen" hindurch. Die Angaben duerfen jetzt umbrechen, statt
+            // die Aktionen zu verdecken.
             <li
               key={termin.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-1.5 text-sm dark:border-slate-700"
+              className="flex flex-col gap-1 rounded-md border border-slate-100 px-3 py-2 text-sm dark:border-slate-700"
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <span
                   className={clsx(
                     "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium",
@@ -324,8 +328,10 @@ export function TermineManager({
                 >
                   {TERMIN_TYP_LABEL[termin.typ]}
                 </span>
-                <span className="truncate text-slate-900 dark:text-slate-100">{termin.titel}</span>
-                <span className="shrink-0 text-xs text-slate-400">
+                <span className="min-w-0 break-words text-slate-900 dark:text-slate-100">
+                  {termin.titel}
+                </span>
+                <span className="text-xs text-slate-400">
                   {termin.wiederholung === "einmalig"
                     ? formatDatum(termin.datum)
                     : `ab ${formatDatum(termin.datum)}`}
@@ -337,7 +343,7 @@ export function TermineManager({
                   {bandFilter === ALLE_BANDS_PARAM ? ` · ${bandName(termin.band_id)}` : ""}
                 </span>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => oeffneBearbeiten(termin)}
