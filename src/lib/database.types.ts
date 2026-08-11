@@ -597,6 +597,9 @@ export interface Database {
           datum: string;
           step: string | null;
           recordings: string[];
+          // Prioritaets-Note 1-6 (Schulnoten): steuert die Sortierung, 1 oben.
+          // null = noch nicht bewertet (steht in der Liste ganz oben).
+          note: number | null;
           // Gesetzt, sobald die Produktion in den Songkatalog übernommen wurde.
           song_id: string | null;
           erstellt_am: string;

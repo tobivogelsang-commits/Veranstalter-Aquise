@@ -96,6 +96,11 @@ export const PRODUKTION_STEPS: ProduktionStep[] = [
   "Veröffentlichen",
 ];
 
+// Prioritaets-Noten nach Schulnoten: 1 = gut (steigt nach oben in der Liste),
+// 6 = schwach (rutscht nach unten und bekommt weniger Aufmerksamkeit).
+export const PRODUKTION_NOTEN = [1, 2, 3, 4, 5, 6] as const;
+export type ProduktionNote = (typeof PRODUKTION_NOTEN)[number];
+
 export const PRODUKTION_RECORDINGS: ProduktionRecording[] = [
   "Vox",
   "Keys",

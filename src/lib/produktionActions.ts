@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 // aus der öffentlichen Team-App (ProduktionListe) nutzbar - daher KEIN
 // requireOwner(); Schutz ist die nicht erratbare Band-UUID.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { PRODUKTION_RECORDINGS, PRODUKTION_STEPS } from "@/lib/constants";
+import {
+  PRODUKTION_NOTEN,
+  PRODUKTION_RECORDINGS,
+  PRODUKTION_STEPS,
+} from "@/lib/constants";
 import type { ProduktionRecording, ProduktionStep } from "@/lib/database.types";
 import type { Produktion } from "@/lib/types";
 
@@ -21,6 +25,15 @@ const FREMD = "Nicht gefunden.";
 function bereinigeStep(step: string | null): ProduktionStep | null {
   return step && (PRODUKTION_STEPS as string[]).includes(step)
     ? (step as ProduktionStep)
+    : null;
+}
+
+// Nur 1-6 durchlassen (die Aktion ist oeffentlich erreichbar); alles andere
+// gilt als "nicht bewertet". Die DB lehnt Abweichungen zusaetzlich per
+// CHECK-Constraint ab.
+function bereinigeNote(note: number | null): number | null {
+  return note !== null && (PRODUKTION_NOTEN as readonly number[]).includes(note)
+    ? note
     : null;
 }
 
@@ -60,6 +73,7 @@ export async function aktualisiereProduktion(
     datum: string;
     step: string | null;
     recordings: string[];
+    note: number | null;
   }
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   const { data, error } = await supabase
@@ -69,6 +83,7 @@ export async function aktualisiereProduktion(
       datum: werte.datum,
       step: bereinigeStep(werte.step),
       recordings: bereinigeRecordings(werte.recordings),
+      note: bereinigeNote(werte.note),
     })
     .eq("id", produktionId)
     .eq("band_id", bandId)

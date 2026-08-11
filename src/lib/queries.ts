@@ -7,6 +7,7 @@
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { signierteAnhangUrls } from "@/lib/storage";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
+import { sortiereProduktionen } from "@/lib/produktionHelpers";
 import type { Database, Status, VenueTyp } from "@/lib/database.types";
 import type {
   AngebotBaustein,
@@ -716,8 +717,9 @@ export async function getSetlistenMitSongs(bandId: string): Promise<SetlisteMitS
 }
 
 // Produktions-Einträge einer Band inkl. des ggf. daraus entstandenen
-// Katalog-Songs. Sortierung: laufende Arbeiten zuerst (neueste oben), bereits
-// übernommene Produktionen ans Ende - dort stört die Historie nicht.
+// Katalog-Songs. Reihenfolge siehe sortiereProduktionen - dieselbe Funktion
+// nutzt der Client, damit die Liste nach einer Notenvergabe nicht anders
+// aussieht als nach dem nächsten Laden.
 export async function getProduktionen(bandId: string): Promise<ProduktionMitSong[]> {
   const { data, error } = await supabase
     .from("produktionen")
@@ -727,11 +729,9 @@ export async function getProduktionen(bandId: string): Promise<ProduktionMitSong
 
   if (error) throw new Error(error.message);
 
-  const produktionen = (data ?? []) as unknown as ProduktionMitSong[];
-  return [
-    ...produktionen.filter((p) => !p.song_id),
-    ...produktionen.filter((p) => p.song_id),
-  ];
+  // erstellt_am ist durch die Query bereits absteigend sortiert - sortiere-
+  // Produktionen ist stabil und erhält das bei gleicher Note.
+  return sortiereProduktionen((data ?? []) as unknown as ProduktionMitSong[]);
 }
 
 export async function getVenuesWithRelations(): Promise<
