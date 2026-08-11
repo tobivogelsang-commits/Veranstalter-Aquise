@@ -272,6 +272,12 @@ export function TeamApp({
   // registrierten Mitgliedern das Formular nicht kurz aufblitzt.
   const [identitaet, setIdentitaet] = useState<Identitaet | null>(null);
   const [identitaetGeladen, setIdentitaetGeladen] = useState(false);
+  // Randfarbe des Bandlogos, mit der die Flaeche ueber und unter dem Logo
+  // aufgefuellt wird (siehe Hintergrund-Ebene unten). Wird aus dem Bild selbst
+  // gelesen, weil die Logos unterschiedliche Untergruende haben: Backseat Alley
+  // weiss, Trash Back schwarz - eine feste Farbe waere fuer eine der beiden
+  // Bands immer falsch und ergaebe einen sichtbaren Rahmen.
+  const [logoRandFarbe, setLogoRandFarbe] = useState<string | null>(null);
   const [nameEingabe, setNameEingabe] = useState("");
   const [registrierungLaeuft, setRegistrierungLaeuft] = useState(false);
   const [registrierungFehler, setRegistrierungFehler] = useState<string | null>(null);
@@ -383,6 +389,53 @@ export function TeamApp({
     }
     setTerminAntwortLaeuft((prev) => ({ ...prev, [key]: false }));
   }
+
+  // Randfarbe des Logos ermitteln: Das Bild wird in ein Canvas gezeichnet und
+  // die vier Eckpixel werden gelesen; die haeufigste davon fuellt die Flaeche
+  // ueber und unter dem Logo. So passt der Uebergang bei jedem hochgeladenen
+  // Logo, ohne dass jemand eine Farbe pflegen muss. Scheitert das Auslesen
+  // (fremde Herkunft ohne CORS-Freigabe), bleibt es bei null -> Schwarz.
+  useEffect(() => {
+    if (!logoUrl) return;
+    let abgebrochen = false;
+    const bild = new Image();
+    bild.crossOrigin = "anonymous";
+    bild.onload = () => {
+      if (abgebrochen) return;
+      try {
+        const flaeche = document.createElement("canvas");
+        flaeche.width = bild.naturalWidth;
+        flaeche.height = bild.naturalHeight;
+        const stift = flaeche.getContext("2d");
+        if (!stift) return;
+        stift.drawImage(bild, 0, 0);
+        const x = bild.naturalWidth - 1;
+        const y = bild.naturalHeight - 1;
+        const ecken = [
+          [0, 0],
+          [x, 0],
+          [0, y],
+          [x, y],
+        ].map(([px, py]) => {
+          const [r, g, b] = stift.getImageData(px, py, 1, 1).data;
+          return `rgb(${r}, ${g}, ${b})`;
+        });
+        // Haeufigste Eckfarbe gewinnt - eine einzelne Ecke koennte in ein
+        // Motiv hineinragen und waere dann nicht der Untergrund.
+        const zaehler = new Map<string, number>();
+        for (const farbe of ecken) zaehler.set(farbe, (zaehler.get(farbe) ?? 0) + 1);
+        const haeufigste = [...zaehler.entries()].sort((a, b) => b[1] - a[1])[0][0];
+        setLogoRandFarbe(haeufigste);
+      } catch {
+        // getImageData scheitert bei Bildern fremder Herkunft ohne
+        // CORS-Freigabe - dann bleibt es beim Standard.
+      }
+    };
+    bild.src = logoUrl;
+    return () => {
+      abgebrochen = true;
+    };
+  }, [logoUrl]);
 
   useEffect(() => {
     if (!identitaet) return;
@@ -548,9 +601,25 @@ export function TeamApp({
     <div className={clsx(dunkelmodus && "dark")}>
       {dashboardDunkel && (
         <>
+          {/* Bandlogos sind meist quer oder quadratisch - formatfuellend
+              (bg-cover) wuerden sie auf einem hohen Handy-Display massiv
+              hochskaliert und seitlich angeschnitten. Stattdessen liegt das
+              vollstaendige Logo mittig, und die Flaeche darueber/darunter wird
+              mit der Randfarbe des Logos aufgefuellt (siehe useEffect oben) -
+              der Uebergang ist dadurch unsichtbar. Das Overlay dunkelt beides
+              gleichmaessig ab. */}
           <div
-            className="fixed inset-0 z-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${logoUrl})` }}
+            className="fixed inset-0 z-0 bg-center bg-no-repeat transition-colors"
+            style={{
+              backgroundImage: `url(${logoUrl})`,
+              backgroundColor: logoRandFarbe ?? "#000000",
+              // Ueber die BREITE bemessen, nicht die Hoehe: quadratische Logos
+              // wuerden sonst breiter als das Display und waeren wieder
+              // seitlich angeschnitten. Der Deckel haelt das Logo auf breiten
+              // Fenstern (Desktop-Browser) in derselben ruhigen Groesse.
+              backgroundSize: "min(72%, 300px) auto",
+            }}
+            aria-hidden="true"
           />
           <div className="fixed inset-0 z-0 bg-black/[0.58]" />
         </>
