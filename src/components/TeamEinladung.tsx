@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { entferneMitglied, setzeMitgliedPasswortZurueck } from "@/lib/teamActions";
+import {
+  entferneMitglied,
+  setzeMitgliedPasswortZurueck,
+  setzeRegistrierungOffen,
+} from "@/lib/teamActions";
 import type { BandMitgliedOhnePush } from "@/lib/types";
 
 export function TeamEinladung({
@@ -9,13 +13,17 @@ export function TeamEinladung({
   inviteUrl,
   qrCodeDataUrl,
   mitglieder,
+  registrierungOffen,
 }: {
   bandId: string;
   inviteUrl: string;
   qrCodeDataUrl: string;
   mitglieder: BandMitgliedOhnePush[];
+  registrierungOffen: boolean;
 }) {
   const [kopiert, setKopiert] = useState(false);
+  const [offen, setOffen] = useState(registrierungOffen);
+  const [schalterLaeuft, setSchalterLaeuft] = useState(false);
   const [loeschenLaeuft, setLoeschenLaeuft] = useState<string | null>(null);
   const [zuruecksetzenLaeuft, setZuruecksetzenLaeuft] = useState<string | null>(null);
 
@@ -27,6 +35,18 @@ export function TeamEinladung({
     } catch {
       // Clipboard-API evtl. nicht verfügbar (z. B. kein HTTPS) - der Link
       // steht als Text trotzdem da und kann manuell kopiert werden.
+    }
+  }
+
+  async function handleSchalter() {
+    const neu = !offen;
+    setSchalterLaeuft(true);
+    setOffen(neu); // sofort umschalten, damit der Schalter nicht traege wirkt
+    const ergebnis = await setzeRegistrierungOffen(bandId, neu);
+    setSchalterLaeuft(false);
+    if (!ergebnis.ok) {
+      setOffen(!neu);
+      alert(ergebnis.fehler);
     }
   }
 
@@ -45,7 +65,17 @@ export function TeamEinladung({
   }
 
   async function handleEntfernen(mitgliedId: string) {
-    if (!confirm("Mitglied wirklich entfernen? Push-Benachrichtigungen enden damit.")) {
+    // Bei offener Registrierung ist das Entfernen folgenlos: Der Name wird
+    // wieder frei und die Person kann sich sofort neu eintragen. Darauf
+    // hinweisen, statt ein falsches Gefuehl von Kontrolle zu erzeugen.
+    const zusatz = offen
+      ? "\n\nAchtung: Neue Anmeldungen sind für diese Band offen – die Person kann sich danach einfach wieder eintragen. Schalte das unten aus, wenn das nicht passieren soll."
+      : "";
+    if (
+      !confirm(
+        `Mitglied wirklich entfernen? Push-Benachrichtigungen enden damit.${zusatz}`
+      )
+    ) {
       return;
     }
     setLoeschenLaeuft(mitgliedId);
@@ -133,6 +163,34 @@ export function TeamEinladung({
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Der Schalter ist das Gegenstueck zum Entfernen: Ohne ihn traegt sich
+          eine entfernte Person einfach wieder ein, da der Band-Link weiter
+          gilt. Bestehende Mitglieder koennen sich auch zugeschaltet weiter
+          anmelden - sonst waere ein verlorenes Handy ein Zugangsverlust. */}
+      <div className="flex items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+        <div>
+          <p className="text-xs font-semibold text-slate-700">Neue Anmeldungen</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {offen
+              ? "Offen – jede Person mit dem Link kann sich eintragen. Wenn die Band vollzählig ist, hier zuschalten."
+              : "Zu – niemand Neues kann sich eintragen. Die bestehenden Mitglieder melden sich weiterhin an, auch auf einem neuen Gerät."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleSchalter}
+          disabled={schalterLaeuft}
+          aria-pressed={offen}
+          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+            offen
+              ? "border border-slate-300 text-slate-700 hover:bg-slate-100"
+              : "bg-slate-900 text-white hover:bg-slate-800"
+          }`}
+        >
+          {offen ? "Zuschalten" : "Wieder öffnen"}
+        </button>
       </div>
     </div>
   );

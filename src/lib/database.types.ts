@@ -108,6 +108,9 @@ export interface Database {
           // Storage-Pfad im öffentlichen Bild-Bucket; Logo der Team-App und
           // Icon auf dem Home-Bildschirm.
           logo_pfad: string | null;
+          // false = niemand kann sich mehr selbst eintragen; bestehende Mitglieder
+          // melden sich weiter an (auch auf neuen Geraeten).
+          registrierung_offen: boolean;
           // Briefkopf-/Fußdaten für Angebote.
           absender_name: string | null;
           absender_strasse: string | null;

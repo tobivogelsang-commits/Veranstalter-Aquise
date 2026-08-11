@@ -108,7 +108,7 @@ export async function registriereMitglied(
   // Fremdschlüssel-Fehler, dessen Meldung nichts erklärt.
   const { data: band } = await supabaseAdmin
     .from("bands")
-    .select("id")
+    .select("id, registrierung_offen")
     .eq("id", bandId)
     .maybeSingle();
   if (!band) return { ok: false, fehler: "Band nicht gefunden." };
@@ -162,6 +162,18 @@ export async function registriereMitglied(
     };
   }
 
+  // Ab hier: NEUES Mitglied. Die Sperre greift bewusst erst an dieser Stelle -
+  // bestehende Mitglieder (oben behandelt) sollen sich weiterhin anmelden
+  // koennen, auch auf einem neuen Geraet. Sonst waere ein verlorenes Handy
+  // gleichbedeutend mit dem Verlust des Zugangs.
+  if (!band.registrierung_offen) {
+    return {
+      ok: false,
+      fehler:
+        "Für diese Band sind keine neuen Anmeldungen möglich. Melde dich bei der Band, wenn du dabei sein solltest.",
+    };
+  }
+
   const { count } = await supabaseAdmin
     .from("band_mitglieder")
     .select("id", { count: "exact", head: true })
@@ -196,6 +208,24 @@ export async function registriereMitglied(
     };
   }
   return { ok: true, mitgliedId: data.id, name: data.name, angemeldet: false };
+}
+
+// Schaltet die Selbstregistrierung fuer eine Band an oder aus (Inhaber, am
+// Desktop). Zugeschaltet kommt niemand Neues mehr hinein - auch niemand, der
+// gerade entfernt wurde. Bestehende Mitglieder sind davon nicht betroffen.
+export async function setzeRegistrierungOffen(
+  bandId: string,
+  offen: boolean
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  await requireOwner();
+  const { error } = await supabaseAdmin
+    .from("bands")
+    .update({ registrierung_offen: offen })
+    .eq("id", bandId);
+  if (error) return { ok: false, fehler: error.message };
+
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true };
 }
 
 // Setzt das Passwort eines Mitglieds zurück (Inhaber, am Desktop): Der Hash
