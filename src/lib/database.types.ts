@@ -431,6 +431,9 @@ export interface Database {
           push_endpoint: string | null;
           push_p256dh: string | null;
           push_auth: string | null;
+          // scrypt-Hash des selbst vergebenen Passworts; null bei Mitgliedern
+          // aus der Zeit vor der Umstellung (setzen es bei naechster Anmeldung).
+          passwort_hash: string | null;
           erstellt_am: string;
         };
         Insert: Partial<Database["public"]["Tables"]["band_mitglieder"]["Row"]> & {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { entferneMitglied } from "@/lib/teamActions";
+import { entferneMitglied, setzeMitgliedPasswortZurueck } from "@/lib/teamActions";
 import type { BandMitgliedOhnePush } from "@/lib/types";
 
 export function TeamEinladung({
@@ -17,6 +17,7 @@ export function TeamEinladung({
 }) {
   const [kopiert, setKopiert] = useState(false);
   const [loeschenLaeuft, setLoeschenLaeuft] = useState<string | null>(null);
+  const [zuruecksetzenLaeuft, setZuruecksetzenLaeuft] = useState<string | null>(null);
 
   async function handleKopieren() {
     try {
@@ -27,6 +28,20 @@ export function TeamEinladung({
       // Clipboard-API evtl. nicht verfügbar (z. B. kein HTTPS) - der Link
       // steht als Text trotzdem da und kann manuell kopiert werden.
     }
+  }
+
+  async function handleZuruecksetzen(mitgliedId: string, name: string) {
+    if (
+      !confirm(
+        `Passwort von ${name} zurücksetzen? ${name} vergibt beim nächsten Anmelden ein neues.`
+      )
+    ) {
+      return;
+    }
+    setZuruecksetzenLaeuft(mitgliedId);
+    const ergebnis = await setzeMitgliedPasswortZurueck(mitgliedId, bandId);
+    setZuruecksetzenLaeuft(null);
+    if (!ergebnis.ok) alert(ergebnis.fehler);
   }
 
   async function handleEntfernen(mitgliedId: string) {
@@ -43,9 +58,10 @@ export function TeamEinladung({
       <div>
         <h3 className="text-sm font-semibold text-slate-900">Team-App</h3>
         <p className="mt-1 text-xs text-slate-500">
-          Link oder QR-Code an die Band-Mitglieder schicken. Beim ersten Öffnen einmalig
-          Namen eingeben (kein Passwort), danach kommen Verfügbarkeits-Anfragen per
-          Push-Benachrichtigung.
+          Link oder QR-Code an die Band-Mitglieder schicken. Beim ersten Öffnen
+          Namen und ein selbst gewähltes Passwort eingeben – mit denselben Angaben
+          kommt man auch auf einem weiteren Gerät wieder rein. Danach kommen
+          Verfügbarkeits-Anfragen per Push-Benachrichtigung.
         </p>
       </div>
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -82,15 +98,37 @@ export function TeamEinladung({
                 key={m.id}
                 className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-1.5 text-sm"
               >
-                <span>{m.name}</span>
-                <button
-                  type="button"
-                  disabled={loeschenLaeuft === m.id}
-                  onClick={() => handleEntfernen(m.id)}
-                  className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-                >
-                  Entfernen
-                </button>
+                <span className="flex items-center gap-2">
+                  {m.name}
+                  {/* Ohne Passwort = Mitglied aus der Zeit vor der Umstellung;
+                      es vergibt eines bei der naechsten Anmeldung. */}
+                  {!m.hat_passwort && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      noch kein Passwort
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-3">
+                  {m.hat_passwort && (
+                    <button
+                      type="button"
+                      disabled={zuruecksetzenLaeuft === m.id}
+                      onClick={() => handleZuruecksetzen(m.id, m.name)}
+                      className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                      title="Für den Fall, dass jemand sein Passwort vergessen hat"
+                    >
+                      Passwort zurücksetzen
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={loeschenLaeuft === m.id}
+                    onClick={() => handleEntfernen(m.id)}
+                    className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Entfernen
+                  </button>
+                </span>
               </li>
             ))}
           </ul>

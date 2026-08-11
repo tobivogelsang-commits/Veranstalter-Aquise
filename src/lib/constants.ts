@@ -98,6 +98,14 @@ export const PRODUKTION_STEPS: ProduktionStep[] = [
 
 // Prioritaets-Noten nach Schulnoten: 1 = gut (steigt nach oben in der Liste),
 // 6 = schwach (rutscht nach unten und bekommt weniger Aufmerksamkeit).
+// Mindestlaenge des Mitglieds-Passworts in der Team-App. Absichtlich niedrig:
+// Der eigentliche Zugangsschutz ist der nicht erratbare Band-Link; das Passwort
+// trennt die Mitglieder untereinander und erlaubt den Geraetewechsel. Eine
+// strenge Regel wuerde hier nur zu Zetteln fuehren.
+// Steht hier statt in mitgliedPasswort.ts, weil auch das Anmeldeformular
+// (Client) sie braucht - jenes Modul ist "server-only".
+export const PASSWORT_MIN_LAENGE = 4;
+
 export const PRODUKTION_NOTEN = [1, 2, 3, 4, 5, 6] as const;
 export type ProduktionNote = (typeof PRODUKTION_NOTEN)[number];
 
