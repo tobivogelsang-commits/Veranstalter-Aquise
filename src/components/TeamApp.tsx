@@ -280,6 +280,7 @@ export function TeamApp({
   const [logoRandFarbe, setLogoRandFarbe] = useState<string | null>(null);
   const [nameEingabe, setNameEingabe] = useState("");
   const [passwortEingabe, setPasswortEingabe] = useState("");
+  const [kalenderUrlKopiert, setKalenderUrlKopiert] = useState(false);
   const [registrierungLaeuft, setRegistrierungLaeuft] = useState(false);
   const [registrierungFehler, setRegistrierungFehler] = useState<string | null>(null);
   const [pushHinweis, setPushHinweis] = useState<string | null>(null);
@@ -492,6 +493,20 @@ export function TeamApp({
       document.removeEventListener("visibilitychange", handleSichtbarkeitswechsel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identitaet?.mitgliedId]);
+
+  // Google Kalender nimmt kein webcal:// entgegen, dort fuegt man die
+  // https-Adresse unter "Per URL hinzufuegen" ein.
+  async function handleKalenderUrlKopieren() {
+    const adresse = `${window.location.origin}/api/kalender/${bandId}`;
+    try {
+      await navigator.clipboard.writeText(adresse);
+      setKalenderUrlKopiert(true);
+      setTimeout(() => setKalenderUrlKopiert(false), 2000);
+    } catch {
+      // Zwischenablage nicht verfuegbar (z. B. ohne HTTPS) - dann bleibt der
+      // Abonnieren-Link als Weg.
+    }
+  }
 
   async function handleRegistrieren(e: React.FormEvent) {
     e.preventDefault();
@@ -1057,12 +1072,36 @@ export function TeamApp({
               }
             />
           )}
-          <a
-            href={`/api/kalender/${bandId}`}
-            className="mt-4 inline-block text-xs font-medium text-slate-600 underline dark:text-slate-300"
-          >
-            Kalender abonnieren (für privaten Kalender) ↗
-          </a>
+          {/* webcal:// statt https://: Nur damit reicht iOS/macOS den Feed an
+              die Kalender-App weiter und bietet "Abonnieren" an. Ueber https
+              versucht Safari die Datei selbst zu oeffnen und meldet "Safari
+              kann diese Datei nicht laden". Das Schema wird erst nach dem
+              Mount gesetzt, weil dafuer der Host des Geraets noetig ist -
+              bis dahin steht der https-Link als Rueckfall. */}
+          <div className="mt-4 flex flex-col gap-1">
+            <a
+              href={`/api/kalender/${bandId}`}
+              onClick={(e) => {
+                // Erst beim Klick umschreiben: Der Host ist nur im Browser
+                // bekannt, und so bleibt der https-Link als Rueckfall stehen,
+                // falls das Geraet mit webcal:// nichts anfangen kann.
+                e.preventDefault();
+                window.location.href = `webcal://${window.location.host}/api/kalender/${bandId}`;
+              }}
+              className="text-xs font-medium text-slate-600 underline dark:text-slate-300"
+            >
+              Kalender abonnieren (für privaten Kalender) ↗
+            </a>
+            <button
+              type="button"
+              onClick={handleKalenderUrlKopieren}
+              className="self-start text-xs text-slate-400 underline dark:text-slate-500"
+            >
+              {kalenderUrlKopiert
+                ? "✓ Adresse kopiert"
+                : "Adresse kopieren (für Google Kalender)"}
+            </button>
+          </div>
         </div>
       )}
 

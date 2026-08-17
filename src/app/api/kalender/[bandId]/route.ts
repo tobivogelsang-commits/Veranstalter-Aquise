@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { getBands, getKalenderEintraege, getVenuesWithRelations } from "@/lib/queries";
+import {
+  getBands,
+  getKalenderEintraege,
+  getTermine,
+  getVenuesWithRelations,
+} from "@/lib/queries";
+import { TERMIN_TYP_LABEL } from "@/lib/constants";
+import type { KalenderTermin } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +32,79 @@ function naechsterTag(datum: string): string {
   return `${jj}${mm}${tt}`;
 }
 
-// Liefert einen .ics-Feed pro Band (gebuchte + interessierte Gigs), zum
-// Abonnieren in privaten Kalender-Apps (Apple/Google/Outlook "Kalender per
-// URL hinzufügen"). Nutzt dieselbe Filterung wie die In-App-Kalenderansicht.
+// Wiederholungen als RRULE. Die App kennt nur diese vier Fälle; "einmalig"
+// bekommt gar keine Regel.
+function rrule(termin: KalenderTermin): string | null {
+  // UNTIL muss dasselbe Format haben wie DTSTART (RFC 5545): bei einem Termin
+  // mit Uhrzeit also Datum UND Zeit, sonst verwerfen strenge Kalender-Apps die
+  // ganze Regel. Ende des Tages, damit das letzte Vorkommen noch hineinfaellt.
+  const bis = termin.wiederholung_bis
+    ? `;UNTIL=${formatDatum(termin.wiederholung_bis)}${termin.uhrzeit ? "T235959" : ""}`
+    : "";
+  switch (termin.wiederholung) {
+    case "woechentlich":
+      return `RRULE:FREQ=WEEKLY${bis}`;
+    case "zweiwoechentlich":
+      return `RRULE:FREQ=WEEKLY;INTERVAL=2${bis}`;
+    case "monatlich":
+      return `RRULE:FREQ=MONTHLY${bis}`;
+    default:
+      return null;
+  }
+}
+
+// Termine mit Uhrzeit werden bewusst OHNE Zeitzone geschrieben ("floating
+// time"): Der Kalender des Geräts liest sie als Ortszeit. Für eine Band, die
+// zusammen an einem Ort probt, ist das genau richtig und erspart eine
+// VTIMEZONE-Definition, die manche Kalender-Apps eigenwillig auslegen.
+function terminEvent(termin: KalenderTermin, jetzt: string): string {
+  const zeilen = ["BEGIN:VEVENT", `UID:termin-${termin.id}@veranstalter-akquise`, `DTSTAMP:${jetzt}`];
+
+  if (termin.uhrzeit) {
+    const start = `${formatDatum(termin.datum)}T${termin.uhrzeit.slice(0, 5).replace(":", "")}00`;
+    zeilen.push(`DTSTART:${start}`);
+    // Die App erfasst keine Endzeit. Zwei Stunden sind für Probe/Event eine
+    // brauchbare Annahme - ein Punkttermin ohne Dauer sieht in Kalender-Apps
+    // aus wie ein Versehen.
+    zeilen.push("DURATION:PT2H");
+  } else {
+    zeilen.push(`DTSTART;VALUE=DATE:${formatDatum(termin.datum)}`);
+    zeilen.push(
+      `DTEND;VALUE=DATE:${naechsterTag(termin.datum_bis ?? termin.datum)}`
+    );
+  }
+
+  const regel = rrule(termin);
+  if (regel) {
+    zeilen.push(regel);
+    // Einzeln abgesagte Vorkommen einer Serie ausnehmen.
+    if (termin.ausnahmen.length > 0) {
+      const wert = termin.ausnahmen.map(formatDatum);
+      zeilen.push(
+        termin.uhrzeit
+          ? `EXDATE:${wert
+              .map((d) => `${d}T${termin.uhrzeit!.slice(0, 5).replace(":", "")}00`)
+              .join(",")}`
+          : `EXDATE;VALUE=DATE:${wert.join(",")}`
+      );
+    }
+  }
+
+  zeilen.push(`SUMMARY:${escapeIcs(termin.titel)}`);
+  const beschreibung = [TERMIN_TYP_LABEL[termin.typ], termin.notiz]
+    .filter(Boolean)
+    .join(" · ");
+  if (beschreibung) zeilen.push(`DESCRIPTION:${escapeIcs(beschreibung)}`);
+  if (termin.ort) zeilen.push(`LOCATION:${escapeIcs(termin.ort)}`);
+  zeilen.push("END:VEVENT");
+  return zeilen.join("\r\n");
+}
+
+// Liefert einen .ics-Feed pro Band zum Abonnieren in privaten Kalender-Apps
+// (Apple/Google/Outlook "Kalender per URL hinzufügen"). Enthält beides, was
+// auch die App im Kalender zeigt: gebuchte/interessierte Gigs UND die selbst
+// angelegten Termine samt Wiederholungen - ein Feed, der nur die Gigs kennt,
+// waere fuer eine Band ohne anstehenden Gig schlicht leer.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ bandId: string }> }
@@ -40,6 +117,7 @@ export async function GET(
     return new NextResponse("Band nicht gefunden.", { status: 404 });
   }
 
+  const termine = await getTermine(bandId);
   const eintraege = getKalenderEintraege(venues, bandId).filter(
     (eintrag) => eintrag.venue.veranstaltungsdatum
   );
@@ -59,6 +137,7 @@ export async function GET(
         "END:VEVENT",
       ].join("\r\n");
     })
+    .concat(termine.map((termin) => terminEvent(termin, jetzt)))
     .join("\r\n");
 
   const ics = [
@@ -66,7 +145,7 @@ export async function GET(
     "VERSION:2.0",
     "PRODID:-//Veranstalter-Akquise//Team-Kalender//DE",
     "CALSCALE:GREGORIAN",
-    `X-WR-CALNAME:${escapeIcs(`${band.name} - Gigs`)}`,
+    `X-WR-CALNAME:${escapeIcs(`${band.name} - Termine`)}`,
     events,
     "END:VCALENDAR",
   ]
