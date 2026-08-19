@@ -33,3 +33,39 @@ export function aktiveZeile(zeilen: SyncZeile[], zeitMs: number): number {
   }
   return treffer;
 }
+
+// Zeitmarken aus einer eingelernten oder korrigierten Fassung wieder als LRC
+// schreiben - dieselbe Form, die lrclib liefert.
+export function bauLrc(zeilen: SyncZeile[]): string {
+  return zeilen
+    .map(({ zeitMs, text }) => {
+      // Durchgehend in Ganzzahlen rechnen. Der Umweg ueber Sekunden als
+      // Kommazahl verschiebt sonst einzelne Marken um eine Hundertstelsekunde
+      // (76,71 s wird intern zu 7670,999..., abgerundet also 70 statt 71).
+      const hundertstelGesamt = Math.round(Math.max(0, zeitMs) / 10);
+      const min = Math.floor(hundertstelGesamt / 6000);
+      const rest = hundertstelGesamt % 6000;
+      const zz = (n: number) => String(n).padStart(2, "0");
+      return `[${zz(min)}:${zz(Math.floor(rest / 100))}.${zz(rest % 100)}]${text}`;
+    })
+    .join("\n");
+}
+
+// Wendet Tempo und Versatz auf die Zeitmarken an.
+//
+// tempo ist Prozent des Original-Tempos: 105 heisst "wir spielen 5 % schneller",
+// die Zeilen kommen also FRUEHER - daher wird durch den Faktor geteilt, nicht
+// multipliziert. versatzMs verschiebt anschliessend alles gleichmaessig, etwa
+// wenn das Intro kuerzer ist.
+export function mitTiming(
+  zeilen: SyncZeile[],
+  versatzMs: number,
+  tempo: number
+): SyncZeile[] {
+  const faktor = tempo > 0 ? 100 / tempo : 1;
+  if (faktor === 1 && versatzMs === 0) return zeilen;
+  return zeilen.map((z) => ({
+    ...z,
+    zeitMs: Math.round(z.zeitMs * faktor) + versatzMs,
+  }));
+}

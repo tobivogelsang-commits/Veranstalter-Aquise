@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { holeSongtext, speichereSongtext } from "@/lib/setlistActions";
-import { aktiveZeile, parseLrc } from "@/lib/lrc";
+import {
+  holeSongtext,
+  speichereSongtext,
+  speichereSongtextTiming,
+} from "@/lib/setlistActions";
+import { aktiveZeile, bauLrc, mitTiming, parseLrc } from "@/lib/lrc";
 import type { BandSong } from "@/lib/types";
 
 // Schriftgrössen für die Bühne. Die Auswahl bleibt auf dem Gerät gespeichert -
@@ -25,11 +29,26 @@ export function SongtextModal({
 }) {
   const [text, setText] = useState<string | null>(song.songtext);
   const [sync, setSync] = useState<string | null>(song.songtext_sync);
+  // Eigene, im Proberaum eingelernte Zeiten haben Vorrang vor der Fassung von
+  // lrclib; Versatz und Tempo wirken zusaetzlich auf die jeweils gueltige.
+  const [eigenerSync, setEigenerSync] = useState<string | null>(
+    song.songtext_sync_eigen
+  );
+  const [versatzMs, setVersatzMs] = useState(song.songtext_versatz_ms);
+  const [tempo, setTempo] = useState(song.songtext_tempo);
+  const [zeigeTiming, setZeigeTiming] = useState(false);
+  const [timingGesichert, setTimingGesichert] = useState(false);
+  // Einlernen: Zeiten werden beim Antippen gestempelt, bis alle Zeilen durch
+  // sind oder abgebrochen wird.
+  const [lernStart, setLernStart] = useState<number | null>(null);
+  const [lernZeiten, setLernZeiten] = useState<number[]>([]);
   // Mitlauf: Es gibt keine Wiedergabe - die Zeit laeuft ab dem Antippen von
   // "Mitlaufen". laeuftSeit ist der Zeitpunkt des Starts, versatzMs die vor
   // einer Pause bereits verstrichene Zeit.
   const [laeuftSeit, setLaeuftSeit] = useState<number | null>(null);
-  const [versatzMs, setVersatzMs] = useState(0);
+  // Stand des Mitlaufs: vor einer Pause bereits verstrichene Zeit. Nicht zu
+  // verwechseln mit versatzMs weiter unten - das korrigiert die Zeitmarken.
+  const [standMs, setStandMs] = useState(0);
   const [jetztMs, setJetztMs] = useState(0);
   const aktiveRef = useRef<HTMLParagraphElement | null>(null);
   const [hinweis, setHinweis] = useState<string | null>(null);
@@ -111,7 +130,39 @@ export function SongtextModal({
     };
   }, []);
 
-  const syncZeilen = useMemo(() => (sync ? parseLrc(sync) : []), [sync]);
+  // Grundlage: die eigene Fassung, sonst die von lrclib. Versatz und Tempo
+  // kommen erst danach obendrauf - so bleiben die gespeicherten Zeiten
+  // unangetastet und die Regler jederzeit zurueckdrehbar.
+  const grundZeilen = useMemo(
+    () => parseLrc(eigenerSync ?? sync ?? ""),
+    [eigenerSync, sync]
+  );
+  const syncZeilen = useMemo(
+    () => mitTiming(grundZeilen, versatzMs, tempo),
+    [grundZeilen, versatzMs, tempo]
+  );
+  const lernModus = lernStart !== null;
+
+  // Timing sichern, sobald eine halbe Sekunde nichts mehr verstellt wurde.
+  // Der erste Durchlauf schreibt nicht - sonst wuerde schon das blosse
+  // Oeffnen der Ansicht speichern.
+  const timingUnberuehrt = useRef(true);
+  useEffect(() => {
+    if (timingUnberuehrt.current) {
+      timingUnberuehrt.current = false;
+      return;
+    }
+    const wartend = setTimeout(() => {
+      void speichereSongtextTiming(song.id, bandId, { versatzMs, tempo }).then(
+        (ergebnis) => {
+          if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
+          setTimingGesichert(true);
+          setTimeout(() => setTimingGesichert(false), 1500);
+        }
+      );
+    }, 500);
+    return () => clearTimeout(wartend);
+  }, [versatzMs, tempo, song.id, bandId]);
   const laeuft = laeuftSeit !== null;
 
   // Taktgeber für den Mitlauf. Viermal je Sekunde genügt für Textzeilen und
@@ -119,18 +170,18 @@ export function SongtextModal({
   useEffect(() => {
     if (laeuftSeit === null) return;
     const takt = setInterval(() => {
-      setJetztMs(versatzMs + (Date.now() - laeuftSeit));
+      setJetztMs(standMs + (Date.now() - laeuftSeit));
     }, 250);
     return () => clearInterval(takt);
-  }, [laeuftSeit, versatzMs]);
+  }, [laeuftSeit, standMs]);
 
-  const aktiverIndex = laeuft || versatzMs > 0 ? aktiveZeile(syncZeilen, jetztMs) : -1;
+  const aktiverIndex = laeuft || standMs > 0 ? aktiveZeile(syncZeilen, jetztMs) : -1;
 
   // Aktive Zeile in der Mitte halten - auf der Bühne wird nicht gescrollt.
   useEffect(() => {
-    if (aktiverIndex < 0) return;
+    if (aktiverIndex < 0 && !lernModus) return;
     aktiveRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [aktiverIndex]);
+  }, [aktiverIndex, lernModus, lernZeiten.length]);
 
   // Auf der Bühne wird nicht getippt - Escape reicht am Rechner, auf dem Handy
   // gibt es den Schliessen-Knopf.
@@ -153,7 +204,7 @@ export function SongtextModal({
   // nicht waehrend des Renderns.
   function startenOderPausieren() {
     if (laeuft) {
-      setVersatzMs((bisher) => bisher + (Date.now() - laeuftSeit!));
+      setStandMs((bisher) => bisher + (Date.now() - laeuftSeit!));
       setLaeuftSeit(null);
     } else {
       setLaeuftSeit(() => Date.now());
@@ -162,7 +213,7 @@ export function SongtextModal({
 
   function zurueckAnAnfang() {
     setLaeuftSeit(null);
-    setVersatzMs(0);
+    setStandMs(0);
     setJetztMs(0);
   }
 
@@ -170,9 +221,74 @@ export function SongtextModal({
   // Tempo der Aufnahme - ohne diese Korrektur wäre der Mitlauf nach der ersten
   // längeren Strophe nutzlos.
   function springeZu(zeitMs: number) {
-    setVersatzMs(zeitMs);
+    setStandMs(zeitMs);
     setJetztMs(zeitMs);
     if (laeuft) setLaeuftSeit(() => Date.now());
+  }
+
+  function starteEinlernen() {
+    setLaeuftSeit(null);
+    setStandMs(0);
+    setJetztMs(0);
+    setLernZeiten([]);
+    setLernStart(() => Date.now());
+  }
+
+  // Ein Tipp stempelt den Einsatz der naechsten Zeile. Bewusst ein grosser
+  // Knopf statt der Zeilen selbst: Im Proberaum wird nach Gehoer getippt, ohne
+  // aufs Display zu schauen.
+  function stempleZeile() {
+    setLernZeiten((bisher) => [...bisher, Date.now() - lernStart!]);
+  }
+
+  function letzteZurueck() {
+    setLernZeiten((bisher) => bisher.slice(0, -1));
+  }
+
+  async function sichereEingelernt() {
+    const zeilen = grundZeilen.map((z, i) => ({
+      ...z,
+      // Nicht gestempelte Zeilen behalten ihre bisherige Zeit - wer nur die
+      // erste Haelfte einlernt, verliert den Rest nicht.
+      zeitMs: lernZeiten[i] ?? z.zeitMs,
+    }));
+    const lrc = bauLrc(zeilen);
+    const ergebnis = await speichereSongtextTiming(song.id, bandId, {
+      eigenerSync: lrc,
+      // Eingelernte Zeiten sind bereits die echten - Korrekturen zuruecksetzen.
+      versatzMs: 0,
+      tempo: 100,
+    });
+    if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
+    setEigenerSync(lrc);
+    setVersatzMs(0);
+    setTempo(100);
+    setLernStart(null);
+    setLernZeiten([]);
+  }
+
+  // Die Regler aendern nur den Zustand - gespeichert wird kurz danach per
+  // Effekt. Direktes Speichern im Klick las bei zwei schnellen Tippern noch
+  // den alten Wert und ueberschrieb damit den ersten Schritt; ausserdem
+  // spart die Verzoegerung Schreibvorgaenge, wenn jemand mehrmals tippt.
+  function verstelleVersatz(deltaMs: number) {
+    setVersatzMs((alt) => alt + deltaMs);
+  }
+
+  function verstelleTempo(delta: number) {
+    setTempo((alt) => Math.min(200, Math.max(50, alt + delta)));
+  }
+
+  async function verwerfeEigenes() {
+    const ergebnis = await speichereSongtextTiming(song.id, bandId, {
+      eigenerSync: null,
+      versatzMs: 0,
+      tempo: 100,
+    });
+    if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
+    setEigenerSync(null);
+    setVersatzMs(0);
+    setTempo(100);
   }
 
   async function erneutSuchen() {
@@ -273,20 +389,27 @@ export function SongtextModal({
           // übrigen bleiben lesbar (nur gedämpft) - wer den Einsatz verpasst
           // hat, muss sich weiter im Text zurechtfinden können.
           <div className={`flex flex-col gap-3 ${GROESSEN[stufe]}`}>
-            {syncZeilen.map((zeile, i) => (
-              <p
-                key={`${zeile.zeitMs}-${i}`}
-                ref={i === aktiverIndex ? aktiveRef : null}
-                onClick={() => springeZu(zeile.zeitMs)}
-                className={
-                  i === aktiverIndex
-                    ? "cursor-pointer font-semibold text-white"
-                    : "cursor-pointer leading-relaxed text-slate-500"
-                }
-              >
-                {zeile.text || "···"}
-              </p>
-            ))}
+            {syncZeilen.map((zeile, i) => {
+              // Im Einlernen zeigt die Hervorhebung, welche Zeile als naechstes
+              // gestempelt wird - sonst die, die gerade laeuft.
+              const hervor = lernModus ? i === lernZeiten.length : i === aktiverIndex;
+              return (
+                <p
+                  key={`${zeile.zeitMs}-${i}`}
+                  ref={hervor ? aktiveRef : null}
+                  onClick={() => !lernModus && springeZu(zeile.zeitMs)}
+                  className={
+                    hervor
+                      ? "cursor-pointer font-semibold text-white"
+                      : lernModus && i < lernZeiten.length
+                        ? "leading-relaxed text-emerald-500"
+                        : "cursor-pointer leading-relaxed text-slate-500"
+                  }
+                >
+                  {zeile.text || "···"}
+                </p>
+              );
+            })}
           </div>
         )}
 
@@ -326,7 +449,96 @@ export function SongtextModal({
         )}
       </div>
 
-      {!bearbeiten && text && (
+      {/* Einlernen belegt die ganze Leiste: Im Proberaum soll man den grossen
+          Knopf treffen, ohne hinzusehen. */}
+      {!bearbeiten && lernModus && (
+        <div className="border-t border-slate-800 px-4 py-3">
+          <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+            <span>
+              Zeile {Math.min(lernZeiten.length + 1, syncZeilen.length)} von{" "}
+              {syncZeilen.length} – bei jedem Einsatz tippen
+            </span>
+            <button type="button" onClick={() => setLernStart(null)} className="underline">
+              Abbrechen
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={stempleZeile}
+              disabled={lernZeiten.length >= syncZeilen.length}
+              className="flex-1 rounded-md bg-emerald-500 px-4 py-4 text-base font-semibold text-slate-950 disabled:opacity-40"
+            >
+              Jetzt
+            </button>
+            <button
+              type="button"
+              onClick={letzteZurueck}
+              disabled={lernZeiten.length === 0}
+              className="rounded-md border border-slate-700 px-3 py-4 text-sm disabled:opacity-30"
+              aria-label="Letzte Zeile zurücknehmen"
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              onClick={sichereEingelernt}
+              disabled={lernZeiten.length === 0}
+              className="rounded-md bg-slate-100 px-4 py-4 text-sm font-medium text-slate-900 disabled:opacity-40"
+            >
+              Sichern
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Regler zur Schnellkorrektur - eingeklappt, damit die Buehnenansicht
+          ruhig bleibt. */}
+      {!bearbeiten && !lernModus && zeigeTiming && syncZeilen.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-slate-800 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-slate-400">Start</span>
+            <button type="button" onClick={() => verstelleVersatz(-500)} className="rounded border border-slate-700 px-3 py-1">
+              −0,5 s
+            </button>
+            <span className="min-w-[4.5rem] text-center tabular-nums">
+              {(versatzMs / 1000).toFixed(1)} s
+            </span>
+            <button type="button" onClick={() => verstelleVersatz(500)} className="rounded border border-slate-700 px-3 py-1">
+              +0,5 s
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-20 shrink-0 text-xs text-slate-400">Tempo</span>
+            <button type="button" onClick={() => verstelleTempo(-1)} className="rounded border border-slate-700 px-3 py-1">
+              −1 %
+            </button>
+            <span className="min-w-[4.5rem] text-center tabular-nums">{tempo} %</span>
+            <button type="button" onClick={() => verstelleTempo(1)} className="rounded border border-slate-700 px-3 py-1">
+              +1 %
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            Höheres Tempo = die Zeilen kommen früher. Wird sofort gespeichert.
+            {timingGesichert && <span className="ml-2 text-emerald-400">✓ gesichert</span>}
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button type="button" onClick={starteEinlernen} className="rounded-md border border-slate-700 px-3 py-1.5 text-xs">
+              Timing einlernen
+            </button>
+            {(eigenerSync || versatzMs !== 0 || tempo !== 100) && (
+              <button type="button" onClick={verwerfeEigenes} className="rounded-md border border-slate-700 px-3 py-1.5 text-xs">
+                Auf Original zurücksetzen
+              </button>
+            )}
+            {eigenerSync && (
+              <span className="self-center text-xs text-emerald-400">eigenes Timing aktiv</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!bearbeiten && !lernModus && text && (
         <div className="flex items-center gap-3 border-t border-slate-800 px-4 py-2">
           {syncZeilen.length > 0 && (
             <>
@@ -335,9 +547,9 @@ export function SongtextModal({
                 onClick={startenOderPausieren}
                 className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900"
               >
-                {laeuft ? "⏸ Pause" : versatzMs > 0 ? "▶ Weiter" : "▶ Mitlaufen"}
+                {laeuft ? "⏸ Pause" : standMs > 0 ? "▶ Weiter" : "▶ Mitlaufen"}
               </button>
-              {(laeuft || versatzMs > 0) && (
+              {(laeuft || standMs > 0) && (
                 <button
                   type="button"
                   onClick={zurueckAnAnfang}
@@ -352,6 +564,16 @@ export function SongtextModal({
               Zeitmarken. Da der Text ab dann aus der Datenbank kommt, wuerden
               sie sie nie bekommen - deshalb hier ein Weg, die Fassung mit
               Zeitmarken nachzuladen. */}
+          {syncZeilen.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setZeigeTiming((v) => !v)}
+              className="text-xs text-slate-400 underline"
+              title="Timing an die eigene Version anpassen"
+            >
+              {zeigeTiming ? "Timing zu" : "Timing"}
+            </button>
+          )}
           {syncZeilen.length === 0 && (
             <button
               type="button"
