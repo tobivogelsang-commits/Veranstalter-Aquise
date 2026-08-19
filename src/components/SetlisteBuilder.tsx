@@ -28,6 +28,7 @@ import {
 import { SongTitelInput } from "@/components/SongTitelInput";
 import { erstelleProduktion } from "@/lib/produktionActions";
 import { formatDauer, parseDauerEingabe, summeDauer } from "@/lib/dauer";
+import { SongtextModal } from "@/components/SongtextModal";
 import type { BandSong } from "@/lib/types";
 import type { SetlistPause } from "@/lib/database.types";
 import type { SetlisteMitSongs } from "@/lib/queries";
@@ -197,10 +198,12 @@ function SetlistZeile({
   song,
   position,
   onEntfernen,
+  onText,
 }: {
   song: BandSong;
   position: number;
   onEntfernen: () => void;
+  onText: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `setlist-${song.id}`,
@@ -224,10 +227,18 @@ function SetlistZeile({
         ⠿⠿
       </span>
       <span className="w-5 shrink-0 text-xs text-slate-400">{position + 1}</span>
-      <div className="min-w-0 flex-1">
+      {/* Antippen oeffnet den Songtext in Buehnengroesse. Der Griff zum
+          Sortieren liegt separat links, die beiden kommen sich nicht ins
+          Gehege. */}
+      <button
+        type="button"
+        onClick={onText}
+        className="min-w-0 flex-1 text-left"
+        title="Songtext anzeigen"
+      >
         <p className="truncate text-sm text-slate-900 dark:text-slate-100">{song.titel}</p>
         {song.interpret && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{song.interpret}</p>}
-      </div>
+      </button>
       <span className="shrink-0 text-xs text-slate-400">{formatDauer(song.dauer_sekunden)}</span>
       <button
         type="button"
@@ -254,6 +265,8 @@ export function SetlisteBuilder({
   const [setlisten, setSetlisten] = useState(
     initialSetlisten.map((s) => ({ id: s.id, name: s.name }))
   );
+  // Song, dessen Text gerade in Buehnengroesse offen ist.
+  const [textSongId, setTextSongId] = useState<string | null>(null);
   const [aktiveSetlisteId, setAktiveSetlisteId] = useState<string | null>(
     initialSetlisten[0]?.id ?? null
   );
@@ -726,6 +739,7 @@ export function SetlisteBuilder({
                             song={song}
                             position={index}
                             onEntfernen={() => entferneAusSetliste(song.id)}
+                            onText={() => setTextSongId(song.id)}
                           />
                           {!istLetzter &&
                             (pauseMin !== null ? (
@@ -768,6 +782,14 @@ export function SetlisteBuilder({
           )}
         </div>
       </div>
+
+      {textSongId && (
+        <SongtextModal
+          song={songs.find((s) => s.id === textSongId)!}
+          bandId={bandId}
+          onSchliessen={() => setTextSongId(null)}
+        />
+      )}
     </DndContext>
   );
 }
