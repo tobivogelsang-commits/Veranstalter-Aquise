@@ -523,6 +523,11 @@ export interface Database {
           titel: string;
           interpret: string | null;
           dauer_sekunden: number | null;
+          // Songtext zum Mitlesen auf der Buehne (Quelle: lrclib.net).
+          songtext: string | null;
+          // Wann zuletzt gesucht wurde - unterscheidet "nie gesucht" (null) von
+          // "gesucht, nichts gefunden" (gesetzt, songtext null).
+          songtext_geholt_am: string | null;
           erstellt_am: string;
         };
         Insert: Partial<Database["public"]["Tables"]["band_songs"]["Row"]> & {

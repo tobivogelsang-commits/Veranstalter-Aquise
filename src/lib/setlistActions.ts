@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 // öffentlichen Team-App (SetlisteBuilder) genutzt - daher KEIN requireOwner();
 // Schutz ist die nicht erratbare Band-UUID, wie beim übrigen Team-Bereich.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { sucheSongtext } from "@/lib/songtextSuche";
 import type { SetlistPause } from "@/lib/database.types";
 import type { BandSong, Setliste } from "@/lib/types";
 
@@ -280,6 +281,97 @@ export async function speichereSetlistReihenfolge(
     );
     if (einfuegeFehler) return { ok: false, fehler: einfuegeFehler.message };
   }
+
+  revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true };
+}
+
+// Liefert den Songtext zum Mitlesen. Beim ersten Aufruf wird er bei lrclib.net
+// gesucht und gespeichert; danach kommt er aus der Datenbank - auf einer Bühne
+// soll nicht auf ein Netz gewartet werden, das dort erfahrungsgemäss schlecht
+// ist.
+//
+// Ein erfolgloser Versuch wird ebenfalls vermerkt (songtext_geholt_am gesetzt,
+// songtext null), damit nicht bei jedem Antippen erneut gesucht wird. Über
+// `erneut` lässt sich das trotzdem anstossen - etwa nachdem der Titel
+// korrigiert wurde.
+export async function holeSongtext(
+  songId: string,
+  bandId: string,
+  erneut = false
+): Promise<
+  | { ok: true; text: string | null; hinweis: string | null }
+  | { ok: false; fehler: string }
+> {
+  const { data: song } = await supabase
+    .from("band_songs")
+    .select("id, titel, interpret, dauer_sekunden, songtext, songtext_geholt_am")
+    .eq("id", songId)
+    .eq("band_id", bandId)
+    .maybeSingle();
+  if (!song) return { ok: false, fehler: FREMD };
+
+  if (!erneut && song.songtext) {
+    return { ok: true, text: song.songtext, hinweis: null };
+  }
+  if (!erneut && song.songtext_geholt_am && !song.songtext) {
+    return {
+      ok: true,
+      text: null,
+      hinweis: "Für diesen Song wurde kein Text gefunden.",
+    };
+  }
+
+  const ergebnis = await sucheSongtext(
+    song.titel,
+    song.interpret,
+    song.dauer_sekunden
+  );
+
+  const gefunden = ergebnis.gefunden ? ergebnis.text : null;
+  // Auch bei einem Netzfehler den Zeitstempel setzen? Nein - sonst gilt ein
+  // vorübergehend nicht erreichbarer Dienst dauerhaft als "kein Text".
+  if (ergebnis.gefunden || ergebnis.grund !== "fehler") {
+    await supabase
+      .from("band_songs")
+      .update({ songtext: gefunden, songtext_geholt_am: new Date().toISOString() })
+      .eq("id", songId)
+      .eq("band_id", bandId);
+  }
+
+  revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+
+  if (ergebnis.gefunden) return { ok: true, text: ergebnis.text, hinweis: null };
+  const hinweise = {
+    instrumental: "Dieser Song ist als Instrumental hinterlegt – kein Text vorhanden.",
+    kein_treffer: "Kein Text gefunden. Prüf mal Titel und Interpret am Song (✎).",
+    fehler: "Textsuche gerade nicht erreichbar. Später nochmal versuchen.",
+  };
+  return { ok: true, text: null, hinweis: hinweise[ergebnis.grund] };
+}
+
+// Von Hand geänderter Text (Cover werden gekürzt, Strophen getauscht). Leerer
+// Text setzt zurück auf "noch nichts gesucht", damit die Suche erneut greift.
+export async function speichereSongtext(
+  songId: string,
+  bandId: string,
+  text: string
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const sauber = text.trim();
+  const { data, error } = await supabase
+    .from("band_songs")
+    .update({
+      songtext: sauber || null,
+      songtext_geholt_am: sauber ? new Date().toISOString() : null,
+    })
+    .eq("id", songId)
+    .eq("band_id", bandId)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
 
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
