@@ -525,6 +525,9 @@ export interface Database {
           dauer_sekunden: number | null;
           // Songtext zum Mitlesen auf der Buehne (Quelle: lrclib.net).
           songtext: string | null;
+          // Zeitsynchrone Fassung im LRC-Format ("[mm:ss.xx]Zeile"), falls
+          // vorhanden - fuer den mitlaufenden Text auf der Buehne.
+          songtext_sync: string | null;
           // Wann zuletzt gesucht wurde - unterscheidet "nie gesucht" (null) von
           // "gesucht, nichts gefunden" (gesetzt, songtext null).
           songtext_geholt_am: string | null;

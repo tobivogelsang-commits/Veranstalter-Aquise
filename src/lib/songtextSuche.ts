@@ -17,10 +17,13 @@ type LrclibTreffer = {
   duration?: number;
   instrumental?: boolean;
   plainLyrics?: string | null;
+  syncedLyrics?: string | null;
 };
 
 export type SongtextErgebnis =
-  | { gefunden: true; text: string }
+  // sync ist null, wenn es zu diesem Song keine zeitsynchrone Fassung gibt -
+  // laengst nicht jeder Eintrag bei lrclib hat eine.
+  | { gefunden: true; text: string; sync: string | null }
   | { gefunden: false; grund: "instrumental" | "kein_treffer" | "fehler" };
 
 async function hole(pfad: string): Promise<unknown | null> {
@@ -58,7 +61,11 @@ export async function sucheSongtext(
     const treffer = (await hole(`/get?${genau}`)) as LrclibTreffer | null;
     if (treffer?.instrumental) return { gefunden: false, grund: "instrumental" };
     if (treffer && brauchbar(treffer)) {
-      return { gefunden: true, text: treffer.plainLyrics!.trim() };
+      return {
+        gefunden: true,
+        text: treffer.plainLyrics!.trim(),
+        sync: treffer.syncedLyrics?.trim() || null,
+      };
     }
   }
 
@@ -73,16 +80,26 @@ export async function sucheSongtext(
       : { gefunden: false, grund: "kein_treffer" };
   }
 
-  // Die Suche liefert oft dieselbe Fassung mehrfach. Wenn die Dauer bekannt
-  // ist, gewinnt der Treffer, der ihr am nächsten kommt - sonst der erste.
+  // Die Suche liefert oft dieselbe Fassung mehrfach. Treffer MIT Zeitmarken
+  // haben Vorrang: Der reine Text ist derselbe, die synchrone Fassung kann
+  // aber zusaetzlich auf der Buehne mitlaufen.
+  const mitSync = mitText.filter((t) => t.syncedLyrics?.trim());
+  const auswahl = mitSync.length > 0 ? mitSync : mitText;
+
+  // Wenn die Dauer bekannt ist, gewinnt der Treffer, der ihr am naechsten
+  // kommt - sonst der erste.
   const bester = dauerSekunden
-    ? mitText.reduce((a, b) =>
+    ? auswahl.reduce((a, b) =>
         Math.abs((a.duration ?? 0) - dauerSekunden) <=
         Math.abs((b.duration ?? 0) - dauerSekunden)
           ? a
           : b
       )
-    : mitText[0];
+    : auswahl[0];
 
-  return { gefunden: true, text: bester.plainLyrics!.trim() };
+  return {
+    gefunden: true,
+    text: bester.plainLyrics!.trim(),
+    sync: bester.syncedLyrics?.trim() || null,
+  };
 }

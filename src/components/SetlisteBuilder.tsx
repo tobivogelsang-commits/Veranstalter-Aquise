@@ -784,7 +784,11 @@ export function SetlisteBuilder({
       </div>
 
       {textSongId && (
+        // key sorgt dafuer, dass die Ansicht bei einem Songwechsel neu
+        // aufgebaut wird. Ohne ihn behaelt React dieselbe Instanz und damit
+        // Text, Zeitmarken und den laufenden Mitlauf des vorigen Songs.
         <SongtextModal
+          key={textSongId}
           song={songs.find((s) => s.id === textSongId)!}
           bandId={bandId}
           onSchliessen={() => setTextSongId(null)}
