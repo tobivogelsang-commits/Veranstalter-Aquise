@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { holeSongtext, speichereSongtext } from "@/lib/setlistActions";
+import { aktiveZeile, parseLrc } from "@/lib/lrc";
 import type { BandSong } from "@/lib/types";
 
 // Schriftgrössen für die Bühne. Die Auswahl bleibt auf dem Gerät gespeichert -
@@ -23,6 +24,14 @@ export function SongtextModal({
   onSchliessen: () => void;
 }) {
   const [text, setText] = useState<string | null>(song.songtext);
+  const [sync, setSync] = useState<string | null>(song.songtext_sync);
+  // Mitlauf: Es gibt keine Wiedergabe - die Zeit laeuft ab dem Antippen von
+  // "Mitlaufen". laeuftSeit ist der Zeitpunkt des Starts, versatzMs die vor
+  // einer Pause bereits verstrichene Zeit.
+  const [laeuftSeit, setLaeuftSeit] = useState<number | null>(null);
+  const [versatzMs, setVersatzMs] = useState(0);
+  const [jetztMs, setJetztMs] = useState(0);
+  const aktiveRef = useRef<HTMLParagraphElement | null>(null);
   const [hinweis, setHinweis] = useState<string | null>(null);
   // Startwert: Fehlt der Text noch, laeuft die Suche sofort los - dann soll
   // gleich der Ladehinweis stehen, nicht erst nach einem Zwischenrender.
@@ -55,6 +64,7 @@ export function SongtextModal({
         if (abgebrochen) return;
         if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
         setText(ergebnis.text);
+        setSync(ergebnis.sync);
         setHinweis(ergebnis.hinweis);
       })
       .finally(() => !abgebrochen && setLaedt(false));
@@ -62,6 +72,65 @@ export function SongtextModal({
       abgebrochen = true;
     };
   }, [song.id, song.songtext, bandId]);
+
+  // Bildschirm wach halten, solange der Text offen ist - mitten im Song soll
+  // das Handy nicht dunkel werden. Nicht jedes Gerät kann das (iOS erst ab
+  // 16.4); scheitert es, bleibt alles andere unberührt.
+  useEffect(() => {
+    type Sperre = { release: () => Promise<void> };
+    let sperre: Sperre | null = null;
+    let entsorgt = false;
+
+    async function anfordern() {
+      const nav = navigator as Navigator & {
+        wakeLock?: { request: (typ: "screen") => Promise<Sperre> };
+      };
+      if (!nav.wakeLock) return;
+      try {
+        const neu = await nav.wakeLock.request("screen");
+        if (entsorgt) void neu.release();
+        else sperre = neu;
+      } catch {
+        // Kein Wachhalten möglich (Akkusparmodus, fehlende Erlaubnis) - der
+        // Text funktioniert trotzdem.
+      }
+    }
+    void anfordern();
+
+    // Das System gibt die Sperre frei, sobald die Seite in den Hintergrund
+    // geht - beim Zurückkommen erneut anfordern.
+    function beiSichtbarkeit() {
+      if (document.visibilityState === "visible" && !sperre) void anfordern();
+    }
+    document.addEventListener("visibilitychange", beiSichtbarkeit);
+
+    return () => {
+      entsorgt = true;
+      document.removeEventListener("visibilitychange", beiSichtbarkeit);
+      void sperre?.release().catch(() => {});
+    };
+  }, []);
+
+  const syncZeilen = useMemo(() => (sync ? parseLrc(sync) : []), [sync]);
+  const laeuft = laeuftSeit !== null;
+
+  // Taktgeber für den Mitlauf. Viermal je Sekunde genügt für Textzeilen und
+  // belastet den Akku kaum - eine Animationsschleife wäre hier Verschwendung.
+  useEffect(() => {
+    if (laeuftSeit === null) return;
+    const takt = setInterval(() => {
+      setJetztMs(versatzMs + (Date.now() - laeuftSeit));
+    }, 250);
+    return () => clearInterval(takt);
+  }, [laeuftSeit, versatzMs]);
+
+  const aktiverIndex = laeuft || versatzMs > 0 ? aktiveZeile(syncZeilen, jetztMs) : -1;
+
+  // Aktive Zeile in der Mitte halten - auf der Bühne wird nicht gescrollt.
+  useEffect(() => {
+    if (aktiverIndex < 0) return;
+    aktiveRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [aktiverIndex]);
 
   // Auf der Bühne wird nicht getippt - Escape reicht am Rechner, auf dem Handy
   // gibt es den Schliessen-Knopf.
@@ -79,6 +148,33 @@ export function SongtextModal({
     window.localStorage.setItem(GROESSE_SPEICHER, String(begrenzt));
   }
 
+  // Date.now() steckt jeweils in der Updater-Form von setState: So ist auch
+  // fuer den Linter eindeutig, dass die Zeit beim Klick genommen wird und
+  // nicht waehrend des Renderns.
+  function startenOderPausieren() {
+    if (laeuft) {
+      setVersatzMs((bisher) => bisher + (Date.now() - laeuftSeit!));
+      setLaeuftSeit(null);
+    } else {
+      setLaeuftSeit(() => Date.now());
+    }
+  }
+
+  function zurueckAnAnfang() {
+    setLaeuftSeit(null);
+    setVersatzMs(0);
+    setJetztMs(0);
+  }
+
+  // Antippen einer Zeile springt dorthin. Eine Live-Band spielt nie exakt im
+  // Tempo der Aufnahme - ohne diese Korrektur wäre der Mitlauf nach der ersten
+  // längeren Strophe nutzlos.
+  function springeZu(zeitMs: number) {
+    setVersatzMs(zeitMs);
+    setJetztMs(zeitMs);
+    if (laeuft) setLaeuftSeit(() => Date.now());
+  }
+
   async function erneutSuchen() {
     setLaedt(true);
     setHinweis(null);
@@ -86,6 +182,7 @@ export function SongtextModal({
     setLaedt(false);
     if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
     setText(ergebnis.text);
+    setSync(ergebnis.sync);
     setHinweis(ergebnis.hinweis);
   }
 
@@ -93,6 +190,9 @@ export function SongtextModal({
     const ergebnis = await speichereSongtext(song.id, bandId, entwurf);
     if (!ergebnis.ok) return setHinweis(ergebnis.fehler);
     setText(entwurf.trim() || null);
+    // Eigener Text passt nicht mehr zu den Zeitmarken - Mitlauf entfaellt.
+    setSync(null);
+    setLaeuftSeit(null);
     setBearbeiten(false);
     setHinweis(null);
   }
@@ -168,7 +268,29 @@ export function SongtextModal({
           </div>
         )}
 
-        {!laedt && !bearbeiten && text && (
+        {!laedt && !bearbeiten && text && syncZeilen.length > 0 && (
+          // Mit Zeitmarken: Zeile für Zeile, die aktuelle hervorgehoben. Die
+          // übrigen bleiben lesbar (nur gedämpft) - wer den Einsatz verpasst
+          // hat, muss sich weiter im Text zurechtfinden können.
+          <div className={`flex flex-col gap-3 ${GROESSEN[stufe]}`}>
+            {syncZeilen.map((zeile, i) => (
+              <p
+                key={`${zeile.zeitMs}-${i}`}
+                ref={i === aktiverIndex ? aktiveRef : null}
+                onClick={() => springeZu(zeile.zeitMs)}
+                className={
+                  i === aktiverIndex
+                    ? "cursor-pointer font-semibold text-white"
+                    : "cursor-pointer leading-relaxed text-slate-500"
+                }
+              >
+                {zeile.text || "···"}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {!laedt && !bearbeiten && text && syncZeilen.length === 0 && (
           // whitespace-pre-wrap: Der Text kommt mit eigenen Zeilenumbrüchen,
           // die genau die Versstruktur tragen.
           <p className={`whitespace-pre-wrap leading-relaxed ${GROESSEN[stufe]}`}>
@@ -205,14 +327,48 @@ export function SongtextModal({
       </div>
 
       {!bearbeiten && text && (
-        <div className="border-t border-slate-800 px-4 py-2">
+        <div className="flex items-center gap-3 border-t border-slate-800 px-4 py-2">
+          {syncZeilen.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={startenOderPausieren}
+                className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900"
+              >
+                {laeuft ? "⏸ Pause" : versatzMs > 0 ? "▶ Weiter" : "▶ Mitlaufen"}
+              </button>
+              {(laeuft || versatzMs > 0) && (
+                <button
+                  type="button"
+                  onClick={zurueckAnAnfang}
+                  className="rounded-md border border-slate-700 px-3 py-2 text-sm"
+                >
+                  ↺ Anfang
+                </button>
+              )}
+            </>
+          )}
+          {/* Texte, die vor der Mitlauf-Funktion geholt wurden, haben keine
+              Zeitmarken. Da der Text ab dann aus der Datenbank kommt, wuerden
+              sie sie nie bekommen - deshalb hier ein Weg, die Fassung mit
+              Zeitmarken nachzuladen. */}
+          {syncZeilen.length === 0 && (
+            <button
+              type="button"
+              onClick={erneutSuchen}
+              className="text-xs text-slate-400 underline"
+              title="Fassung mit Zeitmarken suchen, damit der Text mitlaufen kann"
+            >
+              Mitlauf-Fassung suchen
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
               setEntwurf(text);
               setBearbeiten(true);
             }}
-            className="text-xs text-slate-400 underline"
+            className="ml-auto text-xs text-slate-400 underline"
           >
             Text bearbeiten
           </button>

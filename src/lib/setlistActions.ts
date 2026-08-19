@@ -301,24 +301,32 @@ export async function holeSongtext(
   bandId: string,
   erneut = false
 ): Promise<
-  | { ok: true; text: string | null; hinweis: string | null }
+  | { ok: true; text: string | null; sync: string | null; hinweis: string | null }
   | { ok: false; fehler: string }
 > {
   const { data: song } = await supabase
     .from("band_songs")
-    .select("id, titel, interpret, dauer_sekunden, songtext, songtext_geholt_am")
+    .select(
+      "id, titel, interpret, dauer_sekunden, songtext, songtext_sync, songtext_geholt_am"
+    )
     .eq("id", songId)
     .eq("band_id", bandId)
     .maybeSingle();
   if (!song) return { ok: false, fehler: FREMD };
 
   if (!erneut && song.songtext) {
-    return { ok: true, text: song.songtext, hinweis: null };
+    return {
+      ok: true,
+      text: song.songtext,
+      sync: song.songtext_sync,
+      hinweis: null,
+    };
   }
   if (!erneut && song.songtext_geholt_am && !song.songtext) {
     return {
       ok: true,
       text: null,
+      sync: null,
       hinweis: "Für diesen Song wurde kein Text gefunden.",
     };
   }
@@ -330,12 +338,17 @@ export async function holeSongtext(
   );
 
   const gefunden = ergebnis.gefunden ? ergebnis.text : null;
+  const gefundenSync = ergebnis.gefunden ? ergebnis.sync : null;
   // Auch bei einem Netzfehler den Zeitstempel setzen? Nein - sonst gilt ein
   // vorübergehend nicht erreichbarer Dienst dauerhaft als "kein Text".
   if (ergebnis.gefunden || ergebnis.grund !== "fehler") {
     await supabase
       .from("band_songs")
-      .update({ songtext: gefunden, songtext_geholt_am: new Date().toISOString() })
+      .update({
+        songtext: gefunden,
+        songtext_sync: gefundenSync,
+        songtext_geholt_am: new Date().toISOString(),
+      })
       .eq("id", songId)
       .eq("band_id", bandId);
   }
@@ -343,13 +356,15 @@ export async function holeSongtext(
   revalidatePath(`/setliste/${bandId}`);
   revalidatePath(`/team/${bandId}`);
 
-  if (ergebnis.gefunden) return { ok: true, text: ergebnis.text, hinweis: null };
+  if (ergebnis.gefunden) {
+    return { ok: true, text: ergebnis.text, sync: ergebnis.sync, hinweis: null };
+  }
   const hinweise = {
     instrumental: "Dieser Song ist als Instrumental hinterlegt – kein Text vorhanden.",
     kein_treffer: "Kein Text gefunden. Prüf mal Titel und Interpret am Song (✎).",
     fehler: "Textsuche gerade nicht erreichbar. Später nochmal versuchen.",
   };
-  return { ok: true, text: null, hinweis: hinweise[ergebnis.grund] };
+  return { ok: true, text: null, sync: null, hinweis: hinweise[ergebnis.grund] };
 }
 
 // Von Hand geänderter Text (Cover werden gekürzt, Strophen getauscht). Leerer
@@ -364,6 +379,9 @@ export async function speichereSongtext(
     .from("band_songs")
     .update({
       songtext: sauber || null,
+      // Von Hand geaenderter Text passt nicht mehr zu den Zeitmarken der
+      // gefundenen Fassung - die synchrone Fassung wird daher verworfen.
+      songtext_sync: null,
       songtext_geholt_am: sauber ? new Date().toISOString() : null,
     })
     .eq("id", songId)
