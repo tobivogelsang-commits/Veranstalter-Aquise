@@ -395,3 +395,44 @@ export async function speichereSongtext(
   revalidatePath(`/team/${bandId}`);
   return { ok: true };
 }
+
+// Timing des mitlaufenden Textes an die eigene Fassung anpassen.
+//
+// eigenerSync: eingelernte Zeiten (LRC) oder null, um wieder die Fassung von
+// lrclib zu verwenden. versatzMs/tempo wirken zusätzlich auf die jeweils
+// gültige Fassung. Alle drei zusammen in einer Aktion, weil sie in der
+// Bühnenansicht auch gemeinsam gesichert werden.
+export async function speichereSongtextTiming(
+  songId: string,
+  bandId: string,
+  werte: { eigenerSync?: string | null; versatzMs: number; tempo: number }
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  // Grenzen wie in der Datenbank (CHECK) - hier abfangen, damit statt eines
+  // rohen Constraint-Fehlers eine verständliche Meldung ankommt.
+  const tempo = Math.min(200, Math.max(50, Math.round(werte.tempo)));
+  const versatz = Math.round(werte.versatzMs);
+
+  // songtext_sync_eigen nur anfassen, wenn ausdrücklich mitgegeben - sonst
+  // wuerde ein blosses Verstellen der Regler eingelernte Zeiten loeschen.
+  const aenderung = {
+    songtext_versatz_ms: versatz,
+    songtext_tempo: tempo,
+    ...("eigenerSync" in werte
+      ? { songtext_sync_eigen: werte.eigenerSync?.trim() || null }
+      : {}),
+  };
+
+  const { data, error } = await supabase
+    .from("band_songs")
+    .update(aenderung)
+    .eq("id", songId)
+    .eq("band_id", bandId)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, fehler: error.message };
+  if (!data) return { ok: false, fehler: FREMD };
+
+  revalidatePath(`/setliste/${bandId}`);
+  revalidatePath(`/team/${bandId}`);
+  return { ok: true };
+}

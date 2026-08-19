@@ -528,6 +528,13 @@ export interface Database {
           // Zeitsynchrone Fassung im LRC-Format ("[mm:ss.xx]Zeile"), falls
           // vorhanden - fuer den mitlaufenden Text auf der Buehne.
           songtext_sync: string | null;
+          // Selbst eingelernte Zeiten (gleiche Form wie songtext_sync). Sind
+          // sie gesetzt, gelten sie statt der Fassung von lrclib.
+          songtext_sync_eigen: string | null;
+          // Schnellkorrektur: Verschiebung in Millisekunden und Tempo in
+          // Prozent (100 = unveraendert, hoeher = Zeilen kommen frueher).
+          songtext_versatz_ms: number;
+          songtext_tempo: number;
           // Wann zuletzt gesucht wurde - unterscheidet "nie gesucht" (null) von
           // "gesucht, nichts gefunden" (gesetzt, songtext null).
           songtext_geholt_am: string | null;
