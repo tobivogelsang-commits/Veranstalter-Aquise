@@ -48,6 +48,7 @@ SERPAPI_KEY=dein-serpapi-key
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=dein-vapid-public-key
 VAPID_PRIVATE_KEY=dein-vapid-private-key
 PROBERAUM_ICAL_URL=dein-proberaum-ical-export-link
+MAIL_VERSCHLUESSELUNG_KEY=dein-32-byte-base64-schluessel
 ```
 
 `.env.local` ist in `.gitignore` und wird nicht committet. `.env.local.example` dient als Vorlage.
@@ -84,6 +85,21 @@ node -e "console.log(require('web-push').generateVAPIDKeys())"
 `publicKey` als `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `privateKey` als `VAPID_PRIVATE_KEY`
 in `.env.local` eintragen. Ohne diese Keys funktioniert die Team-App weiter (Anfragen
 lassen sich manuell in der App bestätigen), nur Push-Benachrichtigungen bleiben aus.
+
+### Mail-Verschlüsselungs-Schlüssel (für die Band-E-Mail-Passwörter)
+
+Die SMTP/IMAP-Passwörter der Bands liegen verschlüsselt in der Datenbank
+(AES-256-GCM); der Schlüssel dazu lebt nur in dieser Umgebungsvariable.
+Einmalig erzeugen:
+
+```bash
+openssl rand -base64 32
+```
+
+Als `MAIL_VERSCHLUESSELUNG_KEY` in `.env.local` **und** in den Vercel-
+Umgebungsvariablen eintragen (identischer Wert!) und sicher aufbewahren
+(Passwort-Manager). Geht der Schlüssel verloren, einfach neu erzeugen und
+die Mail-Passwörter in den Band-Einstellungen neu eintragen.
 
 ### Proberaum-Kalender-Link (optional, siehe Abschnitt "Kalender")
 

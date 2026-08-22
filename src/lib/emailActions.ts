@@ -10,6 +10,11 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireAdmin, requireFreigabe } from "@/lib/authServer";
 import {
+  entschluesselePasswort,
+  istVerschluesselt,
+  verschluesselePasswort,
+} from "@/lib/mailKrypto";
+import {
   ANHANG_BUCKET,
   BILD_BUCKET,
   anhangPfad,
@@ -128,8 +133,15 @@ export async function speichereEmailEinstellungen(
     .maybeSingle();
 
   // Leeres Passwortfeld beim Bearbeiten = bestehendes Passwort behalten
-  // (wir zeigen das echte Passwort nie in der UI an).
-  const neuesPasswort = str("passwort") ?? bestehend?.passwort ?? null;
+  // (wir zeigen das echte Passwort nie in der UI an). Klartext-Altbestand
+  // wird bei dieser Gelegenheit gleich mitverschlüsselt.
+  const eingabe = str("passwort");
+  const bestehendes = bestehend?.passwort
+    ? istVerschluesselt(bestehend.passwort)
+      ? bestehend.passwort
+      : verschluesselePasswort(bestehend.passwort)
+    : null;
+  const neuesPasswort = eingabe ? verschluesselePasswort(eingabe) : bestehendes;
 
   const { error } = await supabaseAdmin.from("band_email_konten").upsert(
     {
@@ -290,7 +302,10 @@ export async function sendeEmail(
     host: konto.smtp_host,
     port: konto.smtp_port ?? 587,
     secure: konto.smtp_ssl,
-    auth: { user: konto.email_adresse, pass: konto.passwort },
+    auth: {
+      user: konto.email_adresse,
+      pass: entschluesselePasswort(konto.passwort),
+    },
     connectionTimeout: 10000,
   });
 
@@ -391,7 +406,10 @@ export async function holeEingehendeEmails(
     host: konto.imap_host,
     port: konto.imap_port ?? 993,
     secure: konto.imap_ssl,
-    auth: { user: konto.email_adresse, pass: konto.passwort },
+    auth: {
+      user: konto.email_adresse,
+      pass: entschluesselePasswort(konto.passwort),
+    },
     logger: false,
   });
 
