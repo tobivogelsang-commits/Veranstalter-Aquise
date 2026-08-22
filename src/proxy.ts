@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from "next/server";
 // Öffentliche Pfade ohne Login: die Team-App der Bandmitglieder und die
 // Login-Seite selbst. Die öffentlichen API-Routen (/api/team-*, /api/kalender)
 // sowie statische Dateien sind bereits über den matcher unten ausgenommen.
-const OEFFENTLICHE_PREFIXE = ["/login", "/team"];
+// /druckansicht ist öffentlich, weil der "drucken"-Link in der passwortlosen
+// Team-App-Setliste dorthin führt - die Seite zeigt nur Songtitel, geschützt
+// durch die nicht erratbare Setlisten-UUID.
+const OEFFENTLICHE_PREFIXE = ["/login", "/team", "/druckansicht"];
 
 function istOeffentlich(pathname: string): boolean {
   return OEFFENTLICHE_PREFIXE.some(
