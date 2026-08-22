@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BandEmailSection } from "@/components/BandEmailSection";
+import { requireFreigabeSeite } from "@/lib/authServer";
 import {
   getBandEmails,
   getBands,
@@ -16,6 +17,7 @@ export default async function EmailsDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ venue?: string }>;
 }) {
+  await requireFreigabeSeite("emails_lesen");
   const { id } = await params;
   const { venue } = await searchParams;
   const [bands, emails, venues, emailVorlagen] = await Promise.all([

@@ -7,6 +7,7 @@ import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { berechneAngebotSummen, formatDatumLang, formatEuro } from "@/lib/angebotHelpers";
 import { getAngebote, getBands } from "@/lib/queries";
 import type { AngebotStatus } from "@/lib/database.types";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function AngebotePage({
 }: {
   searchParams: Promise<{ band?: string }>;
 }) {
+  await requireFreigabeSeite("angebote_ansehen");
   const { band } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
 

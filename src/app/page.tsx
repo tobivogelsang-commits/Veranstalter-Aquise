@@ -21,6 +21,7 @@ import {
 } from "@/lib/queries";
 import { getMitgliederFuerBand } from "@/lib/teamActions";
 import type { BandMitgliedOhnePush } from "@/lib/types";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 // Live-Daten pro Request, keine statische Zwischenspeicherung beim Build.
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ band?: string }>;
 }) {
+  await requireFreigabeSeite("akquise");
   const { band } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
 

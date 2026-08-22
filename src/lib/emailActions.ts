@@ -6,9 +6,9 @@ import { simpleParser } from "mailparser";
 import { revalidatePath } from "next/cache";
 // service_role-Client für alle Datenzugriffe (umgeht RLS). `supabase` und
 // `supabaseAdmin` sind hier bewusst derselbe privilegierte Client - die
-// E-Mail-Funktionen sind reine Inhaber-Aktionen (siehe requireOwner()).
+// E-Mail-Funktionen sind reine Inhaber-Aktionen (siehe requireAnmeldung()).
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireAdmin, requireFreigabe } from "@/lib/authServer";
 import {
   ANHANG_BUCKET,
   BILD_BUCKET,
@@ -93,7 +93,7 @@ function leereEinstellungen(bandId: string): EmailEinstellungenOhnePasswort {
 export async function getEmailEinstellungen(
   bandId: string
 ): Promise<EmailEinstellungenOhnePasswort> {
-  await requireOwner();
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("band_email_konten")
     .select("*")
@@ -111,7 +111,7 @@ export async function speichereEmailEinstellungen(
   bandId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireAdmin();
   function str(key: string): string | null {
     const value = formData.get(key);
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -159,7 +159,7 @@ export async function speichereEmailVorlage(
   vorlageId: string | null,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("emails_senden");
   const name = (String(formData.get("name") ?? "")).trim();
   const betreff = (String(formData.get("betreff") ?? "")).trim();
   const inhalt = String(formData.get("inhalt") ?? "");
@@ -182,7 +182,7 @@ export async function speichereEmailVorlage(
 }
 
 export async function loescheEmailVorlage(bandId: string, vorlageId: string) {
-  await requireOwner();
+  await requireFreigabe("emails_senden");
   const { error } = await supabaseAdmin
     .from("email_vorlagen")
     .delete()
@@ -202,7 +202,7 @@ export async function ladeEmailAnhangHoch(
 ): Promise<
   { ok: true; dateiname: string; pfad: string } | { ok: false; fehler: string }
 > {
-  await requireOwner();
+  await requireFreigabe("emails_senden");
   const datei = formData.get("datei");
   if (!(datei instanceof File)) {
     return { ok: false, fehler: "Keine Datei erhalten." };
@@ -233,7 +233,7 @@ export async function ladeInlineBildHoch(
   bandId: string,
   formData: FormData
 ): Promise<{ ok: true; url: string } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("emails_senden");
   const datei = formData.get("datei");
   if (!(datei instanceof File)) {
     return { ok: false, fehler: "Keine Datei erhalten." };
@@ -269,7 +269,7 @@ export async function sendeEmail(
   venueId?: string | null,
   anhaenge?: EmailAnhang[]
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("emails_senden");
   if (!an.trim()) return { ok: false, fehler: "Empfänger fehlt." };
 
   const { data: konto, error } = await supabaseAdmin
@@ -372,7 +372,7 @@ export async function sendeEmail(
 export async function holeEingehendeEmails(
   bandId: string
 ): Promise<{ ok: true; neu: number } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("emails_lesen");
   const { data: konto, error } = await supabaseAdmin
     .from("band_email_konten")
     .select("*")

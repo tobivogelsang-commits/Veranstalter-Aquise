@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getBands, getMerchNachbestellProBand } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
 export default async function MerchPage() {
+  await requireFreigabeSeite("merch");
   const [bands, nachbestellProBand] = await Promise.all([
     getBands(),
     getMerchNachbestellProBand(),

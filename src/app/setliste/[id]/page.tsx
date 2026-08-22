@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { getBands, getBandSongs, getSetlistenMitSongs } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function SetlisteDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireFreigabeSeite("setlisten");
   const { id } = await params;
   const [bands, songs, setlisten] = await Promise.all([
     getBands(),

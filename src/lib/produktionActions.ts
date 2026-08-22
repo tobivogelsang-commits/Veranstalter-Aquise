@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 // service_role-Client (umgeht RLS). Wie bei den Setlist-Aktionen bewusst auch
 // aus der öffentlichen Team-App (ProduktionListe) nutzbar - daher KEIN
-// requireOwner(); Schutz ist die nicht erratbare Band-UUID.
+// requireAnmeldung(); Schutz ist die nicht erratbare Band-UUID.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import {
   PRODUKTION_NOTEN,
@@ -119,7 +119,7 @@ export async function loescheProduktion(produktionId: string, bandId: string) {
 // merkt ihn sich an der Produktion. Titel und Interpret kommen aus dem
 // Formular, weil der Arbeitstitel ("BlBl176") selten der spätere Songtitel
 // ("How I Get") ist und bei Eigenkompositionen die Band selbst der Interpret
-// ist. Bewusst ohne requireOwner - wie die übrigen Produktions-Aktionen auch
+// ist. Bewusst ohne requireAnmeldung - wie die übrigen Produktions-Aktionen auch
 // aus der Team-App nutzbar.
 export async function uebernehmeInKatalog(
   produktionId: string,

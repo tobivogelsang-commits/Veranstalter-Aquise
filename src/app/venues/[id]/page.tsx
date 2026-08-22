@@ -16,6 +16,7 @@ import {
   type SetlisteMitSongs,
 } from "@/lib/queries";
 import type { BandDokumentTypMitUrl, BandMaterial, EmailVorlage } from "@/lib/types";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function VenueDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireFreigabeSeite("akquise");
   const { id } = await params;
   const [venue, bands, emails] = await Promise.all([
     getVenueWithRelations(id),

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOwner } from "@/lib/authServer";
+import { requireFreigabe } from "@/lib/authServer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getBandLogoUrl } from "@/lib/teamActions";
 import { erzeugeAngebotPdf } from "@/lib/angebotPdf";
@@ -11,7 +11,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await requireOwner();
+  await requireFreigabe("angebote_ansehen");
   const { id } = await params;
 
   const { data: angebot } = await supabaseAdmin

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AngebotEditor } from "@/components/AngebotEditor";
+import { requireFreigabeSeite } from "@/lib/authServer";
 import {
   getAngebot,
   getAngebotBausteine,
@@ -16,6 +17,7 @@ export default async function AngebotDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireFreigabeSeite("angebote_ansehen");
   const { id } = await params;
   const angebot = await getAngebot(id);
   if (!angebot) notFound();

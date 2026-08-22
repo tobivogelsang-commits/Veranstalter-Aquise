@@ -1,7 +1,7 @@
 "use server";
 
 // Urlaube der Band-Mitglieder. service_role-Client (umgeht RLS). BEWUSST OHNE
-// requireOwner(): Mitglieder tragen ihren Urlaub selbst in der öffentlichen
+// requireAnmeldung(): Mitglieder tragen ihren Urlaub selbst in der öffentlichen
 // Team-App ein; Schutz ist wie überall die nicht erratbare Band-UUID. Am
 // Desktop sitzt zusätzlich der Login-Proxy davor.
 import { revalidatePath } from "next/cache";

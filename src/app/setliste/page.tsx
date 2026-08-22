@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getBands } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
 export default async function SetlistePage() {
+  await requireFreigabeSeite("setlisten");
   const bands = await getBands();
 
   return (

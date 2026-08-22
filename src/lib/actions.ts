@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 // Single-User-Modell: seit dem RLS-Lockdown (Migration 0016) haben anon/
 // authenticated keinen Tabellenzugriff mehr. Der gesamte serverseitige
 // Datenzugriff läuft daher über den service_role-Client (umgeht RLS). Der
-// Zugriffsschutz erfolgt über den Login-Proxy + requireOwner() je Aktion.
+// Zugriffsschutz erfolgt über den Login-Proxy + requireAnmeldung() je Aktion.
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireAdmin, requireFreigabe } from "@/lib/authServer";
 import { BILD_BUCKET } from "@/lib/storage";
 import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
@@ -136,7 +136,7 @@ async function syncBandZuordnungen(
 }
 
 export async function createVenue(formData: FormData) {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const felder = venueFieldsFromForm(formData);
   if (!felder.name) throw new Error("Name ist ein Pflichtfeld.");
 
@@ -165,7 +165,7 @@ export async function autosaveVenue(
   venueId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const felder = venueFieldsFromForm(formData);
   if (!felder.name) return { ok: false, fehler: "Name ist ein Pflichtfeld." };
 
@@ -199,7 +199,7 @@ export async function autosaveVenue(
 // Seite existiert ja nicht mehr); beim Löschen direkt aus der Liste bleibt
 // die Ansicht (inkl. Filter/Suche) erhalten, der Client refresht selbst.
 export async function deleteVenue(venueId: string, mitRedirect = true) {
-  await requireOwner();
+  await requireAdmin();
   const { error } = await supabase.from("venues").delete().eq("id", venueId);
   if (error) throw new Error(error.message);
 
@@ -505,7 +505,7 @@ export async function rechercheKontakt(
   ort: string | null,
   bekannteWebsite?: string | null
 ): Promise<KontaktRechercheResult> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     return {
@@ -877,7 +877,7 @@ export async function sucheVeranstalter(
   ort: string,
   zusatz: string
 ): Promise<VeranstalterSucheResult> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     return {
@@ -968,7 +968,7 @@ export async function legeVenueAusRechercheAn(
   // Wird nur aus der Veranstalter-Suche im Inhaber-Bereich aufgerufen. Ohne
   // diese Prüfung wäre die Aktion über ihre Kennung von außen auslösbar - der
   // Login-Wächter schützt nur Seitenaufrufe, keine Aktions-Aufrufe.
-  await requireOwner();
+  await requireFreigabe("akquise");
   const { data: vorhanden } = await supabase
     .from("venues")
     .select("id")
@@ -1059,7 +1059,7 @@ export async function updateStatus(
   status: Status,
   urlaubBestaetigt = false
 ): Promise<{ ok: true } | { ok: false; urlaubskonflikt: string }> {
-  await requireOwner();
+  await requireFreigabe("akquise");
 
   if (status === "gebucht" && !urlaubBestaetigt) {
     const konflikt = await findeUrlaubskonflikt(venueId, bandId);
@@ -1112,10 +1112,10 @@ export async function rueckeStatusAutomatischVor(
   zielStatus: Status,
   naechsterFollowUpAm?: string | null
 ) {
-  // Aufrufer sind ausschließlich E-Mail-Aktionen, die selbst requireOwner()
+  // Aufrufer sind ausschließlich E-Mail-Aktionen, die selbst requireAnmeldung()
   // prüfen - die Wiederholung hier schließt den Aufruf von außen über die
   // Aktions-Kennung aus.
-  await requireOwner();
+  await requireFreigabe("akquise");
   const geaendert = await setzeStatusVorwaerts(
     venueId,
     bandId,
@@ -1140,7 +1140,7 @@ export async function rueckeStatusAutomatischVor(
 // Setliste, Produktion, Merch, eigene Team-App unter /team/<id>) hängen an
 // der band_id und stehen damit sofort zur Verfügung.
 export async function createBand(formData: FormData) {
-  await requireOwner();
+  await requireAdmin();
   const name = str(formData, "name");
   if (!name) throw new Error("Name ist ein Pflichtfeld.");
 
@@ -1187,7 +1187,7 @@ export async function ladeBandLogoHoch(
   bandId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireAdmin();
   const datei = formData.get("logo");
   if (!(datei instanceof File) || datei.size === 0) {
     return { ok: false, fehler: "Keine Datei erhalten." };
@@ -1211,7 +1211,7 @@ export async function ladeBandLogoHoch(
 export async function entferneBandLogo(
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireAdmin();
   const { data: band } = await supabase
     .from("bands")
     .select("logo_pfad")
@@ -1246,7 +1246,7 @@ export async function loescheBand(
   bandId: string,
   bestaetigterName: string
 ): Promise<{ ok: false; fehler: string } | never> {
-  await requireOwner();
+  await requireAdmin();
 
   const { data: band } = await supabase
     .from("bands")
@@ -1277,7 +1277,7 @@ export async function loescheBand(
 }
 
 export async function updateBand(bandId: string, formData: FormData) {
-  await requireOwner();
+  await requireAdmin();
   const name = str(formData, "name");
   if (!name) throw new Error("Name ist ein Pflichtfeld.");
 
@@ -1322,7 +1322,7 @@ export async function addBandMaterial(
   url: string,
   typ: string
 ) {
-  await requireOwner();
+  await requireAdmin();
   if (!titel.trim() || !url.trim()) {
     throw new Error("Titel und Link sind Pflichtfelder.");
   }
@@ -1339,7 +1339,7 @@ export async function addBandMaterial(
 }
 
 export async function deleteBandMaterial(materialId: string, bandId: string) {
-  await requireOwner();
+  await requireAdmin();
   const { error } = await supabase
     .from("band_materialien")
     .delete()

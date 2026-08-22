@@ -57,6 +57,10 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Produktion:** eigener Tab/Bereich.
 - **Team-App:** Push (Web-Push/VAPID), Dunkelmodus, Home-Screen-Icon,
   Urlaube/Abwesenheiten, Mitgliederverwaltung, Passwort-Anmeldung.
+- **Nutzer & Freigaben (Desktop):** Admin lädt per Einmal-Link ein (7 Tage,
+  gehasht in DB), Nutzer legt Benutzername + Passwort an, Login per
+  Benutzername ODER E-Mail; Freigabe-Matrix pro Nutzer/Bereich in den
+  Einstellungen; Passwort-Reset per Einmal-Link (24 h); Nutzer löschen.
 
 ---
 
@@ -76,6 +80,12 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Protokoll bleibt lokal:** Migrationen werden **manuell** im Supabase-SQL-
   Editor ausgeführt (ein gemeinsames Projekt für lokal + Vercel).
 - **Grundsatz UI:** keine Zahlen/Platzhalter anzeigen, wo nichts eingetragen ist.
+- **Freigaben-System (Migration 0043, 2026-08-22):** Desktop-Nutzer haben
+  einzelne Freigaben pro Bereich (`nutzer_freigaben`, fail closed); Admin =
+  `app_metadata.rolle = "admin"` (nur via Dashboard/service_role setzbar).
+  `requireOwner()` ersetzt durch `requireAnmeldung/requireAdmin/requireFreigabe`
+  in Actions + `require*Seite()` in allen geschützten Seiten. Einladungs-/
+  Reset-Links: Tabelle `einladungen` (Einmal-Token, gehasht).
 
 ---
 
@@ -96,6 +106,12 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
   DSGVO-Papierkram.
 - Team-App: wer den Band-Link kennt, kann weiter mitlesen (Restproblem).
 - **Suchtool** soll zusätzlich Plattenfirmen abdecken (noch nicht gescoped).
+- **Supabase-Dashboard:** Selbstregistrierung deaktivieren (Authentication →
+  Sign In / Up → "Allow new users to sign up" aus). Fail-closed schützt zwar
+  auch so, aber der Riegel gehört zusätzlich vor.
+- **Freigabe-Verwaltungs-UI** (Einstellungen) ist gebaut, aber noch nicht als
+  Admin durchgeklickt - beim nächsten Login einmal testen (Einladen, Häkchen,
+  Passwort-Reset, Löschen, Widerrufen).
 
 ---
 

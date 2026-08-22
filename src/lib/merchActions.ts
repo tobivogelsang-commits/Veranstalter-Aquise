@@ -1,14 +1,14 @@
 "use server";
 
 // Merch-Lager (Bestand + Design-/Druckvorlagen).
-// service_role-Client (umgeht RLS). BEWUSST OHNE requireOwner() bei den
+// service_role-Client (umgeht RLS). BEWUSST OHNE requireAnmeldung() bei den
 // Bestands-Aktionen: Bandmitglieder buchen in der Team-App nach einem Gig ab,
 // was verkauft wurde - gesichert über den geheimen Band-Link wie die übrigen
 // Team-Aktionen. Das Anlegen/Ändern von Artikeln und die Vorlagen-Verwaltung
-// bleiben dem Inhaber vorbehalten (requireOwner), sie passieren nur am Desktop.
+// bleiben dem Inhaber vorbehalten (requireAnmeldung), sie passieren nur am Desktop.
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin as supabase, supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireFreigabe } from "@/lib/authServer";
 import { ANHANG_BUCKET, anhangPfad } from "@/lib/storage";
 import type { MerchArtikel } from "@/lib/types";
 
@@ -28,7 +28,7 @@ export async function erstelleMerchArtikel(
     mindestbestand: number;
   }
 ): Promise<{ ok: true; artikel: MerchArtikel } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("merch");
   const name = werte.name.trim();
   if (!name) return { ok: false, fehler: "Name fehlt." };
 
@@ -61,7 +61,7 @@ export async function aktualisiereMerchArtikel(
     mindestbestand: number;
   }
 ): Promise<{ ok: true; artikel: MerchArtikel } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("merch");
   const name = werte.name.trim();
   if (!name) return { ok: false, fehler: "Name fehlt." };
 
@@ -83,7 +83,7 @@ export async function aktualisiereMerchArtikel(
   return { ok: true, artikel: data };
 }
 
-// Setzt den Bestand auf einen absoluten Wert. Bewusst ohne requireOwner:
+// Setzt den Bestand auf einen absoluten Wert. Bewusst ohne requireAnmeldung:
 // auch aus der Team-App nutzbar (−/+ nach einem Gig). Negative Werte werden
 // auf 0 geklemmt, damit der DB-Check nicht greift.
 export async function setzeMerchBestand(
@@ -110,7 +110,7 @@ export async function loescheMerchArtikel(
   artikelId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("merch");
   const { error } = await supabase.from("merch_artikel").delete().eq("id", artikelId);
   if (error) return { ok: false, fehler: error.message };
 
@@ -129,7 +129,7 @@ export async function ladeMerchVorlageHoch(
   bandId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("merch");
   const datei = formData.get("datei");
   if (!(datei instanceof File)) return { ok: false, fehler: "Keine Datei erhalten." };
   if (datei.size === 0) return { ok: false, fehler: "Datei ist leer." };
@@ -164,7 +164,7 @@ export async function loescheMerchVorlage(
   vorlageId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("merch");
 
   const { data: vorlage } = await supabase
     .from("merch_vorlagen")

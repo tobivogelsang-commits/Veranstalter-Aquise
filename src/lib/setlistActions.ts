@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 // service_role-Client (umgeht RLS). Diese Aktionen werden bewusst auch aus der
-// öffentlichen Team-App (SetlisteBuilder) genutzt - daher KEIN requireOwner();
+// öffentlichen Team-App (SetlisteBuilder) genutzt - daher KEIN requireAnmeldung();
 // Schutz ist die nicht erratbare Band-UUID, wie beim übrigen Team-Bereich.
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { sucheSongtext } from "@/lib/songtextSuche";

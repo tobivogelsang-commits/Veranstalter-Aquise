@@ -1,11 +1,13 @@
 import { VenueSucheForm } from "@/components/VenueSucheForm";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export default async function VenueSuchePage({
   searchParams,
 }: {
   searchParams: Promise<{ band?: string }>;
 }) {
+  await requireFreigabeSeite("akquise");
   const { band } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
 

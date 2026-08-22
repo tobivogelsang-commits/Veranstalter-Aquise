@@ -1,9 +1,11 @@
 import { VenueForm } from "@/components/VenueForm";
 import { getBands } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewVenuePage() {
+  await requireFreigabeSeite("akquise");
   const bands = await getBands();
 
   return (

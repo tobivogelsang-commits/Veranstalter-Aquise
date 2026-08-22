@@ -19,7 +19,7 @@ const LINKS = [
   { href: "/einstellungen", label: "Einstellungen" },
 ];
 
-export function Nav() {
+export function Nav({ erlaubteHrefs }: { erlaubteHrefs: string[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -28,13 +28,21 @@ export function Nav() {
   // Suche etc. bekommen, nur zur reduzierten Kalender-Ansicht dort. Die
   // Druckansicht (/druckansicht/...) ist bewusst komplett chromfrei, damit
   // beim Drucken/Als-PDF-Speichern keine Navigation mit aufs Papier kommt.
+  // /einladung (noch kein Konto) und /keine-freigabe (eigener Abmelden-
+  // Button) kommen ebenfalls ohne Navigation aus.
   if (
     pathname?.startsWith("/team") ||
     pathname?.startsWith("/druckansicht") ||
+    pathname?.startsWith("/einladung") ||
+    pathname === "/keine-freigabe" ||
     pathname === "/login"
   ) {
     return null;
   }
+
+  // Nur freigegebene Bereiche anzeigen (Anzeige-Komfort - der eigentliche
+  // Schutz sitzt serverseitig in Seiten und Actions).
+  const links = LINKS.filter((link) => erlaubteHrefs.includes(link.href));
 
   // Nur den Band-Filter über Navigationen hinweg mitnehmen, keine anderen
   // Query-Parameter (z. B. ?venue= für den E-Mail-Deep-Link von der
@@ -49,7 +57,7 @@ export function Nav() {
           Akquise-Tool
         </span>
         <nav className="flex gap-4">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={query ? `${link.href}?${query}` : link.href}

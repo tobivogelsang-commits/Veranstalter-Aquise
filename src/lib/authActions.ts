@@ -2,29 +2,52 @@
 
 import { redirect } from "next/navigation";
 import { getAuthClient } from "@/lib/authServer";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type LoginState = { fehler: string } | undefined;
 
-// Meldet den Inhaber per Supabase Auth (E-Mail + Passwort) an und setzt die
-// Session-Cookies. Signatur passend zu React useActionState (prevState,
-// formData). Bewusst keine Details in der Fehlermeldung, um kein
-// Benutzer-Enumeration-Signal zu geben.
+const LOGIN_FEHLER =
+  "Anmeldung fehlgeschlagen. Anmeldename oder Passwort falsch.";
+
+// Meldet per Supabase Auth an und setzt die Session-Cookies. Der Admin nutzt
+// seine E-Mail, Mitglieder ihren Benutzernamen (wird serverseitig auf die
+// interne Supabase-Adresse aufgelöst). Signatur passend zu React
+// useActionState (prevState, formData). Bewusst keine Details in der
+// Fehlermeldung, um kein Benutzer-Enumeration-Signal zu geben.
 export async function signIn(
   _prev: LoginState,
   formData: FormData
 ): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim();
+  const login = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const weiter = String(formData.get("weiter") ?? "");
 
-  if (!email || !password) {
-    return { fehler: "E-Mail und Passwort sind erforderlich." };
+  if (!login || !password) {
+    return { fehler: "Anmeldename und Passwort sind erforderlich." };
+  }
+
+  // Enthält der Anmeldename ein @, ist es eine E-Mail (Admin). Sonst ein
+  // Benutzername - Auflösung über die Freigaben-Tabelle, Vergleich wie beim
+  // Unique-Index unabhängig von Groß-/Kleinschreibung.
+  let email = login;
+  if (!login.includes("@")) {
+    const { data } = await supabaseAdmin
+      .from("nutzer_freigaben")
+      .select("user_id")
+      .ilike("benutzername", login)
+      .maybeSingle();
+    if (!data) return { fehler: LOGIN_FEHLER };
+    const { data: nutzer } = await supabaseAdmin.auth.admin.getUserById(
+      data.user_id
+    );
+    if (!nutzer?.user?.email) return { fehler: LOGIN_FEHLER };
+    email = nutzer.user.email;
   }
 
   const client = await getAuthClient();
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) {
-    return { fehler: "Anmeldung fehlgeschlagen. E-Mail oder Passwort falsch." };
+    return { fehler: LOGIN_FEHLER };
   }
 
   // Nur interne Pfade als Weiterleitungsziel zulassen (kein Open Redirect).

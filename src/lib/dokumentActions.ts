@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 // service_role-Client (umgeht RLS). `supabase` und `supabaseAdmin` sind hier
 // derselbe privilegierte Client; alle Funktionen sind Inhaber-Aktionen.
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireFreigabe } from "@/lib/authServer";
 import { ANHANG_BUCKET, anhangPfad } from "@/lib/storage";
 
 // Fügt der erweiterbaren Dokument-Liste einer Band einen neuen Typ hinzu
@@ -18,7 +18,7 @@ export async function fuegeDokumentTypHinzu(
   name: string,
   revalidatePfad: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const bereinigt = name.trim();
   if (!bereinigt) return { ok: false, fehler: "Name fehlt." };
 
@@ -36,7 +36,7 @@ export async function entferneDokumentTyp(
   dokumentTypId: string,
   revalidatePfad: string
 ) {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const { error } = await supabase
     .from("band_dokument_typen")
     .delete()
@@ -54,7 +54,7 @@ export async function toggleDokumentVersendet(
   bandId: string,
   dokumentTypId: string
 ) {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const { data: bestehend } = await supabase
     .from("venue_band_dokumente")
     .select("id, versendet_am")
@@ -87,7 +87,7 @@ export async function ladeDokumentDateiHoch(
   dokumentTypId: string,
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const datei = formData.get("datei");
   if (!(datei instanceof File)) {
     return { ok: false, fehler: "Keine Datei erhalten." };
@@ -120,7 +120,7 @@ export async function ladeDokumentDateiHoch(
 }
 
 export async function entferneDokumentDatei(dokumentTypId: string, bandId: string) {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const { error } = await supabase
     .from("band_dokument_typen")
     .update({ datei_pfad: null, dateiname: null })

@@ -7,6 +7,7 @@ import { AngebotBausteinePanel } from "@/components/AngebotBausteinePanel";
 import { BandLoeschenPanel } from "@/components/BandLoeschenPanel";
 import { getEmailEinstellungen } from "@/lib/emailActions";
 import { getBandLogoUrl, getMitgliederFuerBand } from "@/lib/teamActions";
+import { requireAdminSeite } from "@/lib/authServer";
 import {
   getBandDokumentTypen,
   getAngebotBausteine,
@@ -29,6 +30,7 @@ export default async function EinstellungenDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminSeite();
   const { id } = await params;
   const [
     band,

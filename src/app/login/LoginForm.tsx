@@ -15,12 +15,12 @@ export function LoginForm({ weiter }: { weiter: string }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="email" className="text-sm font-medium text-slate-700">
-          E-Mail
+          E-Mail oder Benutzername
         </label>
         <input
           id="email"
           name="email"
-          type="email"
+          type="text"
           autoComplete="username"
           required
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"

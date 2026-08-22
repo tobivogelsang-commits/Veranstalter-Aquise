@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
+import { NavServer } from "@/components/NavServer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +40,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50">
         <Suspense fallback={<div className="h-[65px] border-b border-slate-200 bg-white" />}>
-          <Nav />
+          <NavServer />
         </Suspense>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
           {children}

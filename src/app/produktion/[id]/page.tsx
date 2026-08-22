@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ProduktionListe } from "@/components/ProduktionListe";
 import { getBands, getProduktionen } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function ProduktionDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireFreigabeSeite("produktion");
   const { id } = await params;
   const [bands, produktionen] = await Promise.all([
     getBands(),

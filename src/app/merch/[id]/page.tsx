@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { MerchVerwaltung } from "@/components/MerchVerwaltung";
 import { getBands, getMerchArtikel, getMerchVorlagen } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function MerchDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireFreigabeSeite("merch");
   const { id } = await params;
   const [bands, artikel, vorlagen] = await Promise.all([
     getBands(),

@@ -7,7 +7,9 @@ import { NextResponse, type NextRequest } from "next/server";
 // /druckansicht ist öffentlich, weil der "drucken"-Link in der passwortlosen
 // Team-App-Setliste dorthin führt - die Seite zeigt nur Songtitel, geschützt
 // durch die nicht erratbare Setlisten-UUID.
-const OEFFENTLICHE_PREFIXE = ["/login", "/team", "/druckansicht"];
+// /einladung ist öffentlich: Dort lösen neue Nutzer ihren Einmal-Link ein,
+// bevor sie ein Konto haben. Geschützt durch das nicht erratbare Token.
+const OEFFENTLICHE_PREFIXE = ["/login", "/team", "/druckansicht", "/einladung"];
 
 function istOeffentlich(pathname: string): boolean {
   return OEFFENTLICHE_PREFIXE.some(

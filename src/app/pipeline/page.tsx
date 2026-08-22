@@ -2,6 +2,7 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 import { BandSwitcher } from "@/components/BandSwitcher";
 import { ALLE_BANDS_PARAM } from "@/lib/constants";
 import { getBands, getVenuesWithRelations, toPipelineEntries } from "@/lib/queries";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ band?: string }>;
 }) {
+  await requireFreigabeSeite("akquise");
   const { band } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
 

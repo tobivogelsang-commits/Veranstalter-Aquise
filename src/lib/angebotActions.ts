@@ -1,12 +1,12 @@
 "use server";
 
 // Angebote für Veranstalter. Reiner Inhaber-Bereich: alle Aktionen laufen
-// hinter requireOwner() (anders als die Team-Aktionen, die über den geheimen
+// hinter requireAnmeldung() (anders als die Team-Aktionen, die über den geheimen
 // Band-Link erreichbar sind).
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin as supabase, supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireFreigabe } from "@/lib/authServer";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import type { AngebotBausteinFeld } from "@/lib/database.types";
 import type { AngebotBaustein } from "@/lib/types";
@@ -59,7 +59,7 @@ export async function erstelleAngebot(
   bandId: string,
   venueId: string | null
 ): Promise<{ ok: false; fehler: string } | never> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
 
   const [{ data: band }, nummer, { data: standardBausteine }] = await Promise.all([
     supabase.from("bands").select("ust_satz").eq("id", bandId).maybeSingle(),
@@ -151,7 +151,7 @@ export async function aktualisiereAngebot(
     nachbemerkung: string | null;
   }
 ): Promise<{ ok: true; angebot: Angebot } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
 
   const ustSatz = ERLAUBTE_UST.includes(werte.ustSatz) ? werte.ustSatz : 0;
 
@@ -187,7 +187,7 @@ export async function setzeAngebotStatus(
   angebotId: string,
   status: "entwurf" | "versendet" | "angenommen" | "abgelehnt"
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
   const { data: angebot, error } = await supabase
     .from("angebote")
     .update({ status })
@@ -215,7 +215,7 @@ export async function setzeAngebotStatus(
 export async function loescheAngebot(
   angebotId: string
 ): Promise<{ ok: false; fehler: string } | never> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
 
   const { data: angebot } = await supabase
     .from("angebote")
@@ -241,7 +241,7 @@ export async function loescheAngebot(
 export async function erzeugeAngebotPdfDatei(
   angebotId: string
 ): Promise<{ ok: true; pfad: string; dateiname: string } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("angebote_ansehen");
 
   const { data: angebot, error } = await supabase
     .from("angebote")
@@ -308,7 +308,7 @@ export async function speichereBaustein(
     istStandard: boolean;
   }
 ): Promise<{ ok: true; baustein: AngebotBaustein } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
   const titel = werte.titel.trim();
   if (!titel) return { ok: false, fehler: "Titel fehlt." };
 
@@ -349,7 +349,7 @@ export async function loescheBaustein(
   bausteinId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("angebote_bearbeiten");
   const { error } = await supabase
     .from("angebot_bausteine")
     .delete()

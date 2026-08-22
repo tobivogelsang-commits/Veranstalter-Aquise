@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireFreigabe } from "@/lib/authServer";
 import { TYPEN_OHNE_TEXTPFLICHT } from "@/lib/protokollTypen";
 
 // Fügt dem Protokoll eines Veranstalters (für eine bestimmte Band) einen
@@ -15,7 +15,7 @@ export async function fuegeProtokollEintragHinzu(
   typ: string,
   text: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireFreigabe("akquise");
   const bereinigt = text.trim();
   if (!bereinigt && !TYPEN_OHNE_TEXTPFLICHT.has(typ)) {
     return { ok: false, fehler: "Text fehlt." };

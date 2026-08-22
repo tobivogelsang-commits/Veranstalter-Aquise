@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { NeueBandForm } from "@/components/NeueBandForm";
+import { NutzerVerwaltung } from "@/components/NutzerVerwaltung";
 import { getBands } from "@/lib/queries";
+import { getNutzerUebersicht } from "@/lib/nutzerActions";
+import { requireAdminSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
 export default async function EinstellungenPage() {
-  const bands = await getBands();
+  await requireAdminSeite();
+  const [bands, nutzerUebersicht] = await Promise.all([
+    getBands(),
+    getNutzerUebersicht(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,6 +37,11 @@ export default async function EinstellungenPage() {
       </div>
 
       <NeueBandForm />
+
+      <NutzerVerwaltung
+        nutzer={nutzerUebersicht.nutzer}
+        offeneEinladungen={nutzerUebersicht.offeneEinladungen}
+      />
     </div>
   );
 }

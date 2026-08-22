@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 // service_role-Client (umgeht RLS). `supabase` und `supabaseAdmin` sind hier
 // derselbe privilegierte Client. Achtung: Die meisten Funktionen hier sind
 // bewusst ÖFFENTLICH (Team-App ohne Login) - nur die Inhaber-Funktionen
-// (getMitgliederFuerBand, entferneMitglied) rufen requireOwner() auf.
+// (getMitgliederFuerBand, entferneMitglied) rufen requireAnmeldung() auf.
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
-import { requireOwner } from "@/lib/authServer";
+import { requireAnmeldung, requireAdmin } from "@/lib/authServer";
 import { getOffeneAnfragenFuerMitglied } from "@/lib/queries";
 import { getTeamIconPfade, PASSWORT_MIN_LAENGE } from "@/lib/constants";
 import { oeffentlicheBildUrl } from "@/lib/storage";
@@ -217,7 +217,7 @@ export async function setzeRegistrierungOffen(
   bandId: string,
   offen: boolean
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("bands")
     .update({ registrierung_offen: offen })
@@ -236,7 +236,7 @@ export async function setzeMitgliedPasswortZurueck(
   mitgliedId: string,
   bandId: string
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireOwner();
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("band_mitglieder")
     .update({ passwort_hash: null })
@@ -385,7 +385,7 @@ export async function getBandName(bandId: string): Promise<string | null> {
 export async function getMitgliederFuerBand(
   bandId: string
 ): Promise<BandMitgliedOhnePush[]> {
-  await requireOwner();
+  await requireAnmeldung();
   const { data, error } = await supabaseAdmin
     .from("band_mitglieder")
     .select("id, band_id, name, erstellt_am, passwort_hash")
@@ -403,7 +403,7 @@ export async function getMitgliederFuerBand(
 // Entfernt ein Mitglied (z. B. hat die Band verlassen oder doppelt
 // registriert). Löscht per Kaskade auch seine bisherigen Antworten.
 export async function entferneMitglied(mitgliedId: string, bandId: string) {
-  await requireOwner();
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("band_mitglieder")
     .delete()

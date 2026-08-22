@@ -8,6 +8,7 @@ import {
   getVenuesWithRelations,
 } from "@/lib/queries";
 import type { Status, VenueTyp } from "@/lib/database.types";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function VenuesPage({
     q?: string;
   }>;
 }) {
+  await requireFreigabeSeite("akquise");
   const params = await searchParams;
   const bandFilter = params.band ?? ALLE_BANDS_PARAM;
 

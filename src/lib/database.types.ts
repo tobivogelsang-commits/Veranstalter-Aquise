@@ -454,6 +454,48 @@ export interface Database {
           },
         ];
       };
+      nutzer_freigaben: {
+        Row: {
+          user_id: string;
+          benutzername: string;
+          akquise: boolean;
+          emails_lesen: boolean;
+          emails_senden: boolean;
+          angebote_ansehen: boolean;
+          angebote_bearbeiten: boolean;
+          kalender: boolean;
+          setlisten: boolean;
+          merch: boolean;
+          produktion: boolean;
+          erstellt_am: string;
+          aktualisiert_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["nutzer_freigaben"]["Row"]> & {
+          user_id: string;
+          benutzername: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nutzer_freigaben"]["Row"]>;
+        Relationships: [];
+      };
+      einladungen: {
+        Row: {
+          id: string;
+          // SHA-256-Hash des Einmal-Tokens; der Klartext steht nur im Link.
+          token_hash: string;
+          zweck: "einladung" | "passwort_reset";
+          user_id: string | null;
+          erstellt_am: string;
+          laeuft_ab: string;
+          verbraucht_am: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["einladungen"]["Row"]> & {
+          token_hash: string;
+          zweck: "einladung" | "passwort_reset";
+          laeuft_ab: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["einladungen"]["Row"]>;
+        Relationships: [];
+      };
       gig_anfragen: {
         Row: {
           id: string;

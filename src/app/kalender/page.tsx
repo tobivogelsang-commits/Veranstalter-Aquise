@@ -20,6 +20,7 @@ import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { BandSwitcher } from "@/components/BandSwitcher";
 import { TermineManager } from "@/components/TermineManager";
 import { UrlaubManager } from "@/components/UrlaubManager";
+import { requireFreigabeSeite } from "@/lib/authServer";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function KalenderPage({
     ansicht?: string;
   }>;
 }) {
+  await requireFreigabeSeite("kalender");
   const { band, monat, jahr, ansicht } = await searchParams;
   const bandFilter = band ?? ALLE_BANDS_PARAM;
   const aktiveAnsicht = ansicht === "jahr" ? "jahr" : "monat";
