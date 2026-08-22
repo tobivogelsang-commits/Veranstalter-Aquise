@@ -94,7 +94,11 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Vercel** (Frontend/API) + **Supabase** (DB, ein Projekt für alle Umgebungen).
 - **Node 22.x** nötig.
 - **Migrationen manuell** in Supabase ausführen, bevor abhängiger Code live geht
-  (`supabase/migrations/`, aktuell bis 0042).
+  (`supabase/migrations/`, aktuell bis 0043).
+- **Mail-Passwörter verschlüsselt** (AES-256-GCM, `mailKrypto.ts`); Schlüssel
+  `MAIL_VERSCHLUESSELUNG_KEY` in .env.local + Vercel-Env (identisch!). Bei
+  Schlüsselverlust: neu erzeugen, Mail-Passwörter in den Einstellungen neu
+  eintragen.
 - Team-App-Link: `https://veranstalter-aquise.vercel.app/team/<band-id>`.
 
 ---
@@ -102,8 +106,8 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 ## Offene Punkte / Ideen
 
 - Team-App-Home-Screen-Icon auch für die **zweite Band** (bisher nur Trash Back).
-- **Sicherheit/DSGVO-Reste:** Mail-Passwörter im Klartext, Sperrliste,
-  DSGVO-Papierkram.
+- **Sicherheit/DSGVO-Reste:** Sperrliste, DSGVO-Papierkram (Mail-Passwörter
+  sind seit 2026-08-22 verschlüsselt).
 - Team-App: wer den Band-Link kennt, kann weiter mitlesen (Restproblem).
 - **Suchtool** soll zusätzlich Plattenfirmen abdecken (noch nicht gescoped).
 - **Supabase-Dashboard:** Selbstregistrierung deaktivieren (Authentication →
