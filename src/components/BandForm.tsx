@@ -263,7 +263,6 @@ export function BandForm({
         inviteUrl={teamInviteUrl}
         qrCodeDataUrl={teamQrCodeDataUrl}
         mitglieder={teamMitglieder}
-        registrierungOffen={band.registrierung_offen}
       />
 
       <EmailEinstellungenPanel

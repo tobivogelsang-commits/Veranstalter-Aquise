@@ -1,9 +1,10 @@
 "use server";
 
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ablaufIn, erzeugeToken, hashToken } from "@/lib/einmalLink";
 import {
   FREIGABE_BEREICHE,
   getAuthClient,
@@ -19,9 +20,11 @@ import {
 const EINLADUNG_GUELTIG_TAGE = 7;
 const RESET_GUELTIG_STUNDEN = 24;
 
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
+// Die einladungen-Tabelle enthaelt auch Team-App-Links (teamActions). Hier
+// zaehlen nur die Desktop-Zwecke - ein Team-Token darf keinen Desktop-Zugang
+// eroeffnen.
+type DesktopZweck = "einladung" | "passwort_reset";
+const DESKTOP_ZWECKE: DesktopZweck[] = ["einladung", "passwort_reset"];
 
 // Interne Anmelde-Adresse eines Mitglieds. Die Domain ".invalid" ist per RFC
 // für genau solche Zwecke reserviert - es kann nie echte Mail dorthin gehen.
@@ -38,7 +41,7 @@ export type NutzerZeile = {
 
 export type OffeneEinladung = {
   id: string;
-  zweck: "einladung" | "passwort_reset";
+  zweck: DesktopZweck;
   benutzername: string | null;
   laeuft_ab: string;
 };
@@ -59,6 +62,7 @@ export async function getNutzerUebersicht(): Promise<{
     supabaseAdmin
       .from("einladungen")
       .select("*")
+      .in("zweck", DESKTOP_ZWECKE)
       .is("verbraucht_am", null)
       .gte("laeuft_ab", new Date().toISOString())
       .order("erstellt_am", { ascending: false }),
@@ -78,7 +82,7 @@ export async function getNutzerUebersicht(): Promise<{
   const offeneEinladungen: OffeneEinladung[] = (einladungen.data ?? []).map(
     (e) => ({
       id: e.id,
-      zweck: e.zweck,
+      zweck: e.zweck as DesktopZweck,
       benutzername: e.user_id ? (nameJeUser.get(e.user_id) ?? null) : null,
       laeuft_ab: e.laeuft_ab,
     })
@@ -97,10 +101,8 @@ export async function erstelleEinladung(): Promise<
 > {
   await requireAdmin();
 
-  const token = randomBytes(32).toString("base64url");
-  const laeuftAb = new Date(
-    Date.now() + EINLADUNG_GUELTIG_TAGE * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const token = erzeugeToken();
+  const laeuftAb = ablaufIn(EINLADUNG_GUELTIG_TAGE * 24);
 
   const { error } = await supabaseAdmin.from("einladungen").insert({
     token_hash: hashToken(token),
@@ -118,10 +120,8 @@ export async function erstellePasswortReset(
 ): Promise<{ ok: true; pfad: string } | { ok: false; fehler: string }> {
   await requireAdmin();
 
-  const token = randomBytes(32).toString("base64url");
-  const laeuftAb = new Date(
-    Date.now() + RESET_GUELTIG_STUNDEN * 60 * 60 * 1000
-  ).toISOString();
+  const token = erzeugeToken();
+  const laeuftAb = ablaufIn(RESET_GUELTIG_STUNDEN);
 
   const { error } = await supabaseAdmin.from("einladungen").insert({
     token_hash: hashToken(token),
@@ -204,7 +204,7 @@ export async function loescheNutzer(
 // --- Öffentlich: Einladung prüfen und einlösen ------------------------------
 
 export type EinladungStatus =
-  | { gueltig: true; zweck: "einladung" | "passwort_reset" }
+  | { gueltig: true; zweck: DesktopZweck }
   | { gueltig: false };
 
 // Nur Anzeige-Prüfung für die Einladungsseite - verbraucht nichts.
@@ -213,10 +213,13 @@ export async function pruefeEinladung(token: string): Promise<EinladungStatus> {
     .from("einladungen")
     .select("zweck")
     .eq("token_hash", hashToken(token))
+    .in("zweck", DESKTOP_ZWECKE)
     .is("verbraucht_am", null)
     .gte("laeuft_ab", new Date().toISOString())
     .maybeSingle();
-  return data ? { gueltig: true, zweck: data.zweck } : { gueltig: false };
+  return data
+    ? { gueltig: true, zweck: data.zweck as DesktopZweck }
+    : { gueltig: false };
 }
 
 function pruefeBenutzername(roh: string): string | { fehler: string } {

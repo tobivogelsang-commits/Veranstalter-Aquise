@@ -24,8 +24,8 @@ getrennte Oberflächen:
 - **Desktop / Akquise-Tool** — hinter Login (Supabase Auth, nur Inhaber):
   Veranstalter-Datenbank, Status-Pipeline (Kanban), E-Mail (SMTP/IMAP),
   Kalender, Angebote, Merch, Setlisten, Produktion.
-- **Team-App** (`/team/<band-id>`) — für Bandmitglieder, Zugang über den
-  geheimen Band-Link. Anmeldung mit Name (+ optional Passwort). Reduziert:
+- **Team-App** (`/team/<band-id>`) — für Bandmitglieder. Konto nur über
+  Einmal-Einladungslink vom Admin, Anmeldung mit Name + Passwort. Reduziert:
   Dashboard, Kalender, Setliste, Songtexte, Merch, Produktion — kein Zugriff
   auf Akquise/E-Mail/Pipeline.
 
@@ -66,10 +66,11 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 
 ## Wichtige Entscheidungen (das „Warum")
 
-- **Zwei Zugangsmodelle:** Desktop hinter Supabase-Auth-Login (Inhaber);
-  Team-App über den nicht erratbaren Band-Link (+ Name/Passwort). Team-taugliche
-  Server-Aktionen laufen bewusst **ohne** `requireOwner()` — abgesichert über
-  den Band-Link, konsistent über alle Team-Funktionen.
+- **Zwei Zugangsmodelle:** Desktop hinter Supabase-Auth-Login mit Freigaben;
+  Team-App mit eigenen Konten (`band_mitglieder`, scrypt-Passwort), Konto nur
+  per Einmal-Link (Migration 0044, `?einladung=<token>` auf `/team/<band>`).
+  Team-taugliche Server-Aktionen laufen bewusst **ohne** Desktop-Login —
+  abgesichert über die Mitglieds-UUID + Band-Zugehörigkeit.
 - **RLS-Lockdown (Migration 0016):** anon/authenticated haben KEINEN direkten
   Tabellenzugriff mehr; alle Reads/Writes laufen serverseitig über den
   `service_role`-Client. In `queries.ts` ist `supabase` bewusst ein Alias auf
@@ -94,7 +95,7 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Vercel** (Frontend/API) + **Supabase** (DB, ein Projekt für alle Umgebungen).
 - **Node 22.x** nötig.
 - **Migrationen manuell** in Supabase ausführen, bevor abhängiger Code live geht
-  (`supabase/migrations/`, aktuell bis 0043).
+  (`supabase/migrations/`, aktuell bis 0044).
 - **Mail-Passwörter verschlüsselt** (AES-256-GCM, `mailKrypto.ts`); Schlüssel
   `MAIL_VERSCHLUESSELUNG_KEY` in .env.local + Vercel-Env (identisch!). Bei
   Schlüsselverlust: neu erzeugen, Mail-Passwörter in den Einstellungen neu
@@ -108,14 +109,11 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - Team-App-Home-Screen-Icon auch für die **zweite Band** (bisher nur Trash Back).
 - **Sicherheit/DSGVO-Reste:** Sperrliste, DSGVO-Papierkram (Mail-Passwörter
   sind seit 2026-08-22 verschlüsselt).
-- Team-App: wer den Band-Link kennt, kann weiter mitlesen (Restproblem).
 - **Suchtool** soll zusätzlich Plattenfirmen abdecken (noch nicht gescoped).
-- **Supabase-Dashboard:** Selbstregistrierung deaktivieren (Authentication →
-  Sign In / Up → "Allow new users to sign up" aus). Fail-closed schützt zwar
-  auch so, aber der Riegel gehört zusätzlich vor.
-- **Freigabe-Verwaltungs-UI** (Einstellungen) ist gebaut, aber noch nicht als
-  Admin durchgeklickt - beim nächsten Login einmal testen (Einladen, Häkchen,
-  Passwort-Reset, Löschen, Widerrufen).
+- **Team-App nach 0044:** 7 Bestandsmitglieder ohne Passwort brauchen je
+  einen Zugangslink (Einstellungen → Band → Team-App → "Zugangslink").
+- `bands.registrierung_offen` ist obsolet (kein Code liest sie) — bei
+  Gelegenheit per Migration entfernen.
 
 ---
 

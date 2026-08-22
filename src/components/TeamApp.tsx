@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
 import {
-  registriereMitglied,
+  loeseTeamEinladungEin,
+  loeseTeamPasswortLinkEin,
+  meldeMitgliedAn,
+  type TeamEinladungStatus,
   aktualisierePushSubscription,
   holeOffeneAnfragen,
   beantworteAnfrage,
@@ -230,6 +234,8 @@ async function versuchePushSubscription(): Promise<{
 
 export function TeamApp({
   bandId,
+  einladungToken,
+  einladungStatus,
   bandName,
   logoUrl,
   kalenderEintraege,
@@ -248,6 +254,9 @@ export function TeamApp({
   merchArtikel,
 }: {
   bandId: string;
+  // Einmal-Link aus der URL (?einladung=...), serverseitig vorgeprueft.
+  einladungToken: string | null;
+  einladungStatus: TeamEinladungStatus | null;
   bandName: string;
   logoUrl: string | null;
   kalenderEintraege: PipelineEntry[];
@@ -265,6 +274,7 @@ export function TeamApp({
   urlaube: UrlaubMitName[];
   merchArtikel: MerchArtikel[];
 }) {
+  const router = useRouter();
   // Start immer null (Server kennt localStorage nicht -> sonst Hydration-
   // Mismatch); die echte Identität wird nach dem Mount aus localStorage
   // geladen. identitaetGeladen unterscheidet "noch nicht geladen" (nichts
@@ -508,9 +518,15 @@ export function TeamApp({
     }
   }
 
+  // Drei Faelle, ein Formular: Einladungslink (neues Konto), Zugangslink
+  // (Passwort setzen) oder normale Anmeldung eines bestehenden Mitglieds.
+  const linkGueltig = einladungToken !== null && einladungStatus?.gueltig === true;
+  const linkModus =
+    linkGueltig && einladungStatus?.gueltig ? einladungStatus.zweck : null;
+
   async function handleRegistrieren(e: React.FormEvent) {
     e.preventDefault();
-    if (!nameEingabe.trim()) return;
+    if (linkModus !== "team_passwort" && !nameEingabe.trim()) return;
     setRegistrierungLaeuft(true);
     setRegistrierungFehler(null);
 
@@ -518,17 +534,34 @@ export function TeamApp({
     try {
       const { subscription, hinweis } = await versuchePushSubscription();
       if (hinweis) setPushHinweis(hinweis);
-      ergebnis = await registriereMitglied(
-        bandId,
-        nameEingabe,
-        passwortEingabe,
-        subscription
-      );
+      if (linkModus === "team_einladung" && einladungToken) {
+        ergebnis = await loeseTeamEinladungEin(
+          bandId,
+          einladungToken,
+          nameEingabe,
+          passwortEingabe,
+          subscription
+        );
+      } else if (linkModus === "team_passwort" && einladungToken) {
+        ergebnis = await loeseTeamPasswortLinkEin(
+          bandId,
+          einladungToken,
+          passwortEingabe,
+          subscription
+        );
+      } else {
+        ergebnis = await meldeMitgliedAn(
+          bandId,
+          nameEingabe,
+          passwortEingabe,
+          subscription
+        );
+      }
     } catch (err) {
-      console.error("Registrierung fehlgeschlagen", err);
+      console.error("Anmeldung fehlgeschlagen", err);
       setRegistrierungLaeuft(false);
       setRegistrierungFehler(
-        "Registrierung fehlgeschlagen (Netzwerkproblem?). Bitte nochmal versuchen."
+        "Anmeldung fehlgeschlagen (Netzwerkproblem?). Bitte nochmal versuchen."
       );
       return;
     }
@@ -547,6 +580,11 @@ export function TeamApp({
     };
     window.localStorage.setItem(STORAGE_PREFIX + bandId, JSON.stringify(neueIdentitaet));
     setIdentitaet(neueIdentitaet);
+    // Verbrauchten Link aus der Adresszeile nehmen, damit ein Reload oder
+    // "Zum Home-Bildschirm" nicht auf dem toten Token haengen bleibt.
+    if (einladungToken) {
+      router.replace(`/team/${bandId}`);
+    }
   }
 
   async function handleAntwort(anfrageId: string, antwort: "kann" | "kann_nicht") {
@@ -564,36 +602,56 @@ export function TeamApp({
     return null;
   }
 
-  if (!identitaet) {
+  // Ein gueltiger Einmal-Link hat Vorrang vor einer gespeicherten Identitaet:
+  // Der Zugangslink wird typischerweise auf dem Geraet geoeffnet, auf dem man
+  // schon "drin" ist (Altbestand ohne Passwort) - er muss trotzdem einloesbar sein.
+  const linkUngueltig = einladungToken !== null && !linkGueltig;
+
+  if (!identitaet || linkGueltig) {
     return (
       <div className="mx-auto flex max-w-sm flex-col gap-4 px-4 pt-16">
         <h1 className="text-xl font-semibold text-slate-900">{bandName}</h1>
-        {/* Ein Formular fuer beides: Beim ersten Mal legt man mit Name und
-            Passwort sein Konto an, auf einem weiteren Geraet meldet man sich
-            damit an. Der Server erkennt am Namen, welcher Fall vorliegt -
-            zwei getrennte Masken waeren hier nur eine Huerde mehr. */}
-        <p className="text-sm text-slate-500">
-          Melde dich mit deinem Namen und einem Passwort an. Beim ersten Mal legst
-          du damit dein Konto an – auf einem weiteren Gerät kommst du mit
-          denselben Angaben wieder rein.
-        </p>
+        {linkModus === "team_einladung" ? (
+          <p className="text-sm text-slate-500">
+            Willkommen! Leg deinen Namen und ein Passwort fest – damit meldest du
+            dich künftig in der Team-App an, auch auf weiteren Geräten.
+          </p>
+        ) : linkModus === "team_passwort" && einladungStatus?.gueltig ? (
+          <p className="text-sm text-slate-500">
+            Hallo {einladungStatus.zweck === "team_passwort" ? einladungStatus.mitgliedName : ""}! Leg hier dein
+            Passwort fest – damit meldest du dich künftig an.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Melde dich mit deinem Namen und deinem Passwort an. Neu dabei? Dann
+            brauchst du einen Einladungslink von Tobias.
+          </p>
+        )}
+        {linkUngueltig && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Dieser Link ist abgelaufen oder wurde schon benutzt. Bitte Tobias um
+            einen neuen – oder melde dich unten mit deinem Passwort an.
+          </p>
+        )}
         <form onSubmit={handleRegistrieren} className="flex flex-col gap-3">
-          <input
-            required
-            value={nameEingabe}
-            onChange={(e) => setNameEingabe(e.target.value)}
-            placeholder="Dein Name"
-            autoComplete="username"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          />
+          {linkModus !== "team_passwort" && (
+            <input
+              required
+              value={nameEingabe}
+              onChange={(e) => setNameEingabe(e.target.value)}
+              placeholder="Dein Name"
+              autoComplete="username"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            />
+          )}
           <input
             required
             type="password"
             value={passwortEingabe}
             onChange={(e) => setPasswortEingabe(e.target.value)}
-            placeholder="Passwort"
-            autoComplete="current-password"
-            minLength={PASSWORT_MIN_LAENGE}
+            placeholder={linkModus ? "Passwort festlegen" : "Passwort"}
+            autoComplete={linkModus ? "new-password" : "current-password"}
+            minLength={linkModus ? PASSWORT_MIN_LAENGE : undefined}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
           />
           <button
@@ -601,12 +659,20 @@ export function TeamApp({
             disabled={registrierungLaeuft}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           >
-            {registrierungLaeuft ? "Wird eingerichtet…" : "Loslegen"}
+            {registrierungLaeuft
+              ? "Einen Moment…"
+              : linkModus === "team_einladung"
+                ? "Konto anlegen"
+                : linkModus === "team_passwort"
+                  ? "Passwort speichern"
+                  : "Anmelden"}
           </button>
-          <p className="text-xs text-slate-400">
-            Passwort vergessen? Tobias kann es zurücksetzen, dann vergibst du beim
-            nächsten Anmelden ein neues.
-          </p>
+          {!linkModus && (
+            <p className="text-xs text-slate-400">
+              Passwort vergessen oder noch keins? Tobias schickt dir einen
+              Zugangslink, damit legst du ein neues fest.
+            </p>
+          )}
           {registrierungFehler && (
             <p className="text-sm text-red-600">{registrierungFehler}</p>
           )}

@@ -23,6 +23,12 @@ export type VenueTyp =
   | "Hochzeit"
   | "Sonstiges";
 
+export type EinladungZweck =
+  | "einladung"
+  | "passwort_reset"
+  | "team_einladung"
+  | "team_passwort";
+
 export type GigAnfrageStatus = "offen" | "bestaetigt" | "abgesagt";
 export type GigAntwort = "kann" | "kann_nicht";
 
@@ -482,15 +488,18 @@ export interface Database {
           id: string;
           // SHA-256-Hash des Einmal-Tokens; der Klartext steht nur im Link.
           token_hash: string;
-          zweck: "einladung" | "passwort_reset";
+          zweck: EinladungZweck;
           user_id: string | null;
+          // Team-App-Links: Band bzw. betroffenes Mitglied (team_passwort).
+          band_id: string | null;
+          mitglied_id: string | null;
           erstellt_am: string;
           laeuft_ab: string;
           verbraucht_am: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["einladungen"]["Row"]> & {
           token_hash: string;
-          zweck: "einladung" | "passwort_reset";
+          zweck: EinladungZweck;
           laeuft_ab: string;
         };
         Update: Partial<Database["public"]["Tables"]["einladungen"]["Row"]>;

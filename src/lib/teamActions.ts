@@ -12,6 +12,7 @@ import { getTeamIconPfade, PASSWORT_MIN_LAENGE } from "@/lib/constants";
 import { oeffentlicheBildUrl } from "@/lib/storage";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
 import { hashePasswort, passwortStimmt } from "@/lib/mitgliedPasswort";
+import { ablaufIn, erzeugeToken, hashToken } from "@/lib/einmalLink";
 import type { GigAnfrageStatus, GigAntwort } from "@/lib/database.types";
 import type {
   BandMitgliedOhnePush,
@@ -24,10 +25,8 @@ export type PushSubscriptionInput = {
   keys: { p256dh: string; auth: string };
 };
 
-// Obergrenze pro Band. Die Registrierung ist ohne Login offen (jede/r mit dem
-// Team-Link kann sich eintragen) - ohne Deckel könnte jemand die Tabelle
-// beliebig vollschreiben und damit auch Push-Versand und "x von y bestätigt"
-// unbrauchbar machen. Für eine Band ist das großzügig bemessen.
+// Obergrenze pro Band - Sicherheitsnetz, falls Einladungslinks in Umlauf
+// geraten; fuer eine Band grosszuegig bemessen.
 const MAX_MITGLIEDER_PRO_BAND = 50;
 const MAX_NAME_LAENGE = 80;
 
@@ -69,58 +68,40 @@ export async function pruefeMitglied(
   return data !== null;
 }
 
-// Meldet ein Teammitglied an - dieselbe Aktion legt an ODER meldet auf einem
-// weiteren Gerät an, je nachdem ob der Name in dieser Band schon existiert:
-//
-//  - Name frei          -> neues Mitglied, das eingegebene Passwort wird gesetzt
-//  - Name existiert     -> Passwort wird geprüft; stimmt es, meldet sich die
-//                          Person auf DIESEM Gerät an und bekommt ihren
-//                          bestehenden Eintrag (keine zweite Karteikarte mehr)
-//  - Name existiert, hat aber noch KEIN Passwort -> Mitglied aus der Zeit vor
-//                          der Umstellung: das eingegebene Passwort wird
-//                          uebernommen. Alle nachträglich zu zwingen wäre
-//                          unnötig unfreundlich, und der Band-Link als
-//                          Zugangsschutz gilt hier ohnehin weiterhin.
-//
-// Genau diese Zusammenführung verhindert die Doppelanmeldungen, durch die
-// mehrere Mitglieder zweimal in der Teilnahmeliste standen.
-// Läuft über den service_role-Client, da band_mitglieder bewusst keine
-// anon-Policy hat (schützt Passwort-Hash und Push-Zugangsdaten).
-export async function registriereMitglied(
-  bandId: string,
-  name: string,
-  passwort: string,
-  subscription: PushSubscriptionInput | null
-): Promise<
-  | { ok: true; mitgliedId: string; name: string; angemeldet: boolean }
-  | { ok: false; fehler: string }
-> {
-  const sauberName = name.trim().slice(0, MAX_NAME_LAENGE);
-  if (!sauberName) return { ok: false, fehler: "Name fehlt." };
-  if (passwort.length < PASSWORT_MIN_LAENGE) {
-    return {
-      ok: false,
-      fehler: `Passwort muss mindestens ${PASSWORT_MIN_LAENGE} Zeichen haben.`,
-    };
-  }
+type PushFelder = {
+  push_endpoint: string | null;
+  push_p256dh: string | null;
+  push_auth: string | null;
+};
 
-  // Existiert die Band überhaupt? Ohne Prüfung liefe man in einen rohen
-  // Fremdschlüssel-Fehler, dessen Meldung nichts erklärt.
-  const { data: band } = await supabaseAdmin
-    .from("bands")
-    .select("id, registrierung_offen")
-    .eq("id", bandId)
-    .maybeSingle();
-  if (!band) return { ok: false, fehler: "Band nicht gefunden." };
-
-  const pushFelder = {
+function pushFelderAus(subscription: PushSubscriptionInput | null): PushFelder {
+  return {
     push_endpoint: subscription?.endpoint ?? null,
     push_p256dh: subscription?.keys.p256dh ?? null,
     push_auth: subscription?.keys.auth ?? null,
   };
+}
 
-  // Gibt es den Namen in dieser Band schon? Vergleich ohne Rücksicht auf
-  // Gross-/Kleinschreibung, damit "cj" und "CJ" dieselbe Person sind.
+export type TeamAnmeldung =
+  | { ok: true; mitgliedId: string; name: string }
+  | { ok: false; fehler: string };
+
+// Anmeldung eines BESTEHENDEN Mitglieds (z. B. auf einem weiteren Gerät):
+// Name + Passwort muessen passen. Neue Konten entstehen ausschliesslich ueber
+// einen Einmal-Link vom Admin (loeseTeamEinladungEin) - der Band-Link allein
+// reicht nicht mehr. Mitglieder ohne Passwort (Altbestand) koennen sich erst
+// wieder anmelden, wenn sie per Zugangslink eins gesetzt haben; sonst koennte
+// jede Person mit dem Band-Link so ein Konto "uebernehmen".
+export async function meldeMitgliedAn(
+  bandId: string,
+  name: string,
+  passwort: string,
+  subscription: PushSubscriptionInput | null
+): Promise<TeamAnmeldung> {
+  const sauberName = name.trim().slice(0, MAX_NAME_LAENGE);
+  if (!sauberName) return { ok: false, fehler: "Name fehlt." };
+  if (!passwort) return { ok: false, fehler: "Passwort fehlt." };
+
   const { data: bestehende } = await supabaseAdmin
     .from("band_mitglieder")
     .select("id, name, passwort_hash")
@@ -130,47 +111,137 @@ export async function registriereMitglied(
     (m) => m.name.trim().toLowerCase() === sauberName.toLowerCase()
   );
 
-  if (vorhanden) {
-    if (vorhanden.passwort_hash) {
-      if (!(await passwortStimmt(passwort, vorhanden.passwort_hash))) {
-        // Kleine Verzögerung, damit Passwörter nicht in schneller Folge
-        // durchprobiert werden können.
-        await new Promise((fertig) => setTimeout(fertig, 400));
-        return {
-          ok: false,
-          fehler: "Dieser Name ist vergeben und das Passwort stimmt nicht.",
-        };
-      }
-    } else {
-      // Bestandsmitglied ohne Passwort: Das jetzt eingegebene wird seins.
-      await supabaseAdmin
-        .from("band_mitglieder")
-        .update({ passwort_hash: await hashePasswort(passwort) })
-        .eq("id", vorhanden.id);
-    }
-
-    // Anmeldung auf diesem Gerät: Push-Daten gehören ab jetzt hierher.
-    await supabaseAdmin
-      .from("band_mitglieder")
-      .update(pushFelder)
-      .eq("id", vorhanden.id);
-    return {
-      ok: true,
-      mitgliedId: vorhanden.id,
-      name: vorhanden.name,
-      angemeldet: true,
-    };
-  }
-
-  // Ab hier: NEUES Mitglied. Die Sperre greift bewusst erst an dieser Stelle -
-  // bestehende Mitglieder (oben behandelt) sollen sich weiterhin anmelden
-  // koennen, auch auf einem neuen Geraet. Sonst waere ein verlorenes Handy
-  // gleichbedeutend mit dem Verlust des Zugangs.
-  if (!band.registrierung_offen) {
+  // Kleine Verzoegerung bei jedem Fehlschlag, damit Namen/Passwoerter nicht
+  // in schneller Folge durchprobiert werden koennen.
+  if (!vorhanden) {
+    await new Promise((fertig) => setTimeout(fertig, 400));
     return {
       ok: false,
       fehler:
-        "Für diese Band sind keine neuen Anmeldungen möglich. Melde dich bei der Band, wenn du dabei sein solltest.",
+        "Unter diesem Namen gibt es kein Mitglied. Neu dabei? Dann brauchst du einen Einladungslink von Tobias.",
+    };
+  }
+  if (!vorhanden.passwort_hash) {
+    return {
+      ok: false,
+      fehler:
+        "Dein Konto hat noch kein Passwort. Bitte Tobias um deinen persönlichen Zugangslink, damit setzt du eins.",
+    };
+  }
+  if (!(await passwortStimmt(passwort, vorhanden.passwort_hash))) {
+    await new Promise((fertig) => setTimeout(fertig, 400));
+    return { ok: false, fehler: "Das Passwort stimmt nicht." };
+  }
+
+  // Anmeldung auf diesem Geraet: Push-Daten gehoeren ab jetzt hierher.
+  await supabaseAdmin
+    .from("band_mitglieder")
+    .update(pushFelderAus(subscription))
+    .eq("id", vorhanden.id);
+  return { ok: true, mitgliedId: vorhanden.id, name: vorhanden.name };
+}
+
+// --- Einmal-Links der Team-App ------------------------------------------------
+//
+// Gleiche Mechanik wie die Desktop-Einladungen (nutzerActions): Hash in der DB,
+// Klartext nur im Link, verbraucht_am = tot. Der Link zeigt auf die Team-App
+// selbst (/team/<band>?einladung=<token>), damit er auch auf dem Handy direkt
+// in der richtigen Oberflaeche landet.
+
+const TEAM_LINK_GUELTIG_TAGE = 7;
+
+export type TeamEinladungStatus =
+  | { gueltig: true; zweck: "team_einladung" }
+  | { gueltig: true; zweck: "team_passwort"; mitgliedName: string }
+  | { gueltig: false };
+
+// Nur Anzeige-Pruefung fuer das Anmeldeformular - verbraucht nichts.
+export async function pruefeTeamEinladung(
+  bandId: string,
+  token: string
+): Promise<TeamEinladungStatus> {
+  const { data } = await supabaseAdmin
+    .from("einladungen")
+    .select("zweck, mitglied_id")
+    .eq("token_hash", hashToken(token))
+    .eq("band_id", bandId)
+    .in("zweck", ["team_einladung", "team_passwort"])
+    .is("verbraucht_am", null)
+    .gte("laeuft_ab", new Date().toISOString())
+    .maybeSingle();
+  if (!data) return { gueltig: false };
+  if (data.zweck === "team_einladung") return { gueltig: true, zweck: "team_einladung" };
+
+  const { data: mitglied } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("name")
+    .eq("id", data.mitglied_id ?? "")
+    .maybeSingle();
+  if (!mitglied) return { gueltig: false };
+  return { gueltig: true, zweck: "team_passwort", mitgliedName: mitglied.name };
+}
+
+// Verbraucht den Link atomar (nur wenn noch unverbraucht und gueltig).
+async function verbraucheTeamEinladung(
+  bandId: string,
+  token: string,
+  zweck: "team_einladung" | "team_passwort"
+) {
+  const { data } = await supabaseAdmin
+    .from("einladungen")
+    .update({ verbraucht_am: new Date().toISOString() })
+    .eq("token_hash", hashToken(token))
+    .eq("band_id", bandId)
+    .eq("zweck", zweck)
+    .is("verbraucht_am", null)
+    .gte("laeuft_ab", new Date().toISOString())
+    .select();
+  return data?.[0] ?? null;
+}
+
+async function gebeTeamEinladungFrei(einladungId: string) {
+  await supabaseAdmin
+    .from("einladungen")
+    .update({ verbraucht_am: null })
+    .eq("id", einladungId);
+}
+
+const LINK_UNGUELTIG =
+  "Dieser Link ist ungültig, abgelaufen oder schon benutzt. Bitte Tobias um einen neuen.";
+
+// Neues Mitglied ueber Einladungslink: Name + Passwort anlegen, direkt
+// angemeldet.
+export async function loeseTeamEinladungEin(
+  bandId: string,
+  token: string,
+  name: string,
+  passwort: string,
+  subscription: PushSubscriptionInput | null
+): Promise<TeamAnmeldung> {
+  const sauberName = name.trim().slice(0, MAX_NAME_LAENGE);
+  if (!sauberName) return { ok: false, fehler: "Name fehlt." };
+  if (passwort.length < PASSWORT_MIN_LAENGE) {
+    return {
+      ok: false,
+      fehler: `Passwort muss mindestens ${PASSWORT_MIN_LAENGE} Zeichen haben.`,
+    };
+  }
+
+  // Name frei? (Der Unique-Index bleibt der Riegel darunter.)
+  const { data: bestehende } = await supabaseAdmin
+    .from("band_mitglieder")
+    .select("id, name")
+    .eq("band_id", bandId)
+    .ilike("name", sauberName);
+  if (
+    (bestehende ?? []).some(
+      (m) => m.name.trim().toLowerCase() === sauberName.toLowerCase()
+    )
+  ) {
+    return {
+      ok: false,
+      fehler:
+        "Diesen Namen gibt es in der Band schon. Bist du das? Dann melde dich ohne Link mit deinem Passwort an.",
     };
   }
 
@@ -185,67 +256,114 @@ export async function registriereMitglied(
     };
   }
 
+  const einladung = await verbraucheTeamEinladung(bandId, token, "team_einladung");
+  if (!einladung) return { ok: false, fehler: LINK_UNGUELTIG };
+
   const { data, error } = await supabaseAdmin
     .from("band_mitglieder")
     .insert({
       band_id: bandId,
       name: sauberName,
       passwort_hash: await hashePasswort(passwort),
-      ...pushFelder,
+      ...pushFelderAus(subscription),
     })
     .select("id, name")
     .single();
-
-  // 23505 = der Unique-Index hat zugeschlagen: In der Zeit zwischen Prüfung und
-  // Einfügen hat sich derselbe Name eingetragen (zwei Geräte gleichzeitig).
   if (error) {
+    // Link wieder freigeben - sonst waere er nach einem Namens-Rennen (23505)
+    // verbrannt, ohne dass ein Konto entstanden ist.
+    await gebeTeamEinladungFrei(einladung.id);
     return {
       ok: false,
       fehler:
         error.code === "23505"
-          ? "Dieser Name wurde gerade vergeben. Bitte nochmal mit deinem Passwort anmelden."
+          ? "Dieser Name wurde gerade vergeben. Bitte einen anderen wählen."
           : error.message,
     };
   }
-  return { ok: true, mitgliedId: data.id, name: data.name, angemeldet: false };
-}
-
-// Schaltet die Selbstregistrierung fuer eine Band an oder aus (Inhaber, am
-// Desktop). Zugeschaltet kommt niemand Neues mehr hinein - auch niemand, der
-// gerade entfernt wurde. Bestehende Mitglieder sind davon nicht betroffen.
-export async function setzeRegistrierungOffen(
-  bandId: string,
-  offen: boolean
-): Promise<{ ok: true } | { ok: false; fehler: string }> {
-  await requireAdmin();
-  const { error } = await supabaseAdmin
-    .from("bands")
-    .update({ registrierung_offen: offen })
-    .eq("id", bandId);
-  if (error) return { ok: false, fehler: error.message };
 
   revalidatePath(`/einstellungen/${bandId}`);
-  return { ok: true };
+  return { ok: true, mitgliedId: data.id, name: data.name };
 }
 
-// Setzt das Passwort eines Mitglieds zurück (Inhaber, am Desktop): Der Hash
-// wird geleert, die nächste Anmeldung mit diesem Namen vergibt ein neues.
-// Für den Fall "Passwort vergessen" - niemand kann es auslesen, auch nicht
-// der Inhaber.
-export async function setzeMitgliedPasswortZurueck(
+// Bestehendes Mitglied setzt ueber seinen Zugangslink ein (neues) Passwort
+// und ist danach auf diesem Geraet angemeldet.
+export async function loeseTeamPasswortLinkEin(
+  bandId: string,
+  token: string,
+  passwort: string,
+  subscription: PushSubscriptionInput | null
+): Promise<TeamAnmeldung> {
+  if (passwort.length < PASSWORT_MIN_LAENGE) {
+    return {
+      ok: false,
+      fehler: `Passwort muss mindestens ${PASSWORT_MIN_LAENGE} Zeichen haben.`,
+    };
+  }
+
+  const einladung = await verbraucheTeamEinladung(bandId, token, "team_passwort");
+  if (!einladung?.mitglied_id) return { ok: false, fehler: LINK_UNGUELTIG };
+
+  const { data, error } = await supabaseAdmin
+    .from("band_mitglieder")
+    .update({
+      passwort_hash: await hashePasswort(passwort),
+      ...pushFelderAus(subscription),
+    })
+    .eq("id", einladung.mitglied_id)
+    .eq("band_id", bandId)
+    .select("id, name")
+    .maybeSingle();
+  if (error || !data) {
+    await gebeTeamEinladungFrei(einladung.id);
+    return { ok: false, fehler: error?.message ?? "Mitglied nicht gefunden." };
+  }
+
+  revalidatePath(`/einstellungen/${bandId}`);
+  return { ok: true, mitgliedId: data.id, name: data.name };
+}
+
+// --- Admin: Links erzeugen (Desktop) ------------------------------------------
+
+// Rueckgabe ist der Pfad; die volle URL baut der Client aus
+// window.location.origin (lokal und Vercel automatisch richtig).
+export async function erstelleTeamEinladung(
+  bandId: string
+): Promise<{ ok: true; pfad: string } | { ok: false; fehler: string }> {
+  await requireAdmin();
+  const token = erzeugeToken();
+  const { error } = await supabaseAdmin.from("einladungen").insert({
+    token_hash: hashToken(token),
+    zweck: "team_einladung",
+    band_id: bandId,
+    laeuft_ab: ablaufIn(TEAM_LINK_GUELTIG_TAGE * 24),
+  });
+  if (error) return { ok: false, fehler: error.message };
+  return { ok: true, pfad: `/team/${bandId}?einladung=${token}` };
+}
+
+// Zugangslink fuer ein bestehendes Mitglied: setzt (neues) Passwort. Fuer
+// "Passwort vergessen" und fuer den Altbestand ohne Passwort. Das alte
+// Passwort bleibt bis zum Einloesen gueltig - niemand wird vorzeitig
+// ausgesperrt.
+export async function erstelleTeamPasswortLink(
   mitgliedId: string,
   bandId: string
-): Promise<{ ok: true } | { ok: false; fehler: string }> {
+): Promise<{ ok: true; pfad: string } | { ok: false; fehler: string }> {
   await requireAdmin();
-  const { error } = await supabaseAdmin
-    .from("band_mitglieder")
-    .update({ passwort_hash: null })
-    .eq("id", mitgliedId)
-    .eq("band_id", bandId);
+  if (!(await gehoertMitgliedZuBand(mitgliedId, bandId))) {
+    return { ok: false, fehler: "Mitglied nicht gefunden." };
+  }
+  const token = erzeugeToken();
+  const { error } = await supabaseAdmin.from("einladungen").insert({
+    token_hash: hashToken(token),
+    zweck: "team_passwort",
+    band_id: bandId,
+    mitglied_id: mitgliedId,
+    laeuft_ab: ablaufIn(TEAM_LINK_GUELTIG_TAGE * 24),
+  });
   if (error) return { ok: false, fehler: error.message };
-
-  revalidatePath(`/einstellungen/${bandId}`);
-  return { ok: true };
+  return { ok: true, pfad: `/team/${bandId}?einladung=${token}` };
 }
 
 // Hält die Push-Subscription eines bereits registrierten Mitglieds aktuell

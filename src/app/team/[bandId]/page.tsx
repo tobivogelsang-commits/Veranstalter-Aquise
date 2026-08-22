@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getBandLogoUrl, getBandName } from "@/lib/teamActions";
+import {
+  getBandLogoUrl,
+  getBandName,
+  pruefeTeamEinladung,
+} from "@/lib/teamActions";
 import {
   getBandSongs,
   getKalenderEintraege,
@@ -44,10 +48,12 @@ export default async function TeamPage({
     ansicht?: string;
     monat?: string;
     jahr?: string;
+    // Einmal-Link vom Admin (Einladung oder Zugangslink), siehe teamActions.
+    einladung?: string;
   }>;
 }) {
   const { bandId } = await params;
-  const { tab, ansicht, monat, jahr } = await searchParams;
+  const { tab, ansicht, monat, jahr, einladung } = await searchParams;
 
   const [
     bandName,
@@ -83,10 +89,17 @@ export default async function TeamPage({
       ? tab
       : "dashboard";
   const logoUrl = await getBandLogoUrl(bandId);
+  // Token nur pruefen, nicht verbrauchen - eingeloest wird erst beim Absenden
+  // des Formulars. Ungueltig => das Formular zeigt einen Hinweis.
+  const einladungStatus = einladung
+    ? await pruefeTeamEinladung(bandId, einladung)
+    : null;
 
   return (
     <TeamApp
       bandId={bandId}
+      einladungToken={einladung ?? null}
+      einladungStatus={einladungStatus}
       bandName={bandName}
       logoUrl={logoUrl}
       kalenderEintraege={kalenderEintraege}

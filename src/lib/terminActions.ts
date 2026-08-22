@@ -3,7 +3,7 @@
 // Selbst angelegte Kalender-Termine (Probe / Konzertmöglichkeit / Event).
 // service_role-Client (umgeht RLS). BEWUSST OHNE requireAnmeldung(): Termine dürfen
 // auch Bandmitglieder in der Team-App anlegen/bearbeiten/löschen. Der Zugriff
-// ist - wie bei den übrigen Team-Aktionen (beantworteAnfrage, registriereMitglied)
+// ist - wie bei den übrigen Team-Aktionen (beantworteAnfrage, meldeMitgliedAn)
 // - über den geheimen Band-Link gesichert, nicht über den Inhaber-Login. Am
 // Desktop sitzt zusätzlich der Login-Proxy davor.
 import { revalidatePath } from "next/cache";
