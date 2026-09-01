@@ -258,6 +258,7 @@ export default async function BuchhaltungPage({
       )}
 
       <BelegePanel
+        key={`${bandFilter}-${jahrFilter}`}
         bands={bands}
         vorgewaehlteBandId={bandFilter === ALLE_BANDS_PARAM ? null : bandFilter}
         mitgliederProBand={mitgliederProBand}

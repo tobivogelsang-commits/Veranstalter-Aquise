@@ -33,7 +33,11 @@ export function BelegePanel({
   const router = useRouter();
   const dateiRef = useRef<HTMLInputElement>(null);
   const [formOffen, setFormOffen] = useState(false);
-  const [bandId, setBandId] = useState(vorgewaehlteBandId ?? bands[0]?.id ?? "");
+  // Nur relevant, wenn der Seitenfilter auf "Beide" steht - sonst gilt IMMER
+  // die gefilterte Band (sonst zeigte das Formular nach einem Filterwechsel
+  // die Mitglieder der vorherigen Band und speicherte dorthin).
+  const [gewaehlteBandId, setGewaehlteBandId] = useState(bands[0]?.id ?? "");
+  const bandId = vorgewaehlteBandId ?? gewaehlteBandId;
   const [felder, setFelder] = useState({
     datum: new Date().toISOString().slice(0, 10),
     betrag: "",
@@ -138,7 +142,7 @@ export function BelegePanel({
             {!vorgewaehlteBandId && (
               <select
                 value={bandId}
-                onChange={(e) => setBandId(e.target.value)}
+                onChange={(e) => setGewaehlteBandId(e.target.value)}
                 className={inputClass}
               >
                 {bands.map((b) => (
@@ -181,7 +185,7 @@ export function BelegePanel({
               className={inputClass}
             />
             <select
-              value={felder.mitgliedId}
+              value={mitglieder.some((m) => m.id === felder.mitgliedId) ? felder.mitgliedId : ""}
               onChange={(e) => setFelder((p) => ({ ...p, mitgliedId: e.target.value }))}
               className={inputClass}
               title="Wer hat bezahlt?"
