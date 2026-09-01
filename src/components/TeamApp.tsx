@@ -22,6 +22,7 @@ import { ALLE_BANDS_PARAM, PASSWORT_MIN_LAENGE } from "@/lib/constants";
 import { SetlisteBuilder } from "@/components/SetlisteBuilder";
 import { ProduktionListe } from "@/components/ProduktionListe";
 import { MerchListe } from "@/components/MerchListe";
+import { TeamBelege } from "@/components/TeamBelege";
 import { KalenderMonatsView } from "@/components/KalenderMonatsView";
 import { KalenderJahresView } from "@/components/KalenderJahresView";
 import { TermineManager } from "@/components/TermineManager";
@@ -43,7 +44,7 @@ import type {
 import type { SetlisteMitSongs } from "@/lib/queries";
 import type { ProberaumTermin } from "@/lib/proberaumKalender";
 
-type TeamTab = "dashboard" | "kalender" | "setliste" | "produktion" | "merch";
+type TeamTab = "dashboard" | "kalender" | "setliste" | "produktion" | "merch" | "belege";
 
 function heuteAlsIsoDatum(): string {
   const heute = new Date();
@@ -64,6 +65,15 @@ function formatTerminDatum(datum: string): string {
   const [jj, mm, tt] = datum.split("-").map(Number);
   const wochentag = WOCHENTAGE_KURZ[new Date(jj, mm - 1, tt).getDay()];
   return `${wochentag}, ${String(tt).padStart(2, "0")}.${String(mm).padStart(2, "0")}.${jj}`;
+}
+
+function BelegIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21V3Z" />
+      <path d="M10 8h4M10 12h4" />
+    </svg>
+  );
 }
 
 function HomeIcon() {
@@ -1193,6 +1203,14 @@ export function TeamApp({
         </div>
       )}
 
+      {aktiverTab === "belege" && identitaet && (
+        <TeamBelege
+          bandId={bandId}
+          mitgliedId={identitaet.mitgliedId}
+          mitgliedName={identitaet.name}
+        />
+      )}
+
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-md">
           {(
@@ -1202,6 +1220,7 @@ export function TeamApp({
               { tab: "setliste" as const, label: "Setliste", icon: <SetlisteIcon /> },
               { tab: "produktion" as const, label: "Prod.", icon: <ProduktionIcon /> },
               { tab: "merch" as const, label: "Merch", icon: <MerchIcon /> },
+              { tab: "belege" as const, label: "Belege", icon: <BelegIcon /> },
             ]
           ).map((item) => (
             <Link

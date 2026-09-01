@@ -70,6 +70,17 @@ export type AngebotPosition = {
 
 export type AngebotStatus = "entwurf" | "versendet" | "angenommen" | "abgelehnt";
 
+export type RechnungStatus = "entwurf" | "versendet" | "bezahlt" | "storniert";
+
+export type BelegKategorie =
+  | "fahrt"
+  | "technik"
+  | "proberaum"
+  | "merch_einkauf"
+  | "gema"
+  | "verpflegung"
+  | "sonstiges";
+
 // Textfelder eines Angebots, für die es Bausteine gibt.
 export type AngebotBausteinFeld =
   | "einleitung"
@@ -460,6 +471,82 @@ export interface Database {
           },
         ];
       };
+      rechnungen: {
+        Row: {
+          id: string;
+          band_id: string;
+          venue_id: string | null;
+          angebot_id: string | null;
+          storno_von: string | null;
+          nummer: string;
+          datum: string;
+          leistungsdatum: string | null;
+          faellig_am: string | null;
+          bezahlt_am: string | null;
+          empfaenger_name: string;
+          empfaenger_ansprechpartner: string | null;
+          empfaenger_strasse: string | null;
+          empfaenger_plz: string | null;
+          empfaenger_ort: string | null;
+          titel: string;
+          einleitung: string | null;
+          positionen: AngebotPosition[];
+          ust_satz: number;
+          zahlungsbedingungen: string | null;
+          nachbemerkung: string | null;
+          status: RechnungStatus;
+          pdf_pfad: string | null;
+          pdf_dateiname: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["rechnungen"]["Row"]> & {
+          band_id: string;
+          nummer: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["rechnungen"]["Row"]>;
+        Relationships: [];
+      };
+      belege: {
+        Row: {
+          id: string;
+          band_id: string;
+          datum: string;
+          betrag: number;
+          haendler: string | null;
+          beschreibung: string | null;
+          kategorie: BelegKategorie;
+          mitglied_id: string | null;
+          mitglied_name: string | null;
+          erstattet_am: string | null;
+          datei_pfad: string | null;
+          datei_typ: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["belege"]["Row"]> & {
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["belege"]["Row"]>;
+        Relationships: [];
+      };
+      gagen_anteile: {
+        Row: {
+          id: string;
+          band_id: string;
+          rechnung_id: string;
+          mitglied_id: string | null;
+          mitglied_name: string;
+          betrag: number;
+          ausgezahlt_am: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["gagen_anteile"]["Row"]> & {
+          band_id: string;
+          rechnung_id: string;
+          mitglied_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["gagen_anteile"]["Row"]>;
+        Relationships: [];
+      };
       nutzer_freigaben: {
         Row: {
           user_id: string;
@@ -473,6 +560,8 @@ export interface Database {
           setlisten: boolean;
           merch: boolean;
           produktion: boolean;
+          buchhaltung_ansehen: boolean;
+          buchhaltung_bearbeiten: boolean;
           erstellt_am: string;
           aktualisiert_am: string;
         };

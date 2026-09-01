@@ -12,6 +12,8 @@ export const FREIGABE_BEREICHE = [
   "setlisten",
   "merch",
   "produktion",
+  "buchhaltung_ansehen",
+  "buchhaltung_bearbeiten",
 ] as const;
 
 export type FreigabeBereich = (typeof FREIGABE_BEREICHE)[number];
@@ -26,4 +28,6 @@ export const BEREICH_LABELS: Record<FreigabeBereich, string> = {
   setlisten: "Setlisten",
   merch: "Merch",
   produktion: "Produktion",
+  buchhaltung_ansehen: "Buchhaltung ansehen",
+  buchhaltung_bearbeiten: "Buchhaltung bearbeiten",
 };

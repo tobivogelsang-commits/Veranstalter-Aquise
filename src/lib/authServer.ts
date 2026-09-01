@@ -130,6 +130,7 @@ const BEREICH_ROUTEN: [FreigabeBereich, string][] = [
   ["akquise", "/"],
   ["emails_lesen", "/emails"],
   ["angebote_ansehen", "/angebote"],
+  ["buchhaltung_ansehen", "/buchhaltung"],
   ["kalender", "/kalender"],
   ["setlisten", "/setliste"],
   ["merch", "/merch"],

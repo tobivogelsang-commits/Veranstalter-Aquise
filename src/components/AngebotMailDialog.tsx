@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HtmlEditor } from "@/components/HtmlEditor";
 import { ladeEmailAnhangHoch, sendeEmail } from "@/lib/emailActions";
 import { setzeAngebotStatus } from "@/lib/angebotActions";
+import { setzeRechnungStatus } from "@/lib/rechnungActions";
 import type { EmailAnhang } from "@/lib/database.types";
 import type { BandDokumentTypMitUrl, EmailVorlage } from "@/lib/types";
 
@@ -29,13 +30,21 @@ function ersetzePlatzhalter(
 // Ohne Vorlage: höfliche Standardanrede. Ist ein Ansprechpartner bekannt, wird
 // er namentlich angesprochen - die Anrede (Herr/Frau) lässt sich nicht sicher
 // ableiten, deshalb bleibt sie zum Anpassen stehen.
-function standardText(ansprechpartner: string | null, bandName: string): string {
+function standardText(
+  ansprechpartner: string | null,
+  bandName: string,
+  modus: "angebot" | "rechnung"
+): string {
   const anrede = ansprechpartner
     ? `Sehr geehrte/r Frau/Herr ${ansprechpartner},`
     : "Sehr geehrte Damen und Herren,";
+  const kern =
+    modus === "rechnung"
+      ? "<p>vielen Dank für die schöne Zusammenarbeit. Im Anhang finden Sie unsere Rechnung.</p>"
+      : "<p>vielen Dank für Ihr Interesse. Im Anhang finden Sie unser Angebot.</p>";
   return [
     `<p>${anrede}</p>`,
-    "<p>vielen Dank für Ihr Interesse. Im Anhang finden Sie unser Angebot.</p>",
+    kern,
     "<p>Für Rückfragen stehen wir gerne zur Verfügung.</p>",
     `<p>Mit freundlichen Grüßen<br>${bandName}</p>`,
   ].join("");
@@ -45,6 +54,7 @@ function standardText(ansprechpartner: string | null, bandName: string): string 
 // Anrede sind vorbereitet, das PDF hängt automatisch an. Nach dem Senden wird
 // das Angebot auf "Versendet" gesetzt.
 export function AngebotMailDialog({
+  modus = "angebot",
   angebotId,
   bandId,
   bandName,
@@ -62,6 +72,9 @@ export function AngebotMailDialog({
   onGesendet,
   onSchliessen,
 }: {
+  // "rechnung": angebotId ist dann die Rechnungs-ID, nach dem Senden wird die
+  // Rechnung (statt des Angebots) auf "versendet" gesetzt.
+  modus?: "angebot" | "rechnung";
   angebotId: string;
   bandId: string;
   bandName: string;
@@ -82,7 +95,7 @@ export function AngebotMailDialog({
 }) {
   const [an, setAn] = useState(emailVorschlag ?? "");
   const [betreff, setBetreff] = useState(`${titel} ${nummer} – ${bandName}`);
-  const [inhalt, setInhalt] = useState(() => standardText(ansprechpartner, bandName));
+  const [inhalt, setInhalt] = useState(() => standardText(ansprechpartner, bandName, modus));
   // Der Editor übernimmt seinen Startwert nur beim Mounten - für einen
   // Vorlagenwechsel erzwingt ein neuer Schlüssel den Neuaufbau.
   const [editorKey, setEditorKey] = useState(0);
@@ -155,7 +168,11 @@ export function AngebotMailDialog({
       return;
     }
 
-    await setzeAngebotStatus(angebotId, "versendet");
+    if (modus === "rechnung") {
+      await setzeRechnungStatus(angebotId, "versendet");
+    } else {
+      await setzeAngebotStatus(angebotId, "versendet");
+    }
     setLaeuft(false);
     onGesendet();
   }
@@ -171,7 +188,7 @@ export function AngebotMailDialog({
       >
         <div className="mb-3 flex items-start justify-between">
           <h2 className="text-base font-semibold text-slate-900">
-            Angebot per E-Mail senden
+            {modus === "rechnung" ? "Rechnung" : "Angebot"} per E-Mail senden
           </h2>
           <button
             type="button"

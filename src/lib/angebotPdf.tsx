@@ -10,7 +10,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import { berechneAngebotSummen, formatDatumLang, formatEuro } from "@/lib/angebotHelpers";
-import type { Angebot, Band } from "@/lib/types";
+import type { Angebot, Band, Rechnung } from "@/lib/types";
 
 // Angebots-PDF: Briefkopf mit Absender und Logo rechts, Empfängeranschrift,
 // Einleitung, Positionen mit Summen, Bedingungen und ein Fuß mit Band- und
@@ -134,15 +134,19 @@ async function ladeLogo(logoUrl: string | null): Promise<LogoQuelle | null> {
   }
 }
 
+// Rendert Angebote UND Rechnungen: Beide teilen Briefkopf, Empfaenger,
+// Positionstabelle und Fuss - eine Rechnung bringt zusaetzlich Leistungsdatum
+// und Faelligkeit mit (statt "Gueltig bis").
 export function AngebotDokument({
   angebot,
   band,
   logo,
 }: {
-  angebot: Angebot;
+  angebot: Angebot | Rechnung;
   band: Band;
   logo: LogoQuelle | null;
 }) {
+  const rechnung = "leistungsdatum" in angebot ? angebot : null;
   const summen = berechneAngebotSummen(angebot.positionen, angebot.ust_satz);
   const absenderName = band.absender_name?.trim() || band.name;
   const absenderZeile = [
@@ -197,14 +201,28 @@ export function AngebotDokument({
 
           <View style={stil.metaBlock}>
             <View style={stil.metaZeile}>
-              <Text style={stil.metaLabel}>Angebotsnummer</Text>
+              <Text style={stil.metaLabel}>
+                {rechnung ? "Rechnungsnummer" : "Angebotsnummer"}
+              </Text>
               <Text>{angebot.nummer}</Text>
             </View>
             <View style={stil.metaZeile}>
               <Text style={stil.metaLabel}>Datum</Text>
               <Text>{formatDatumLang(angebot.datum)}</Text>
             </View>
-            {angebot.gueltig_bis && (
+            {rechnung?.leistungsdatum && (
+              <View style={stil.metaZeile}>
+                <Text style={stil.metaLabel}>Leistungsdatum</Text>
+                <Text>{formatDatumLang(rechnung.leistungsdatum)}</Text>
+              </View>
+            )}
+            {rechnung?.faellig_am && (
+              <View style={stil.metaZeile}>
+                <Text style={stil.metaLabel}>Zahlbar bis</Text>
+                <Text>{formatDatumLang(rechnung.faellig_am)}</Text>
+              </View>
+            )}
+            {!rechnung && "gueltig_bis" in angebot && angebot.gueltig_bis && (
               <View style={stil.metaZeile}>
                 <Text style={stil.metaLabel}>Gültig bis</Text>
                 <Text>{formatDatumLang(angebot.gueltig_bis)}</Text>
@@ -337,5 +355,16 @@ export async function erzeugeAngebotPdf(
   const logo = await ladeLogo(logoUrl);
   return renderToBuffer(
     <AngebotDokument angebot={angebot} band={band} logo={logo} />
+  );
+}
+
+export async function erzeugeRechnungPdf(
+  rechnung: Rechnung,
+  band: Band,
+  logoUrl: string | null
+): Promise<Buffer> {
+  const logo = await ladeLogo(logoUrl);
+  return renderToBuffer(
+    <AngebotDokument angebot={rechnung} band={band} logo={logo} />
   );
 }

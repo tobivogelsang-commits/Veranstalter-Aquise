@@ -85,7 +85,7 @@ export default async function TeamPage({
 
   const kalenderEintraege = getKalenderEintraege(venues, bandId);
   const aktiverTab =
-    tab === "kalender" || tab === "setliste" || tab === "produktion" || tab === "merch"
+    tab === "kalender" || tab === "setliste" || tab === "produktion" || tab === "merch" || tab === "belege"
       ? tab
       : "dashboard";
   const logoUrl = await getBandLogoUrl(bandId);

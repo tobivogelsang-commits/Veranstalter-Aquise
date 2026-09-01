@@ -12,6 +12,7 @@ const LINK_BEREICHE: Record<string, FreigabeBereich> = {
   "/kalender": "kalender",
   "/emails": "emails_lesen",
   "/angebote": "angebote_ansehen",
+  "/buchhaltung": "buchhaltung_ansehen",
   "/setliste": "setlisten",
   "/produktion": "produktion",
   "/merch": "merch",

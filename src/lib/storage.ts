@@ -14,6 +14,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 //   hinein, die ohnehin an Veranstalter rausgehen (Logos, Pressefotos).
 export const ANHANG_BUCKET = "email-anhaenge";
 export const BILD_BUCKET = "mail-bilder";
+// Privater Bucket für Beleg-Fotos/-PDFs der Buchhaltung (Migration 0045).
+// Belege unterliegen der Aufbewahrungspflicht und werden nie gelöscht.
+export const BELEG_BUCKET = "belege";
 
 const GUELTIG_SEKUNDEN = 60 * 60;
 

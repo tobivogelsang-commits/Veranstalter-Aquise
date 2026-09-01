@@ -38,6 +38,9 @@ import type {
   VenueBandProtokoll,
   VenueEmailMitBand,
   VenueWithRelations,
+  RechnungMitBand,
+  Beleg,
+  GagenAnteil,
 } from "@/lib/types";
 
 export async function getBands(): Promise<Band[]> {
@@ -181,6 +184,61 @@ export async function getAngebot(angebotId: string): Promise<AngebotMitBand | nu
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data as unknown as AngebotMitBand | null;
+}
+
+// --- Buchhaltung -----------------------------------------------------------
+
+export async function getRechnungen(): Promise<RechnungMitBand[]> {
+  const { data, error } = await supabase
+    .from("rechnungen")
+    .select("*, band:bands(id, name)")
+    .order("nummer", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as RechnungMitBand[];
+}
+
+export async function getRechnung(rechnungId: string): Promise<RechnungMitBand | null> {
+  const { data, error } = await supabase
+    .from("rechnungen")
+    .select("*, band:bands(id, name)")
+    .eq("id", rechnungId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as unknown as RechnungMitBand | null;
+}
+
+export async function getBelege(): Promise<Beleg[]> {
+  const { data, error } = await supabase
+    .from("belege")
+    .select("*")
+    .order("datum", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getGagenAnteile(rechnungId: string): Promise<GagenAnteil[]> {
+  const { data, error } = await supabase
+    .from("gagen_anteile")
+    .select("*")
+    .eq("rechnung_id", rechnungId)
+    .order("mitglied_name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Alle noch nicht ausgezahlten Gagen-Anteile (fuer die Uebersicht).
+export async function getOffeneGagenAnteile(): Promise<
+  (GagenAnteil & { rechnung: { nummer: string; titel: string } })[]
+> {
+  const { data, error } = await supabase
+    .from("gagen_anteile")
+    .select("*, rechnung:rechnungen(nummer, titel)")
+    .is("ausgezahlt_am", null)
+    .order("erstellt_am");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as (GagenAnteil & {
+    rechnung: { nummer: string; titel: string };
+  })[];
 }
 
 // Angebote zu einem Veranstalter (für die Veranstalter-Seite und den

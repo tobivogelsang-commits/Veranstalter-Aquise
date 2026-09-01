@@ -57,9 +57,13 @@ export type TerminPlanEintrag =
 export type TerminSongsProVorkommen = Record<string, TerminPlanEintrag[]>;
 
 export type Angebot = Database["public"]["Tables"]["angebote"]["Row"];
+export type Rechnung = Database["public"]["Tables"]["rechnungen"]["Row"];
+export type Beleg = Database["public"]["Tables"]["belege"]["Row"];
+export type GagenAnteil = Database["public"]["Tables"]["gagen_anteile"]["Row"];
 
 // Angebot inkl. Bandname für Übersichtslisten.
 export type AngebotMitBand = Angebot & { band: { id: string; name: string } };
+export type RechnungMitBand = Rechnung & { band: { id: string; name: string } };
 
 export type AngebotBaustein =
   Database["public"]["Tables"]["angebot_bausteine"]["Row"];

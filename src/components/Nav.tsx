@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/kalender", label: "Kalender" },
   { href: "/emails", label: "E-Mails" },
   { href: "/angebote", label: "Angebote" },
+  { href: "/buchhaltung", label: "Buchhaltung" },
   { href: "/setliste", label: "Setliste" },
   { href: "/produktion", label: "Prod." },
   { href: "/merch", label: "Merch" },

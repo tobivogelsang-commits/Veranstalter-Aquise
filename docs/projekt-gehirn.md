@@ -57,6 +57,15 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Produktion:** eigener Tab/Bereich.
 - **Team-App:** Push (Web-Push/VAPID), Dunkelmodus, Home-Screen-Icon,
   Urlaube/Abwesenheiten, Mitgliederverwaltung, Passwort-Anmeldung.
+- **Buchhaltung (Migration 0045):** Rechnungen aus Angeboten ("In Rechnung
+  umwandeln") oder frei, Nummern RE-<Jahr>-<lfd> lückenlos pro Band, ab
+  "versendet" unveränderbar (GoBD, Korrektur per Stornorechnung), Status
+  offen/bezahlt/überfällig, PDF + Mailversand wie Angebote; Belege mit
+  Foto/PDF (privater Bucket `belege`, nie löschen) + KI-Auslesen
+  (Betrag/Datum/Händler), Auslagen je Mitglied mit Erstattungs-Status,
+  Team-App-Tab "Belege"; Gagenverteilung pro bezahlter Rechnung (gleich
+  vorverteilt, anpassbar, ausgezahlt-Haken); Jahres-Export CSV + Belege-ZIP;
+  eigener Freigabe-Bereich ansehen/bearbeiten.
 - **Nutzer & Freigaben (Desktop):** Admin lädt per Einmal-Link ein (7 Tage,
   gehasht in DB), Nutzer legt Benutzername + Passwort an, Login per
   Benutzername ODER E-Mail; Freigabe-Matrix pro Nutzer/Bereich in den
@@ -95,7 +104,7 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Vercel** (Frontend/API) + **Supabase** (DB, ein Projekt für alle Umgebungen).
 - **Node 22.x** nötig.
 - **Migrationen manuell** in Supabase ausführen, bevor abhängiger Code live geht
-  (`supabase/migrations/`, aktuell bis 0044).
+  (`supabase/migrations/`, aktuell bis 0045).
 - **Mail-Passwörter verschlüsselt** (AES-256-GCM, `mailKrypto.ts`); Schlüssel
   `MAIL_VERSCHLUESSELUNG_KEY` in .env.local + Vercel-Env (identisch!). Bei
   Schlüsselverlust: neu erzeugen, Mail-Passwörter in den Einstellungen neu
