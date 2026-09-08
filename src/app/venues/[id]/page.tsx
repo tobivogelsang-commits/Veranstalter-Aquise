@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { VenueForm } from "@/components/VenueForm";
+import { SperrlistePanel } from "@/components/SperrlistePanel";
+import { holeSperrenFuerVenue } from "@/lib/sperrlisteActions";
 import {
   getBandDokumentTypen,
   getBandMaterialien,
@@ -57,6 +59,8 @@ export default async function VenueDetailPage({
     getAngeboteFuerVenue(id),
   ]);
 
+  const sperren = await holeSperrenFuerVenue(id);
+
   const vorlagenProBand: Record<string, EmailVorlage[]> = {};
   const dokumentTypenProBand: Record<string, BandDokumentTypMitUrl[]> = {};
   const materialienProBand: Record<string, BandMaterial[]> = {};
@@ -73,6 +77,16 @@ export default async function VenueDetailPage({
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{venue.name}</h1>
       </div>
+      {/* Ganz oben, noch vor dem Formular: Wer hier landet, soll den
+          Werbewiderspruch sehen, BEVOR er eine Mail tippt. */}
+      <SperrlistePanel
+        venueId={id}
+        venueName={venue.name}
+        venueOrt={venue.ort}
+        venueEmail={venue.email}
+        bands={bands}
+        sperren={sperren}
+      />
       <VenueForm
         bands={bands}
         venue={venue}

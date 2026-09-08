@@ -47,12 +47,19 @@ export default async function VenuesPage({
             {gefiltert.length} von {venues.length} Veranstaltern
           </p>
         </div>
-        <Link
-          href="/venues/new"
-          className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          + Veranstalter anlegen
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Bewusst nicht in der Hauptnavigation: Die Sperrliste wird selten
+              gebraucht und gehoert thematisch hierher. */}
+          <Link href="/sperrliste" className="text-sm text-slate-600 underline">
+            Sperrliste
+          </Link>
+          <Link
+            href="/venues/new"
+            className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            + Veranstalter anlegen
+          </Link>
+        </div>
       </div>
 
       <VenueFilters regionen={regionen} />

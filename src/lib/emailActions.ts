@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 // E-Mail-Funktionen sind reine Inhaber-Aktionen (siehe requireAnmeldung()).
 import { supabaseAdmin, supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { requireAdmin, requireFreigabe } from "@/lib/authServer";
+import { istGesperrt } from "@/lib/sperrliste";
 import {
   entschluesselePasswort,
   istVerschluesselt,
@@ -283,6 +284,18 @@ export async function sendeEmail(
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   await requireFreigabe("emails_senden");
   if (!an.trim()) return { ok: false, fehler: "Empfänger fehlt." };
+
+  // Werbewiderspruch beachten (DSGVO Art. 21). Bewusst HIER und nicht erst in
+  // der Oberflaeche: Mails gehen auch aus Vorlagen, Angeboten und Nachfass-
+  // Aktionen raus - eine Sperre, die nur im Formular sitzt, waere loechrig.
+  const gesperrt = await istGesperrt(bandId, { email: an });
+  if (gesperrt) {
+    return {
+      ok: false,
+      fehler:
+        "Dieser Kontakt hat der Werbung widersprochen und steht auf der Sperrliste. Es wird keine Mail gesendet.",
+    };
+  }
 
   const { data: konto, error } = await supabaseAdmin
     .from("band_email_konten")
