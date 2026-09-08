@@ -12,7 +12,7 @@ Sitzung (und jeden Menschen) lesbar. Es ist die „Landkarte"; Details stehen in
 > Pflege: Wenn ein Feature fertig ist oder eine wichtige Entscheidung fällt,
 > hier **eine Zeile** ergänzen. Kurz halten — dies ist ein Index, kein Roman.
 
-Letzte Aktualisierung: 2026-08-22
+Letzte Aktualisierung: 2026-09-08
 
 ---
 
@@ -54,6 +54,10 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Merch-Lager:** Bestand, Nachbestellung, Vorlagen, Inventur (Desktop +
   Team-App-Tab).
 - **Angebote:** Editor, PDF, Mail-Versand, Pipeline-Status, Textbausteine.
+- **Sperrliste (Migration 0046):** Werbewidersprüche (DSGVO Art. 21) **pro
+  Band**; Erkennung über E-Mail sowie Name+Ort. Wirkt in `sendeEmail` (Versand
+  bricht ab) und in der Recherche (gesperrte Band wird nicht mehr zugeordnet).
+  Kasten auf der Veranstalter-Seite + Übersicht unter `/sperrliste`.
 - **Produktion:** eigener Tab/Bereich.
 - **Team-App:** Push (Web-Push/VAPID), Dunkelmodus, Home-Screen-Icon,
   Urlaube/Abwesenheiten, Mitgliederverwaltung, Passwort-Anmeldung.
@@ -90,6 +94,11 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Protokoll bleibt lokal:** Migrationen werden **manuell** im Supabase-SQL-
   Editor ausgeführt (ein gemeinsames Projekt für lokal + Vercel).
 - **Grundsatz UI:** keine Zahlen/Platzhalter anzeigen, wo nichts eingetragen ist.
+- **Sperrliste gilt pro Band, nicht global** (Entscheidung 2026-09-08): Ein
+  Widerspruch richtet sich gegen die Band, der er gegenüber geäußert wurde. Beim
+  Kontakt wird aber angezeigt, wenn eine ANDERE Band dort abgewiesen wurde — so
+  fragt man bewusst an statt ahnungslos. Der Veranstalter wird NICHT gelöscht:
+  ohne Nachweis ließe sich der Widerspruch weder belegen noch künftig beachten.
 - **Freigaben-System (Migration 0043, 2026-08-22):** Desktop-Nutzer haben
   einzelne Freigaben pro Bereich (`nutzer_freigaben`, fail closed); Admin =
   `app_metadata.rolle = "admin"` (nur via Dashboard/service_role setzbar).
@@ -104,7 +113,7 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 - **Vercel** (Frontend/API) + **Supabase** (DB, ein Projekt für alle Umgebungen).
 - **Node 22.x** nötig.
 - **Migrationen manuell** in Supabase ausführen, bevor abhängiger Code live geht
-  (`supabase/migrations/`, aktuell bis 0045).
+  (`supabase/migrations/`, aktuell bis 0046).
 - **Mail-Passwörter verschlüsselt** (AES-256-GCM, `mailKrypto.ts`); Schlüssel
   `MAIL_VERSCHLUESSELUNG_KEY` in .env.local + Vercel-Env (identisch!). Bei
   Schlüsselverlust: neu erzeugen, Mail-Passwörter in den Einstellungen neu
@@ -115,14 +124,20 @@ Setup, Env-Variablen und Datenmodell: siehe `README.md`.
 
 ## Offene Punkte / Ideen
 
-- Team-App-Home-Screen-Icon auch für die **zweite Band** (bisher nur Trash Back).
-- **Sicherheit/DSGVO-Reste:** Sperrliste, DSGVO-Papierkram (Mail-Passwörter
-  sind seit 2026-08-22 verschlüsselt).
+- **Team-App nach 0044 (dringend):** 7 von 8 Mitgliedern haben noch kein
+  Passwort und kommen ohne Zugangslink nicht mehr hinein (Einstellungen →
+  Band → Team-App → „Zugangslink"). Betrifft beide Bands.
+- **DSGVO-Papierkram** (kein Code): Datenschutzhinweis in der Akquise-Mail,
+  AVV mit den Dienstleistern, EU-Region prüfen, Löschkonzept. Mail-Passwörter
+  sind seit 2026-08-22 verschlüsselt, die Sperrliste seit 2026-09-08 da.
 - **Suchtool** soll zusätzlich Plattenfirmen abdecken (noch nicht gescoped).
-- **Team-App nach 0044:** 7 Bestandsmitglieder ohne Passwort brauchen je
-  einen Zugangslink (Einstellungen → Band → Team-App → "Zugangslink").
-- `bands.registrierung_offen` ist obsolet (kein Code liest sie) — bei
-  Gelegenheit per Migration entfernen.
+- `bands.registrierung_offen` ist obsolet — geprüft 2026-09-07: nur noch in
+  `database.types.ts` und Migration 0044; kein Code liest sie. Bei Gelegenheit
+  per Migration entfernen.
+
+Erledigt (Stand 2026-09-07, geprüft): Home-Screen-Icon für BEIDE Bands — das
+Manifest nutzt `getBandLogoUrl` (DB-Logo, sonst statisches Icon); Backseat
+Alley hat ein Logo in der DB, Trash Back das Fallback.
 
 ---
 

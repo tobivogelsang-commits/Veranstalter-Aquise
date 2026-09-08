@@ -750,6 +750,26 @@ export interface Database {
           },
         ];
       };
+      // Werbewiderspruch (DSGVO Art. 21) - pro Band. email/name/ort sind
+      // kleingeschrieben und ohne Rand-Leerzeichen gespeichert, damit der
+      // Vergleich direkt darueber laufen kann.
+      sperrliste: {
+        Row: {
+          id: string;
+          band_id: string;
+          venue_id: string | null;
+          email: string | null;
+          name: string | null;
+          ort: string | null;
+          grund: string | null;
+          erstellt_am: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["sperrliste"]["Row"]> & {
+          band_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sperrliste"]["Row"]>;
+        Relationships: [];
+      };
       produktionen: {
         Row: {
           id: string;

@@ -13,6 +13,7 @@ import { ALLE_BANDS_PARAM, EVENT_TYPEN } from "@/lib/constants";
 import { extrahiereStrasse } from "@/lib/adresse";
 import { loeseGigAnfrageAus, schliesseOffeneGigAnfrage } from "@/lib/teamPush";
 import { setzeStatusVorwaerts } from "@/lib/statusActions";
+import { findeSperren } from "@/lib/sperrliste";
 import type { GigAnsprechpartner, Status, VenueTyp } from "@/lib/database.types";
 
 function str(formData: FormData, key: string): string | null {
@@ -927,7 +928,16 @@ export type VenueAusRechercheInput = {
 };
 
 export type VenueAusRechercheResult =
-  | { ok: true; venueId: string; bereitsVorhanden: boolean }
+  // sperrhinweis steht, wenn zu diesem Kontakt ein Werbewiderspruch vorliegt -
+  // fuer die eigene oder eine andere Band. Der Treffer wird trotzdem angelegt
+  // (er kann ja weiterhin ein gebuchter Auftritt werden), aber NICHT
+  // automatisch der Band zugeordnet, die gesperrt ist.
+  | {
+      ok: true;
+      venueId: string;
+      bereitsVorhanden: boolean;
+      sperrhinweis?: string;
+    }
   | { ok: false; fehler: string };
 
 // Verknüpft einen Veranstalter mit Status "neu" mit der Band, die beim
@@ -938,9 +948,17 @@ export type VenueAusRechercheResult =
 // auf der Detailseite treffen soll) - die Zuordnung bleibt dann komplett
 // manuell. Bestehende Zuordnungen werden nicht überschrieben (z. B. bei einem
 // schon vorhandenen Treffer).
-async function verknuepfeMitAktuellemBand(venueId: string, bandFilter: string) {
-  if (bandFilter === ALLE_BANDS_PARAM) return;
-  const bandIds = [bandFilter];
+// gesperrteBands: Bands mit Werbewiderspruch zu diesem Kontakt - sie werden
+// NICHT verknuepft, sonst stuende der Kontakt wieder auf "neu" in ihrer
+// Pipeline. Gibt zurueck, ob eine Verknuepfung entstanden ist.
+async function verknuepfeMitAktuellemBand(
+  venueId: string,
+  bandFilter: string,
+  gesperrteBands: Set<string> = new Set()
+): Promise<boolean> {
+  if (bandFilter === ALLE_BANDS_PARAM) return false;
+  const bandIds = [bandFilter].filter((id) => !gesperrteBands.has(id));
+  let verknuepft = false;
 
   for (const bandId of bandIds) {
     const { data: bestehende } = await supabase
@@ -956,7 +974,9 @@ async function verknuepfeMitAktuellemBand(venueId: string, bandFilter: string) {
       band_id: bandId,
       status: "neu",
     });
+    verknuepft = true;
   }
+  return verknuepft;
 }
 
 // Legt einen Recherche-Treffer als neuen Veranstalter an und verknüpft ihn
@@ -1003,13 +1023,37 @@ export async function legeVenueAusRechercheAn(
     bereitsVorhanden = false;
   }
 
-  await verknuepfeMitAktuellemBand(venueId, input.bandFilter);
+  // Werbewidersprueche pruefen, BEVOR der Treffer einer Band zugeordnet wird:
+  // Sonst landet ein Kontakt, der ausdruecklich nicht mehr angeschrieben werden
+  // will, wieder auf "neu" in der Pipeline - genau der Fall, den die Sperrliste
+  // verhindern soll. Bei der Recherche gibt es meist noch keine Mailadresse,
+  // daher der Abgleich ueber Name und Ort.
+  const sperren = await findeSperren({ name: input.name, ort: input.ort });
+  const gesperrteBands = new Set(sperren.map((e) => e.band_id));
+
+  const zugeordnet = await verknuepfeMitAktuellemBand(
+    venueId,
+    input.bandFilter,
+    gesperrteBands
+  );
+
+  let sperrhinweis: string | undefined;
+  if (sperren.length > 0) {
+    const { data: bands } = await supabase.from("bands").select("id, name");
+    const namen = [...gesperrteBands]
+      .map((id) => bands?.find((b) => b.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
+    sperrhinweis = zugeordnet
+      ? `Achtung: ${namen} wurde hier bereits abgewiesen (Werbewiderspruch).`
+      : `Nicht zugeordnet - Werbewiderspruch für ${namen}.`;
+  }
 
   revalidatePath("/");
   revalidatePath("/venues");
   revalidatePath("/pipeline");
 
-  return { ok: true, venueId, bereitsVorhanden };
+  return { ok: true, venueId, bereitsVorhanden, sperrhinweis };
 }
 
 // Wird vom Kanban-Board beim Drag & Drop aufgerufen, um nur den Status einer
